@@ -1,0 +1,19 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-body">
+      <form action='?c=system&a=editFile&file={{$file}}&charset={{$charset}}' method='POST' class="ep-form">
+        <div class="form-group">
+          <label>文件:{{$file}} 编码:{{$charset}}</label>
+    <div class="controls">
+    <textarea name='content' rows='20' style="width:100%;font-family:var(--font-mono,monospace);">{{$content}}</textarea>
+  </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn"><i data-lucide="edit"></i> 修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

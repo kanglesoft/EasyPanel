@@ -1,0 +1,60 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+function all_check()
+{ 
+	$(":input").each(function(index,dom){
+		if (this.name=='vh') {		
+			if($(this).attr('checked') =='checked') {
+				$(this).attr('checked',false);
+			} else {
+				$(this).attr('checked',true);
+			}
+		}
+	});
+}
+function migrate_product()
+{
+	$(":checked").each(function(index,dom){
+		if(this.name == 'vh') {
+			var url = '?c=migrate&a=migrateProduct&id=' + this.value;
+			var p = this.value;
+			$.getJSON(url,function(ret){
+				var code = ret['code'];
+				var msg = ret['out'];
+				$('#status').append('<p>产品ID ' + p + ' ' + msg+'</p>');
+							
+			});
+		}
+	});
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>数据迁移 — 请选择要迁移的虚拟主机产品</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table" style="margin-bottom:16px;">
+        {{foreach from=$products item=row}}
+        <tr><td><input name='vh' type='checkbox' value="{{$row.id}}">{{$row.product_name}}</td></tr>
+        {{foreachelse}}
+        <tr><td>
+          <div class="ep-empty">
+            <div class="ep-empty-icon"><i data-lucide="server"></i></div>
+            <h4>暂无数据</h4>
+            <p>当前没有可迁移的虚拟主机产品。</p>
+          </div>
+        </td></tr>
+        {{/foreach}}
+      </table>
+      </div>
+      <div style="margin-bottom:12px;">
+        <button type='button' class="btn btn-sm btn-secondary" onclick="all_check();"><i data-lucide="check-square"></i> 全选/反选</button>
+        <button type='button' class="btn btn-sm" onclick="migrate_product();"><i data-lucide="play"></i> 开始迁移</button>
+      </div>
+      <div id='progress'></div>
+      <div id='out'></div>
+      <div id='status'></div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

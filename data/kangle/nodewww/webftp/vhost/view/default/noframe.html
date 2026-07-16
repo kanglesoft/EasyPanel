@@ -1,0 +1,12 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-body ep-text-center ep-p-6">
+      <div class="ep-alert ep-alert-warning ep-justify-center">
+        {{$msg|default:'当前页面需要在框架内打开，或者您的浏览器不支持框架。'}}
+      </div>
+      <a href="?c=index&amp;a=main" class="btn ep-mt-6"><i data-lucide="arrow-left"></i> 返回首页</a>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

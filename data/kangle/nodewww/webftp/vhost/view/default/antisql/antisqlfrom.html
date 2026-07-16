@@ -1,0 +1,68 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/antisql.js'></script>
+
+<div class='piao_msg' align='center' style="display: none" id='msg'></div>
+<div class='piao_msg' style="display: none" id='msg'></div>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>参数过滤</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=antisql&a=antisqlAdd' method='post' name='form' class="ep-form">
+        <div class="form-group">
+          <label>过滤开关:</label>
+          <div class="controls">
+            {{if $at==0}}
+            <a href="javascript:antisql_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:antisql_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>禁止参数值(正则):</label>
+          <div class="controls">
+            <input name='param_value' id='param' placeholder="参数值正则">
+            <span class="inline-item"><label>编码:</label><input name='charset' value='utf-8' id='charset'></span>
+            <a href='javascript:piao_msg();' class="ep-text-danger">帮助?</a>
+          </div>
+        </div>
+        <div class="form-group">
+          <label></label>
+          <div class="controls">
+            <input type='button' onclick='antisql_add();' value='提交' class="btn">
+          </div>
+        </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>过滤参数值</th>
+            <th>编码</th>
+            <th>过滤方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$sql item=row}}
+          <tr>
+            <td><a href="javascript:antisql_del({{$row.id}})">删除</a></td>
+            <td>{{$row.value}}</td>
+            <td>{{$row.charset}}</td>
+            <td>{{if $row.get==1}}get&nbsp;{{/if}}{{if $row.post==1}}post{{/if}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
+
+<script>
+  form.param_value.focus();
+</script>

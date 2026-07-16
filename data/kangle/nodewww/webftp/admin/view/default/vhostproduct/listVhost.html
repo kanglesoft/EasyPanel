@@ -1,0 +1,131 @@
+{{include file='common/head.html'}}
+<script type='text/javascript' src='{{$STATIC}}scripts/vhost.js?v=1'></script>
+<script type='text/javascript'>
+	var count = 1;
+	$(document).ready(function() {
+		form1.name.focus();
+	});
+</script>
+<style type='text/css'>
+.show_msg {
+	position: absolute;
+	border-radius: 15px;
+	background-color: #104E8B;
+	color: red;
+	text-align: center;
+	padding-top: 10px;
+}
+</style>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="globe"></i> 所有网站</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-flex ep-justify-between ep-items-center ep-gap-2 ep-mb-4" style="flex-wrap:wrap;">
+        <div class="ep-flex ep-items-center ep-gap-2" style="flex-wrap:wrap;">
+          <form name='form1' action='?c=vhost&a=pageVhost' method='post' class="ep-search-form">
+            <label>用户名或域名:</label>
+            <input name='name' value='{{$name}}' placeholder="输入用户名或域名">
+            <button type='submit' class="btn btn-sm"><i data-lucide="search"></i> 搜索</button>
+          </form>
+          <div class="ep-search-form">
+            <label>选择显示:</label>
+            <select name='pagecount' onchange='set_pagecount(this.value)' style="width:70px;">
+              {{for $i=10;$i <= 60;$i++}} {{if $i%5==0}}
+              <option value='{{$i}}' {{if $page_count==$i}}selected{{/if}}>{{$i}}</option>
+              {{/if}} {{/for}}
+            </select>
+            <span>行</span>
+          </div>
+        </div>
+        <div class="ep-flex ep-items-center ep-gap-1" style="flex-wrap:wrap;">
+          <a href='javascript:select_all(1)' class="btn btn-sm btn-secondary">全选</a>
+          <a href='javascript:select_all(0)' class="btn btn-sm btn-secondary">反选</a>
+          <a href='javascript:del_checked()' class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+          <a href='javascript:sync_checked()' class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重建</a>
+          <a href='javascript:change_checked_status(1)' class="btn btn-sm btn-warning">暂停</a>
+          <a href='javascript:change_checked_status(0)' class="btn btn-sm btn-success">正常</a>
+          <span class="ep-text-danger" id="result"></span>
+        </div>
+      </div>
+      <div class="ep-pagination">
+        {{if $page>1}}
+        <a href='?c=vhost&a=pageVhost&page=0'>首页</a>
+        <a href='?c=vhost&a=pageVhost&page={{$page-1}}'>上一页</a>
+        {{else}}
+        <span>首页</span><span>上一页</span>
+        {{/if}}
+        {{if $page!=$total_page}}
+        <a href='?c=vhost&a=pageVhost&page={{$page+1}}'>下一页</a>
+        <a href='?c=vhost&a=pageVhost&page={{$total_page}}'>尾页</a>
+        {{else}}
+        <span>下一页</span><span>尾页</span>
+        {{/if}}
+        <span>{{$page}}/{{$total_page}}</span>
+        <span>共计{{$count}}</span>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>&nbsp;</th>
+              <th>网站名称</th>
+              <th>uid</th>
+              <th>空间大小</th>
+              <th>数据库</th>
+              <th>连接数</th>
+              <th>模块</th>
+              <th>创建时间</th>
+              <th>过期时间</th>
+              <th>空间类型</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>
+                <div class="btn-group">
+                  <a href="?c=product&a=sellForm&name={{$row.name}}&product=vhost&edit=1" class="btn btn-sm"><i data-lucide="settings"></i> 修改</a>
+                  <a href='javascript:changePw("{{$row.name}}")' class="btn btn-sm"><i data-lucide="key"></i> 密码</a>
+                  <a href='javascript:addMonth("{{$row.name}}")' class="btn btn-sm"><i data-lucide="clock"></i> 延时</a>
+                </div>
+              </td>
+              <td><input type='checkbox' value='{{$row.name}}'></td>
+              <td><a href='?c=vhost&a=impLogin&name={{$row.name}}'>{{$row.name}}</a></td>
+              <td>{{$row.uid}}</td>
+              <td>{{$row.web_quota}}</td>
+              <td>{{$row.db_quota}}</td>
+              <td>{{if $row.max_connect==0}}无限{{else}}{{$row.max_connect}}{{/if}}</td>
+              <td>{{if $row.module}}{{$row.module}}{{else}}{{$row.templete}}{{if $row.subtemplete!=""}}:{{$row.subtemplete}}{{/if}}{{/if}}</td>
+              <td title="{{date('Y-m-d H:i:s',$row.create_time)}}">{{date("Y-m-d",$row.create_time)}}</td>
+              <td title="{{if $row.expire_time2 > 0}}{{date('Y-m-d H:i:s',$row.expire_time2)}}{{else}}不限{{/if}}">{{if $row.expire_time2 > 0}}{{date("Y-m-d",$row.expire_time2)}}{{else}}不限{{/if}}</td>
+              <td>{{if $row.product_id == '0' || $row.product_id==0}}自由类型{{else}}{{$product[$row.product_id]['product_name']}}{{/if}}</td>
+              <td>
+                <select id='{{$row.uid}}' onChange="javascript:setStatus('{{$row.name}}',this.value)" style="width:auto;">
+                  {{for $i=0; $i<4; $i++}}
+                  <option value='{{$i}}' {{if $i==$row.status}}selected{{/if}}>
+                    {{if $i==3}}超数据库{{elseif $i==1}}暂停{{elseif $i==2}}超流量{{else}}正常{{/if}}</option>
+                  {{/for}}
+                </select>
+              </td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="12">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="inbox"></i></div>
+                <h4>暂无数据</h4>
+                <p>还没有任何网站，点击右上角"新增"开始创建。</p>
+              </div>
+            </td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div id='show_msg' class='show_msg' style='display: none'></div>
+{{include file='common/foot.html'}}

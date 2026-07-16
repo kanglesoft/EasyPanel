@@ -1,0 +1,53 @@
+{{include file='common/head.html'}}
+<script language="javascript">
+function show(url)
+{
+	window.open(url,'','height=100,width=250,resize=no,scrollbars=no,toolsbar=no,top=200,left=200');
+}
+function check_user()
+{
+	show('?c=product&a=check&product_type=vhost&param='+document.vhostform.param.value);
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>购买虚拟主机产品</h3></div>
+    <div class="ep-card-body">
+      <form name='vhostform' action="?c=product&a=renew&product_id={{$product.id}}&product_type=vhost&name={{$name}}" method="post" class="ep-form">
+        <div class="form-group">
+          <label>用户名</label>
+    <div class="controls">
+      {{$name}}
+    </div>
+  </div>
+        <div class="form-group">
+          <label>产品名称</label>
+    <div class="controls">
+      {{$product.name}}
+    </div>
+  </div>
+        <div class="form-group">
+          <label>续费时间:</label>
+    <div class="controls">
+      {{if $product.month_flag}}
+            <label class="radio-inline"><input type=radio name=month value='1' checked>1个月</label>
+            {{/if}}
+            <label class="radio-inline"><input type=radio name=month value=12 {{if !$product.month_flag}}checked{{/if}}>1年</label>
+            <label class="radio-inline"><input type=radio name=month value=24>2年</label>
+            <label class="radio-inline"><input type=radio name=month value=36>3年</label>
+    </div>
+  </div>
+        <div class="form-group">
+          <label>价格</label>
+    <div class="controls">
+      {{$product.price/100}}元/年
+    </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn" style="width:200px;">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

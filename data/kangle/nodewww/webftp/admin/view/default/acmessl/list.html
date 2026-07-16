@@ -1,0 +1,54 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="shield"></i> 免费 SSL 证书管理</h3>
+      <div class="actions">
+        <a href="?c=acmessl&amp;a=applyForm" class="btn btn-sm"><i data-lucide="plus-circle"></i> 申请证书</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info">
+        <i data-lucide="info"></i>
+        <span>本功能基于 acme.sh 通过 Let's Encrypt HTTP-01 验证自动签发证书。申请前请确保域名已解析到本服务器，并已绑定到对应网站。</span>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr>
+              <th>域名</th>
+              <th>签发时间</th>
+              <th>到期时间</th>
+              <th style="width:260px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$certs item=cert}}
+            <tr>
+              <td><strong>{{$cert.domain}}</strong></td>
+              <td>{{$cert.Le_CertCreateTimeStr}}</td>
+              <td>{{$cert.Le_NextRenewTimeStr}}</td>
+              <td>
+                <div class="ep-flex ep-gap-2 ep-flex-wrap">
+                  <a href="?c=acmessl&amp;a=view&amp;domain={{$cert.domain}}" class="btn btn-sm btn-secondary"><i data-lucide="eye"></i> 查看/复制</a>
+                  <a href="javascript:if(confirm('确定删除 {{$cert.domain}} 的证书？')){location.href='?c=acmessl&amp;a=remove&amp;domain={{$cert.domain}}';}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                </div>
+              </td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="4">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="shield"></i></div>
+                <h4>暂无证书</h4>
+                <p>还没有申请过 Let's Encrypt 免费证书。</p>
+                <a href="?c=acmessl&amp;a=applyForm" class="btn"><i data-lucide="plus-circle"></i> 立即申请</a>
+              </div>
+            </td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

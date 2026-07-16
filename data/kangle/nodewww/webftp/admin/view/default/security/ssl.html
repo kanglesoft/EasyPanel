@@ -1,0 +1,148 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+	var msg = "{{$msg}}";
+	$(document).ready(function() {
+		if (msg != '') {
+			art.dialog({content : msg,top : '10%',title:"",lock:true});
+		}
+	})
+</script>
+<div class="ep-content">
+
+  <!-- 证书签名配置：去 table 化，模式 B -->
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>面板SSL证书配置 ({{if $ssl==1}}<span class="badge badge-success">状态成功</span>{{else}}<span class="badge badge-danger">状态失败</span>{{/if}}) [<a href='https://bkssl.com/ssl/selfsign' target='_blank' rel='noreferrer'>自签名SSL证书生成</a>]</h3>
+      <div class="actions">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="showCert()">查看当前证书</button>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=security&a=ssl" method="post" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">证书内容</div>
+          <div class="form-group">
+            <label>ssl证书内容</label>
+    <div class="controls">
+    <textarea name='crt' rows=8 class="span7" style="width:100%;max-width:none;">{{$crt}}</textarea>
+  </div>
+  </div>
+          <div class="form-group">
+            <label>ssl证书密钥内容</label>
+    <div class="controls">
+    <textarea name='key' cols=80 rows=8 class="span7" style="width:100%;max-width:none;">{{$key}}</textarea>
+  </div>
+  </div>
+          <div class="ep-flex ep-gap-2 ep-mt-4">
+            <button type='submit' class="btn" style="width:200px;"><i data-lucide="check"></i> 提交</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 已签发证书列表：模式 C 增强 -->
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>已签发证书列表</h3></div>
+    <div class="ep-card-body">
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <span class="form-hint">当前面板已部署的 SSL 证书</span>
+        </div>
+        <div class="toolbar-right">
+          <a href="?c=security&a=ssl" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 刷新</a>
+        </div>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>域名</th><th>签发者</th><th>到期时间</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            {{if is_array($list)}}
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>{{$row.domain}}</td>
+              <td>{{$row.issuer}}</td>
+              <td>{{$row.expire}}</td>
+              <td>
+                <span class="btn-group">
+                  <button type="button" class="btn btn-sm" onclick="showCert('{{$row.domain|default:'证书'}}')">详情</button>
+                </span>
+              </td>
+            </tr>
+            {{/foreach}}
+            {{else}}
+            <tr><td colspan="4">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="lock"></i></div>
+                <div class="ep-empty-title">暂无已签发证书</div>
+                <div >上传并保存证书后将在此处列出</div>
+              </div>
+            </td></tr>
+            {{/if}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 证书详情只读弹窗：DT01 modal 结构，自定义 show/hide，不替换 confirm() -->
+<div class="modal-overlay" id="certModal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="certModalTitle">证书详情</span>
+      <button type="button" class="btn btn-sm btn-secondary" onclick="hideCert()">关闭</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>域名 / 名称</label>
+    <div class="controls">
+    <code id="certModalName">当前面板证书</code>
+  </div>
+  </div>
+      <div class="form-group">
+        <label>证书内容</label>
+    <div class="controls">
+    <textarea readonly style="width:100%;max-width:none;min-height:160px;font-family:monospace"  >{{$crt}}</textarea>
+  </div>
+  </div>
+      <div class="form-group">
+        <label>证书密钥</label>
+    <div class="controls">
+    <textarea readonly style="width:100%;max-width:none;min-height:120px;font-family:monospace"  >{{$key}}</textarea>
+  </div>
+  </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="hideCert()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 证书详情弹窗：纯新增脚本，不改动既有 change_https 逻辑 */
+function showCert(title) {
+  document.getElementById('certModalName').textContent = title ? title : '当前面板证书';
+  document.getElementById('certModal').style.display = 'flex';
+}
+function hideCert() {
+  document.getElementById('certModal').style.display = 'none';
+}
+document.getElementById('certModal').addEventListener('click', function(e) {
+  if (e.target === this) { hideCert(); }
+});
+</script>
+
+<script>
+function change_https(status){
+	if(status == 1){
+		top.location.href='https://'+top.location.hostname+':4412'+top.location.pathname;
+	}else{
+		top.location.href='http://'+top.location.hostname+':3312'+top.location.pathname;
+	}
+}
+</script>
+{{include file='common/foot.html'}}

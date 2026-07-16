@@ -1,0 +1,47 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>错误定义</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive"><table class="table ep-mb-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>错误类型</th>
+            <th>url</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$list item=row}}
+          <tr>
+            <td>[<a href="javascript:if(confirm('确定删除{{$row.name}}？')){location='?c=info&a=delErrorPage&name={{$row.name}}';}" title="删除域名">删除</a>]</td>
+            <td>{{$row.name}}</td>
+            <td>{{$row.value}}</td>
+          </tr>
+          {{/foreach}}
+          <tr>
+            <td colspan="3">共计 {{$sum}} 条记录</td>
+          </tr>
+        </tbody>
+      </table></div>
+
+      <form name='nodeform' action="?c=info&a=addErrorPage" method="post" class="ep-form">
+        <div class="form-group">
+          <label>错误类型</label>
+    <div class="controls"><input type='text' name='name' value="{{$info.name}}" />
+          <p class="help-text">常见错误类型：404 - 找不到页面</p></div>
+  </div>
+        <div class="form-group">
+          <label>url</label>
+    <div class="controls"><input type='text' name='value' value="{{$info.value}}" /></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type="submit" value="确定" class="btn" /></div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

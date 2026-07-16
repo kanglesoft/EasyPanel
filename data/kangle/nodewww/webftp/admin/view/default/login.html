@@ -1,0 +1,39 @@
+{{assign var='layout_type' value='login'}}
+{{assign var='title' value='EasyPanel 管理后台'}}
+{{include file='common/head.html'}}
+
+<div class="login-page">
+  <div class="login-card">
+    <h1>管理员登录</h1>
+    <p>请输入您的账号和密码以继续</p>
+    <form action="index.php?c=session&amp;a=login" method="post" name="form1" class="ep-form">
+      <div class="form-group">
+        <label>用户名</label>
+        <div class="controls">
+          <input type="text" name="username" placeholder="请输入用户名" autofocus />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <div class="controls">
+          <input type="password" name="passwd" placeholder="请输入密码" />
+        </div>
+      </div>
+      {{if $img}}
+      <div class="form-group">
+        <label>验证码</label>
+        <div class="controls">
+          <div class="ep-flex ep-gap-2">
+            <input type="text" name="imgnumber" placeholder="验证码" autocomplete="off" style="flex:1;" />
+            <img src="?c=session&amp;a=initImg&amp;action=init" onclick="this.src='?c=session&amp;a=initImg&amp;action=init&amp;r='+Math.random()" style="height:42px;border-radius:8px;border:1px solid var(--color-border);" />
+          </div>
+        </div>
+      </div>
+      {{/if}}
+      <button type="submit" class="btn btn-login"><i data-lucide="log-in"></i> 登 录</button>
+    </form>
+  </div>
+</div>
+
+<script>document.form1.username.focus();</script>
+{{include file='common/foot.html'}}

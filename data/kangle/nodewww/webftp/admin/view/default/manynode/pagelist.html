@@ -1,0 +1,88 @@
+{{include file='common/head.html'}}
+<script language='javascript' src='{{$STATIC}}/scripts/manynode.js'></script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>多节点CDN设置</h3>
+      <div class="actions">
+        <a href='?c=manynode&a=addFrom' class="btn btn-sm"><i data-lucide="plus"></i> + 增加辅节点</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <form name='manynode' action="?c=manynode&a=pageList" method="post" style="margin:0;" class="ep-form">
+            <div class="form-group" style="margin-bottom:0;">
+              <label>设置本地节点名称:</label>
+              <div class="controls">
+                <input name='local_cdn_name' type='text' value="{{$local_cdn_name}}">
+                <button type='submit' class="btn btn-sm"><i data-lucide="check"></i> 确定</button>
+                <span class="help-text">*增加后，如已同步数据，请勿修改</span>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>辅节点名称</th>
+              <th>辅节点IP</th>
+              <th>辅节点安全码</th>
+              <th>备注</th>
+              <th>同步时间</th>
+              <th>同步状态</th>
+              <th>节点状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>
+                <div class="btn-group">
+                  <a href="javascript:if(confirm('确定删除?')){location='?c=manynode&a=del&name={{$row.name}}';}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <a href="?c=manynode&a=addFrom&name={{$row.name}}" class="btn btn-sm"><i data-lucide="edit"></i> 修改</a>
+                  <a href="?c=manynode&a=sync&name={{$row.name}}" class="btn btn-sm"><i data-lucide="refresh-cw"></i> 同步</a>
+                </div>
+              </td>
+              <td>{{$row.name}}</td>
+              <td>{{$row.host}}:{{$row.port}}</td>
+              <td>{{$row.skey}}</td>
+              <td>{{$row.mem}}</td>
+              <td>{{if $row.synctime}}{{date('Y-m-d H:i:s',$row.synctime)}}{{/if}}</td>
+              <td>{{if $row.syncstatus==1}}<span class="badge badge-success">成功</span>{{elseif $row.syncstatus==0}}<span class="badge badge-warning">等待同步</span>{{else}}<span class="badge badge-danger">失败</span>{{/if}}</td>
+              <td id='tr{{$row.name}}'><a href="javascript:check_node('{{$row.name}}')">查询状态</a></td>
+            </tr>
+            {{foreachelse}}
+            <tr>
+              <td colspan="8">
+                <div class="ep-empty">
+                  <div class="ep-empty-icon"><i data-lucide="server"></i></div>
+                  <h4>暂无数据</h4>
+                  <p>当前没有辅节点记录。</p>
+                </div>
+              </td>
+            </tr>
+            {{/foreach}}
+            <tr>
+              <td colspan="8" style="text-align:right;">
+                {{if $page>1}}
+                <a href='?c=manynode&a=pageList&page=0'>首页</a>
+                <a href='?c=manynode&a=pageList&page={{$page-1}}'>上一页</a>
+                {{else}}首页 上一页{{/if}}
+                {{if $page!=$total_page}}
+                <a href='?c=manynode&a=pageList&page={{$page+1}}'>下一页</a>
+                <a href='?c=manynode&a=pageList&page={{$total_page}}'>尾页</a>
+                {{else}}下一页 尾页{{/if}}
+                {{$page}}/{{$total_page}}&nbsp;共计{{$count}}记录&nbsp;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

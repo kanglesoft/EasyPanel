@@ -1,0 +1,52 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>数据备份</h3></div>
+    <div class="ep-card-body">
+      <form name='bakupweb' action="?c=shell&a=bakupweb" method="post" target='_blank' class="ep-form">
+        <div class="form-group">
+          <label>网站备份:</label>
+          <div class="controls">
+            <span class="inline-item"><label>密码:</label><input name='password' value='' placeholder='不设置密码可留空'></span>
+            <input type='submit' value='开始备份' class="btn">
+          </div>
+        </div>
+      </form>
+
+      {{if $user.db_quota>0 && $user.db_type!='sqlsrv'}}
+      <form name='mysqlout' action="?c=shell&a=mysqldumpout" method="post" target='_blank' class="ep-form ep-mt-4">
+        <div class="form-group">
+          <label>数据库备份:</label>
+          <div class="controls">
+            <span class="inline-item"><label>数据库密码:</label><input type='password' name='passwd' id='passwd'></span>
+            <input type='submit' value='开始备份' class="btn">
+          </div>
+        </div>
+      </form>
+
+      <form name='remotemysqldumpin' action="?c=shell&a=remotemysqldumpin" method="post" target='_blank' class="ep-form ep-mt-4">
+        <div class="form-group">
+          <label>远程数据库导入:</label>
+          <div class="controls">
+            <div class="ep-form-grid">
+              <input type='text' name='rehost' id='rehost' placeholder="远程数据库IP">
+              <input type='text' name='reuser' id='reuser' placeholder="远程数据库账号">
+              <input type='password' name='repasswd' id='repasswd' placeholder="远程数据库密码">
+              <input type='text' name='redate' id='redate' placeholder="远程数据库名">
+              <input type='password' name='passwd' id='passwd' placeholder="本地数据库密码">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label></label>
+          <div class="controls">
+            <input type='submit' value='确定' class="btn">
+          </div>
+        </div>
+      </form>
+      {{/if}}
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

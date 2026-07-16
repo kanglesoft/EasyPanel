@@ -1,0 +1,328 @@
+<script language='javascript' src='/style/common.js'></script>
+<script language='javascript'>
+function list_subtemplete_result() {
+  var recv_msg=false;
+  try{
+   if (xmlhttp.readyState==4) {
+    if(xmlhttp.status==200){
+      var dataArray = xmlhttp.responseXML.getElementsByTagName('subtemplete');
+      var dataArrayLen = dataArray.length;
+      var templeteMatched = false;
+      var i=0;
+      var insertData = '';
+      if(dataArrayLen>0){
+        insertData = "默认引擎:<select name='subtemplete'>";
+        for(i=0;i<dataArrayLen;i++){
+        if(dataArray[i].firstChild==null){
+          continue;
+        }
+        var templete = dataArray[i].firstChild.data;
+        insertData += "<option value='" + templete + "' ";
+        if(templete == '{{$vhost.subtemplete}}'){
+          insertData += 'selected';
+          templeteMatched = true;
+        }
+        insertData += ">" + templete + "</option>\n";
+         }
+         insertData += "</select>";
+      }
+      xxkf_obj('subtemplete').innerHTML = insertData;
+    }
+    }
+  }catch(e){
+    alert(e);
+  }
+}
+function changeTemplete(templete)
+{
+  //alert('templete='+templete);
+  xxkf_obj('subtemplete').innerHTML="<span class='badge badge-info'>加载中...</span>";
+  var url = '?c=vhostproduct&a=ajaxListSubTemplete&node=localhost&templete=' + templete;
+  ajax_open_url(url,list_subtemplete_result);
+}
+var template_html = '';
+var subtemplate_html = '';
+function list_templete_result() {
+  var recv_msg=false;
+  try{
+   if (xmlhttp.readyState==4) {
+    if(xmlhttp.status==200){
+      var dataArray = xmlhttp.responseXML.getElementsByTagName('templete');
+      var dataArrayLen = dataArray.length;
+      var templeteMatched = false;
+      var i=0;
+      var insertData = "<select name='templete' onChange='changeTemplete(this.value)'>";
+      for(i=0;i<dataArrayLen;i++){
+        var templete = dataArray[i].firstChild.data;
+        insertData += "<option value='" + templete + "' ";
+        if(templete == '{{$vhost.templete}}'){
+          insertData += 'selected';
+          templeteMatched = true;
+        }
+        insertData += ">" + templete + "</option>\n";
+      }
+      insertData += "</select>";
+      xxkf_obj('templete').innerHTML = insertData;
+      template_html = insertData;
+      {{if $vhost.templete!=''}}
+      if(!templeteMatched){
+       alert('Warning: The node have not templete : {{$vhost.templete}}');
+      }
+      {{/if}}
+      if(nodeform.templete.selectedIndex>=0){
+        changeTemplete(nodeform.templete.options[nodeform.templete.selectedIndex].value);
+      }
+    }
+    }
+  }catch(e){
+    alert(e);
+  }
+}
+function changeNode()
+{
+  xxkf_obj('templete').innerHTML="<span class='badge badge-info'>加载中...</span>";
+  var url = '?c=vhostproduct&a=ajaxListTemplete&node=localhost';
+  ajax_open_url(url,list_templete_result);
+}
+function change_cdn(val)
+{
+
+  if(val==0){
+    //var html = jQuery("#model-template").html();
+    jQuery(".cdnpanel").show();
+    document.getElementById("max_worker").value = 8;
+    //$('cdnpanel').style.display='block';
+    document.getElementById('subdir_flag').checked = true;
+    document.getElementById('ftp_connect').style.display = "";
+    document.getElementById('ftp_usl').style.display = "";
+    document.getElementById('ftp_dsl').style.display = "";
+    document.getElementById('envs').style.display = "";
+  } else {
+    jQuery(".cdnpanel").hide();
+    document.getElementById("max_worker").value = 0;
+    //$('cdnpanel').style.display='none';
+    document.getElementById('ftp_connect').style.display = "none";
+    document.getElementById('ftp_usl').style.display = "none";
+    document.getElementById('ftp_dsl').style.display = "none";
+    document.getElementById('envs').style.display = "none";
+  }
+}
+function change_module(val)
+{
+
+  if(val==""){
+    $('old_module').style.display='';
+  } else {
+    $('old_module').style.display='none';
+  }
+}
+function display_obj()
+{
+  var d = document.getElementById('gj').style.display;
+  if (d != 'none') {
+    document.getElementById('gj').style.display='none';
+  }else{
+    document.getElementById('gj').style.display='';
+    if (document.getElementById('cdncheck') != null) {
+      var cdn = document.getElementById('cdncheck').checked;
+      if (cdn==true) {
+        document.getElementById('ftp_connect').style.display = "none";
+        document.getElementById('ftp_usl').style.display = "none";
+        document.getElementById('ftp_dsl').style.display = "none";
+        document.getElementById('envs').style.display = "none";
+      }
+    }
+  }
+}
+function check_db(status)
+{
+  document.getElementById('db_type').style.display="";
+  if (status==0){
+    document.getElementById('db_quota').value="";
+  }
+  if (status==1){
+    if (document.getElementById('db_quota').value < 1){
+      document.getElementById('db_type').style.display="none";
+    }
+  }
+}
+</script>
+
+<div id="product-type" {{if $product_id}} style="display:none"{{/if}}>
+  <div class="form-group">
+    <label>产品类型:</label>
+    <div class="controls">
+      <label class="ep-radio-label"><input name='cdn' type='radio' value='0' {{if !$vhost || $vhost.cdn==0}} checked {{/if}} onClick="change_cdn(0);"/>虚拟主机</label>
+      <label class="ep-radio-label"><input name='cdn' type='radio' id='cdncheck' value='1' {{if $vhost.cdn==1}} checked {{/if}} onClick="change_cdn(1);"/>cdn</label>
+    </div>
+  </div>
+</div>
+
+<div {{if $product_id}} style="display:none"{{/if}}>
+  <div class="form-group cdnpanel">
+    <label>模块</label>
+    <div class="controls">
+      <label class="ep-radio-label"><input name='module' type='radio' value='' {{if $vhost.name && $vhost.module==""}}checked{{/if}} onClick="change_module('');"/>无(旧格式)</label>
+      {{foreach from=$modules item=module}}
+      <label class="ep-radio-label"><input name='module' type='radio' value='{{$module}}' {{if !$vhost.name || $vhost.module==$module}}checked{{/if}} onClick="change_module('{{$module}}');"/>{{$module}}</label>
+      {{/foreach}}
+    </div>
+  </div>
+  <div class="form-group cdnpanel" id='old_module' style="display:none">
+    <label>语言:</label>
+    <div class="controls">
+      <span id='templete'></span><span id='subtemplete'></span>
+    </div>
+  </div>
+  <div class="form-group cdnpanel">
+    <label>空间大小(M):</label>
+    <div class="controls">
+      <input name="web_quota" id='web_quota' value="{{if $vhost}}{{$vhost.web_quota}}{{else}}1000{{/if}}" style="width:120px;">
+      <span class="help-text danger">*必填</span>
+    </div>
+  </div>
+
+  <div class="form-group cdnpanel">
+    <label>数据库大小(M):</label>
+    <div class="controls">
+      <input name="db_quota" id='db_quota' value="{{if $vhost}}{{$vhost.db_quota}}{{else}}0{{/if}}" style="width:120px;" onchange="check_db(this.value)">
+      <span class="help-text danger">*数据库开通后不能修改为0或留空，否则会清除数据库数据</span>
+    </div>
+  </div>
+
+  <div class="form-group cdnpanel" id='db_type'>
+    <label>数据库类型:</label>
+    <div class="controls">
+      <label class="ep-radio-label"><input type='radio' name='db_type' value='mysql' {{if !$vhost || $vhost.db_type!='sqlsrv'}}checked{{/if}}>mysql</label>
+      <label class="ep-radio-label"><input type='radio' name='db_type' value='sqlsrv' {{if $vhost && $vhost.db_type=='sqlsrv'}}checked{{/if}}>sql server</label>
+    </div>
+  </div>
+  <div class="form-group cdnpanel">
+    <label>默认绑定子目录:</label>
+    <div class="controls">
+      <input name="subdir" id='subdir' value="{{if $vhost}}{{$vhost.subdir}}{{else}}wwwroot{{/if}}" style="width:160px;">
+    </div>
+  </div>
+  <div class="form-group cdnpanel">
+    <label>独立队列:</label>
+    <div class="controls">
+      <span class="inline-item"><label>工作数(0不限):</label><input name="max_worker" id='max_worker' style="width:80px;" value="{{if $vhost}}{{$vhost.max_worker}}{{else}}8{{/if}}"></span>
+      <span class="inline-item"><label>队列数(0不限):</label><input name="max_queue" id='max_queue' style="width:80px;" value="{{if $vhost}}{{$vhost.max_queue}}{{else}}0{{/if}}"></span>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>流量限制:</label>
+    <div class="controls">
+      <input name='flow_limit' value='{{if $vhost.flow_limit}}{{$vhost.flow_limit}}{{/if}}' style="width:120px;">
+      <span class="help-text">G/每月&nbsp;需商业版支持</span>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>绑定子目录:</label>
+    <div class="controls">
+      <label class="ep-checkbox-label"><input type='checkbox' name='subdir_flag' id='subdir_flag' value='1'{{if !$vhost || $vhost.subdir_flag}}checked{{/if}}>允许绑定子目录</label>
+      <span class="inline-item"><label>限制个数(0表示不限):</label><input name='max_subdir' id='max_subdir' value='{{$vhost.max_subdir}}' style="width:60px;"></span>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>其它高级选项:</label>
+    <div class="controls">
+      <a href="javascript:display_obj();">显示/隐藏</a>
+    </div>
+  </div>
+
+  <div id='gj' style='display:none'>
+    <div class="form-group" id='envs'>
+      <label>独立ip:</label>
+    <div class="controls">
+        <input name="ip" id='ip' value="{{$vhost.ip}}" style="width:200px;">
+      </div>
+  </div>
+    <div class="form-group">
+      <label>端口:</label>
+    <div class="controls">
+        <input name="port" id='port' value="{{if $vhost}}{{$vhost.port}}{{else}}80,443s{{/if}}" style="width:200px;">
+        <span class="help-text">多个端口由,分开,ssl端口请加s，如80,443s</span>
+      </div>
+  </div>
+    <div class="form-group">
+      <label>计划任务:</label>
+    <div class="controls">
+        <input style="width:60px;" name="cron" value="{{$vhost.cron}}">条
+      </div>
+  </div>
+    <div class="form-group">
+      <label>管理变量:</label>
+    <div class="controls">
+        <input name="envs" value="{{$vhost.envs}}">
+      </div>
+  </div>
+
+    <div class="form-group">
+      <label>域名绑定个数(-1表示无限):</label>
+    <div class="controls">
+        <input name="domain" id='domain' value="{{if $vhost}}{{$vhost.domain}}{{else}}-1{{/if}}" style="width:120px;">
+      </div>
+  </div>
+
+    <div class="form-group">
+      <label>最大连接数(0无限):</label>
+    <div class="controls">
+        <input name="max_connect" style="width:80px;" value="{{if $vhost}}{{$vhost.max_connect}}{{else}}0{{/if}}">
+      </div>
+  </div>
+
+    <div class="form-group">
+      <label>带宽限制(0无限):</label>
+    <div class="controls">
+        <input name="speed_limit" style="width:80px;" value="{{if $vhost}}{{$vhost.speed_limit/1024}}{{else}}0{{/if}}">
+        <span class="help-text">K/每秒</span>
+      </div>
+  </div>
+
+    <div class="form-group" id='ftp_connect'>
+      <label>ftp连接数(0无限):</label>
+    <div class="controls">
+        <input name="ftp_connect" style="width:80px;" value="{{if $vhost.ftp_connect}}{{$vhost.ftp_connect}}{{else}}0{{/if}}">
+        <span class="help-text">个</span>
+      </div>
+  </div>
+
+    <div class="form-group" id='ftp_usl'>
+      <label>ftp上传速度(0无限):</label>
+    <div class="controls">
+        <input name="ftp_usl" style="width:80px;" value="{{if $vhost}}{{$vhost.ftp_usl}}{{else}}0{{/if}}">
+        <span class="help-text">K/每秒</span>
+      </div>
+  </div>
+
+    <div class="form-group" id='ftp_dsl'>
+      <label>ftp下载速度(0无限):</label>
+    <div class="controls">
+        <input name="ftp_dsl" style="width:80px;" value="{{if $vhost}}{{$vhost.ftp_dsl}}{{else}}0{{/if}}">
+        <span class="help-text">K/每秒</span>
+      </div>
+  </div>
+
+    <div class="form-group">
+      <label>其它选项:</label>
+    <div class="controls">
+        <label class="ep-checkbox-label"><input type='checkbox' name='htaccess' id='htaccess' value='.htaccess' {{if $vhost.htaccess || !$vhost}}checked{{/if}}>.htaccess支持</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='ftp' id='ftp' value='1' {{if $vhost.ftp || !$vhost}}checked{{/if}}>开启ftp</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='log_file' id='log_file' value='logs/access.log' {{if $vhost.log_file || !$vhost}}checked{{/if}}>日志独立</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='log_handle' id='log_handle' value='1' {{if $vhost.log_handle || $setting.webalizer}}checked{{/if}}>日志分析</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='access' id='access' value='access.xml' {{if $vhost.access || !$vhost}}checked{{/if}}>自定义控制</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='ssi' id='ssi' value='1' {{if $vhost.ssi}}checked{{/if}}>ssi支持</label>
+        <label class="ep-checkbox-label"><input type='checkbox' name='ignore_backup' value='1' {{if $vhost.ignore_backup}}checked{{/if}}>忽略备份</label>
+      </div>
+  </div>
+  </div>
+</div>
+
+<script language='javascript'>
+changeNode();
+</script>
+<script type='text/template' id="model-template">
+
+</script>

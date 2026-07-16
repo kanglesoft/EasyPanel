@@ -1,0 +1,179 @@
+{{include file='common/head.html'}}
+<script src='/style/common.js'></script>
+<script>
+var cwd = '{{$cwd}}';
+var dflog = null;
+var left = null;
+</script>
+<script src='{{$STATIC}}/webftp/utils.js?v=331141112a1'></script>
+<script>
+  function setbgcolor(id, color) {
+    document.getElementById(id).style.backgroundColor = color;
+  }
+  var jq = jQuery.noConflict();
+  var msg = '{{$msg}}';
+  var defaulttop = '252px';
+  jq(document).ready(function(){
+    if (msg != '') {
+      var dlog = art.dialog({id:'id22',content:msg,title:'提示'});
+      dlog.title("两秒后自动消失");
+      dlog.time(2);
+    }
+    var content = jq('#panel').html();
+    left = jq("#fileblock").width() + ((jq("body").width() - jq("#fileblock").width())/2);
+    if (parseInt(jq("body").width()) <= 1024) {
+      left -= 40;
+    }
+    var windowheight = window.screen.height;
+    if (windowheight < 900) {
+      defaulttop = '60px';
+      left -= 40;
+    }
+    var bodyHeight = jQuery("body").height();
+    var windowHeight = jQuery(window).height();
+    if (bodyHeight > windowHeight) {
+      dflog = art.dialog({id:'id232',content:content,title:'功能列表',icon: '',top:defaulttop,left:left});
+    }
+  });
+  jq(document).mousemove(function(){
+    var scrolltop = document.documentElement.scrollTop;
+    if (dflog) {
+      dflog.position(left,scrolltop + parseInt(defaulttop) + 'px');
+    }
+  });
+</script>
+
+<div id='panel' class='webftp_left' style='display:none'>
+  <div>[<a href='javascript:refresh()'>刷新</a>]</div><br>
+  <div>[<a href='javascript:reversSelectAll()'>反选</a>]</div><br>
+  <div>[<a href='javascript:upload()'>上传文件</a>]</div><br>
+  <div>[<a href='javascript:addwget("{{$wgetdir}}")'>远程下载</a>]</div><br>
+  <div>[<a href='javascript:mkdir()'>新建目录</a>]</div><br>
+  <div>[<a href='javascript:rmall()'>删除</a>]</div><br>
+  <div>[<a href='javascript:cutall()'>剪切</a>]</div><br>
+  <div>[<a href='javascript:copyall()'>复制</a>]</div><br>
+  <div>[<a href='?c=webftp&a=parse'>粘贴</a>]</div><br>
+  <div>[<a href='javascript:compress("{{basename($cwd)}}")'>压缩</a>]</div><br>
+  <div>[<a href='javascript:readonly(1)'>只读</a>]</div><br>
+  <div>[<a href='javascript:readonly(0)'>可写</a>]</div><br>
+  <div>[<a href='?c=webftp&a=syncaccess'>重建属性</a>]</div>
+</div>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>在线文件管理</h3></div>
+    <div class="ep-card-body">
+      <div id='location' class="ep-mb-3">
+        当前目录：<a href='?c=webftp&a=cd&file=%2f'>根目录</a> /
+        {{foreach from=$cwds item=row}}
+        {{append var='dir' value=$row}}
+        {{append var='dir' value='/'}}
+        <a href='?c=webftp&a=cd&file=%2f{{urlencode(implode($dir))}}'>{{$row}}</a> /
+        {{/foreach}}
+      </div>
+
+      <div class="ep-flex ep-flex-wrap ep-gap-2 ep-mb-3">
+        <a href="javascript:refresh()" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 刷新</a>
+        <a href="javascript:reversSelectAll()" class="btn btn-sm btn-secondary"><i data-lucide="check-square"></i> 反选</a>
+        <a href="javascript:mkdir()" class="btn btn-sm btn-secondary"><i data-lucide="folder-plus"></i> 新建目录</a>
+        <a href="javascript:upload()" class="btn btn-sm btn-secondary"><i data-lucide="upload"></i> 上传文件</a>
+        <a href="javascript:rmall()" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+        <a href="javascript:cutall()" class="btn btn-sm btn-secondary"><i data-lucide="scissors"></i> 剪切</a>
+        <a href="javascript:copyall()" class="btn btn-sm btn-secondary"><i data-lucide="copy"></i> 复制</a>
+        <a href="?c=webftp&a=parse" class="btn btn-sm btn-secondary"><i data-lucide="clipboard-paste"></i> 粘贴</a>
+        <a href="javascript:compress('{{basename($cwd)}}')" class="btn btn-sm btn-secondary"><i data-lucide="file-archive"></i> 压缩</a>
+        <a href="javascript:readonly(1)" class="btn btn-sm btn-secondary"><i data-lucide="eye-off"></i> 只读</a>
+        <a href="javascript:readonly(0)" class="btn btn-sm btn-secondary"><i data-lucide="pencil"></i> 可写</a>
+        <a href="javascript:addwget('{{$wgetdir}}')" class="btn btn-sm btn-secondary"><i data-lucide="download-cloud"></i> 远程下载</a>
+      </div>
+
+      <div class="ep-table-responsive"><table class="table">
+        <thead>
+          <tr>
+            <th>文件名</th>
+            <th>读写</th>
+            <th>属性</th>
+            <th>操作</th>
+            <th>大小</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan='6'>
+              <a href='?c=webftp&a=cd&file=..' class="btn btn-sm btn-secondary"><i data-lucide="arrow-up"></i> 上级目录</a>
+              <span class="ep-text-muted ep-ml-4">如无法操作，请更换 Chrome 或 Firefox 浏览器。上传后缀为 sql、zip 格式的文件，文件后面会自动显示导入、解压按钮。</span>
+            </td>
+          </tr>
+          {{foreach from=$files item=file}} {{$tr=$tr+1}}
+          <tr id='tr{{$tr}}' onMouseOver="setbgcolor('tr{{$tr}}','var(--color-bg-hover)')" onMouseOut="setbgcolor('tr{{$tr}}','transparent')">
+            <td>
+              <input name='files[]' type='checkbox' value='{{$cwd}}/{{$file.filename}}'>
+              <span class="badge badge-info">{{$file.type}}</span>
+              <a href="javascript:getfile('{{$cwd}}/{{$file.filename}}',{{$file.dir}})">{{$file.filename}}</a>
+              {{if $file.type=='zip'}}
+              <a href="javascript:decompress('{{$cwd}}/{{$file.filename}}')">解压</a>
+              {{/if}}
+              {{if substr($file.filename,-7)=='.sql.7z' || substr($file.filename,-4)=='.sql'}}
+              <a href="javascript:mysqldumpin('{{$cwd}}/{{$file.filename}}')">导入</a>
+              {{/if}}
+              {{if substr($file.filename,-7)=='.web.7z'}}
+              <a href="javascript:restoreweb('{{$cwd}}/{{$file.filename}}')">恢复</a>
+              {{/if}}
+            </td>
+            <td>
+              {{if !$file.writable}}
+              <span class="badge badge-warning">只读</span>
+              {{else}}
+              <span class="badge badge-success">可写</span>
+              {{/if}}
+            </td>
+            <td>
+              [<a href="javascript:file_access('{{$cwd}}/{{$file.filename}}',{{$file.dir}},'{{$file.propty}}')">属性</a>]
+              {{if $file.propty=='deny'}}
+              <span class="badge badge-danger">锁定</span>
+              {{/if}}
+              {{if $file.propty=='static'}}
+              <span class="badge badge-info">静态</span>
+              {{/if}}
+              {{if substr($file.propty,0,5)=='auth:'}}
+              <span class="badge badge-primary">HTTP认证</span>
+              {{/if}}
+              {{if substr($file.propty,0,3)=='ip:'}}
+              <span class="badge badge-danger">IP限制</span>
+              {{/if}}
+            </td>
+            <td>
+              [<a href="javascript:rmfile('{{$cwd}}/{{$file.filename}}')">删除</a>]
+              [<a href="javascript:rename('{{$cwd}}/{{$file.filename}}')">改名</a>]
+              {{if !$file.dir}}
+              [<a href="javascript:editfrom('{{$cwd}}/{{$file.filename}}')">编辑</a>]
+              {{/if}}
+            </td>
+            <td>
+              {{if $file.dir}}
+              &lt;DIR&gt;
+              {{else}}
+              {{if $file.info[7]>1048576}}
+              {{number_format($file.info[7]/1048576, 2,'.', '')}}MB
+              {{elseif $file.info[7]>1024}}
+              {{number_format($file.info[7]/1024, 2, '.', '')}}KB
+              {{else}}
+              {{$file.info[7]}}
+              {{/if}}
+              {{/if}}
+            </td>
+            <td>
+              {{if $file.dir}}
+              -
+              {{else}}
+              {{date("Y-m-d H:i:s",$file.info[9])}}
+              {{/if}}
+            </td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

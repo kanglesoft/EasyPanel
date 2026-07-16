@@ -1,0 +1,52 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/antiupload.js'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>防木马上传</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=antiupload&a=antiuploadAdd' method='post' class="ep-form">
+        <div class="form-group">
+          <label>上传保护开关</label>
+    <div class="controls"><div>
+            {{if $autiupload_start}}
+            <a href='javascript:antiupload_checkon(1)' title="禁用功能">
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{else}}
+            <a href='javascript:antiupload_checkon(0)' title="启用功能">
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{/if}}
+            &nbsp;
+            <button type="button" class="btn btn-sm btn-danger" onclick='antiupload_empty();'><i data-lucide="trash"></i> 清空</button></div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>禁止文件后缀</label>
+    <div class="controls">
+            <input name='filename' value='php' id='filename' />
+            <span class="help-text">的文件上传，多个请用逗号分隔，例：php,asp,jsp</span>
+            <input type='button' onclick='antiupload_add();' value='提交' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>禁止文件名</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$filenames item=row}}
+          <tr>
+            <td><a href="javascript:antiupload_del({{$row.id}})">删除</a></td>
+            <td>{{$row.filename}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

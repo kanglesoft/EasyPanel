@@ -1,0 +1,76 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/speed.js'></script>
+
+<div class='pro_msg' style="display: none" id='msg'></div>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>带宽限制</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=speed&a=speedAdd' method='post' name='from' class="ep-form">
+        <div class="form-group">
+          <label>带宽限制开关</label>
+    <div class="controls"><div>
+            {{if $at==0}}
+            <a href="javascript:speed_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:speed_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>限制模式</label>
+    <div class="controls"><select name='mode' id='mode' onchange='piao_msg(this.value);' class="span2">
+            <option value="speed_limit">每个请求限制</option>
+            <option value="ip_speed_limit">每IP限制</option>
+            <option value='gspeed_limit'>分组限制</option>
+          </select></div>
+  </div>
+        <div class="form-group">
+          <label>带宽</label>
+    <div class="controls">
+            <input name="limit" class="span2" id='limit' />&nbsp;KB/秒</div>
+  </div>
+        <div class="form-group">
+          <label>目录</label>
+    <div class="controls"><input name='path' value='可为空' onfocus='check_onfocus_value(this.id)' onblur='check_onblur_value(this.id)' id='path' class="span3" /></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='button' value='增加' onclick='speed_add();' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>限制模式</th>
+            <th>限制带宽</th>
+            <th>目录</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$sp item=row}}
+          <tr>
+            <td><a href="javascript:speed_del({{$row.id}})">删除</a></td>
+            <td>{{if $row.mode=='s'}}每个请求限制{{elseif $row.mode=='i'}}每IP限制{{else}}分组限制{{/if}}</td>
+            <td>{{$row.limit/1024}}KB/秒</td>
+            <td>{{$row.path}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+<div id='script'></div>
+{{include file='common/foot.html'}}
+
+<script>
+  from.limit.focus();
+  document.from.path.style.color="#999999"
+</script>

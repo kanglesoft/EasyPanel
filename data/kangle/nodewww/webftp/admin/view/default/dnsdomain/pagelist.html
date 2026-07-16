@@ -1,0 +1,72 @@
+{{include file='common/head.html'}}
+<script language='javascript' src='{{$STATIC}}scripts/dnsdomain.js'></script>
+<div id='msg' class='piao_server2' style='display:none'></div>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>域名列表</h3></div>
+    <div class="ep-card-body">
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <form method="post" action='?c=dnsdomain&a=dnsdomainPageList' class="ep-search-form">
+            <label>搜索</label>
+            <select name='mode'>
+              <option value='name'>域名</option>
+              <option value='server'>服务器</option>
+            </select>
+            <input name='mode_value' placeholder="关键字">
+            <button type='submit' class="btn btn-sm"><i data-lucide="search"></i> 查询</button>
+            <button type='button' class="btn btn-sm btn-secondary" onclick='piao_add();'><i data-lucide="plus"></i> 添加域名</button>
+          </form>
+        </div>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>操作</th><th>域名</th><th>最多条数</th><th>解析服务器</th><th>状态</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>
+                <div class="btn-group">
+                  <a href="javascript:domain_del('{{$row.name}}')" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <a href="javascript:domain_init('{{$row.name}}');" class="btn btn-sm">重建解析</a>
+                  <a href="?c=dnsdomain&a=imLoginDomain&domain={{$row.name}}" target=_blank class="btn btn-sm"><i data-lucide="log-in"></i> 登录</a>
+                </div>
+              </td>
+              <td>{{$row.name}}</td>
+              <td>{{$row.max_record}}</td>
+              <td>{{$row.server}}</td>
+              <td>{{if $row.status==0}}<span class="badge badge-success">正常</span>{{else}}<span class="badge badge-warning">暂停</span>{{/if}}</td>
+            </tr>
+            {{foreachelse}}
+            <tr>
+              <td colspan="5">
+                <div class="ep-empty">
+                  <div class="ep-empty-icon"><i data-lucide="globe"></i></div>
+                  <h4>暂无数据</h4>
+                  <p>当前没有域名记录。</p>
+                </div>
+              </td>
+            </tr>
+            {{/foreach}}
+            <tr>
+              <td colspan="5" style="text-align:right;">
+                {{if $page>1}}
+                <a href='?c=dnsdomain&a=dnsdomainPageList&page=0'>首页</a>
+                <a href='?c=dnsdomain&a=dnsdomainPageList&page={{$page-1}}'>上一页</a>
+                {{else}}首页 上一页{{/if}}
+                {{if $page!=$total_page}}
+                <a href='?c=dnsdomain&a=dnsdomainPageList&page={{$page+1}}'>下一页</a>
+                <a href='?c=dnsdomain&a=dnsdomainPageList&page={{$total_page}}'>尾页</a>
+                {{else}}下一页 尾页{{/if}}
+                {{$page}}/{{$total_page}}&nbsp;共计{{$count}}记录&nbsp;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

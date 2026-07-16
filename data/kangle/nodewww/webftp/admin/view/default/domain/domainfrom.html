@@ -1,0 +1,40 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>添加保留域名</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=domain&a=domainAdd' method='post' style="margin-bottom:16px;" class="ep-form">
+        <div class="form-group">
+          <label>保留域名:</label>
+          <div class="controls">
+            <input name='domain_name'>
+            <span class="help-text danger">注：添加的域名用户将不能绑定</span>
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn btn-sm"><i data-lucide="plus"></i> 添加</button>
+        </div>
+      </form>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+        <tbody>
+          {{foreach from=$domains item=row}}
+          <tr><td style="width:300px;">{{$row}}</td><td><a href='?c=domain&a=domainDel&domain_name={{$row}}' onclick='window.location.reload();'>删除</a></td></tr>
+          {{foreachelse}}
+          <tr><td colspan="2">
+            <div class="ep-empty">
+              <div class="ep-empty-icon"><i data-lucide="globe"></i></div>
+              <h4>暂无数据</h4>
+              <p>当前没有保留域名。</p>
+            </div>
+          </td></tr>
+          {{/foreach}}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

@@ -1,0 +1,45 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/indexfile.js'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>默认首页文件</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=indexfile&a=indexfileAdd' method='post' name='from' class="ep-form">
+        <div class="form-group">
+          <label>新增首页文件</label>
+    <div class="controls">
+      <div class="controls ep-flex ep-flex-wrap ep-gap-2 ep-items-center">
+            <label>文件名：<input name="file" id='file' /></label>
+            <label>先后顺序：<input name='id' value='100' id='id' /> <span class="help-text">数字小优先</span></label>
+            <button type='button' class="btn" onclick='indexfile_add();'><i data-lucide="plus"></i> 提交</button>
+          </div>
+    </div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>文件名</th>
+            <th>顺序</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$in item=row}}
+          <tr>
+            <td><a href="javascript:indexfile_del('{{$row.name}}')">删除</a></td>
+            <td>{{$row.name}}</td>
+            <td>{{$row.value}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
+
+<script>
+  from.file.focus();
+</script>

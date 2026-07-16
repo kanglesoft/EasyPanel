@@ -1,0 +1,71 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+function migrate(val)
+{
+	$('#type').val(val);
+	nodeform.submit();
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card" id='migrate'>
+    <div class="ep-card-header"><h3>数据迁移设置</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=migrate&a=add" method="post" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">源服务器信息</div>
+          <div class="form-group">
+            <label>源服务器IP</label>
+    <div class="controls">
+    <input name="migrate_host" type="text" value="{{$session.migrate_host}}" >
+  </div>
+  </div>
+          <div class="form-group">
+            <label>源服务器端口</label>
+    <div class="controls">
+    <input name="migrate_port" type="text" value="{{$session.migrate_port}}" >
+  </div>
+  </div>
+          <div class="form-group">
+            <label>源服务器安全码</label>
+    <div class="controls">
+    <input name="migrate_skey" type="text" value="{{$session.migrate_skey}}" >
+  </div>
+  </div>
+          <div class="form-group">
+            <label>虚拟主机前缀</label>
+    <div class="controls">
+    <input name="migrate_prefix" type="text" value="{{$session.migrate_prefix}}" >
+  </div>
+  </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">迁移选项</div>
+          <div class="form-group">
+            <label>空间UID</label>
+    <div class="controls">
+    <label class="checkbox-inline"><input name="migrate_change_uid" type="checkbox" value="1" {{if $session.migrate_change_uid==1}}checked{{/if}}>迁移后的空间UID是否变更</label>
+  </div>
+  </div>
+          <div class="form-group">
+            <label>日志文件</label>
+    <div class="controls">
+    <label class="checkbox-inline"><input name="migrate_nolog" type="checkbox" value="1" {{if $session.migrate_nolog!=0}}checked{{/if}}>忽略日志文件</label>
+  </div>
+  </div>
+          <div class="form-group">
+            <label>说明</label>
+    <div class="controls">
+              <span style="color:var(--color-danger);">注：只能迁移相同的系统,例:linux迁移到linux系统，或windows迁移到windows</span>
+            </div>
+  </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <input type='hidden' name='type' id='type' value=''>
+          <button type="button" class="btn" onclick='migrate(1);'>迁移产品</button>
+          <button type="button" class="btn" onclick='migrate(2);'>迁移虚拟主机</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

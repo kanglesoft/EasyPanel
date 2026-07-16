@@ -1,0 +1,62 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  {{if $msg}}
+  <div class="ep-alert ep-alert-danger">
+    <i data-lucide="alert-circle"></i>
+    <span>{{$msg}}</span>
+  </div>
+  {{/if}}
+
+  <!-- DT04: 系统资源（只读 table，使用率单元格换进度条，语义色由 {{if}} 判断） -->
+  <div class="ep-card" style="margin-bottom:16px;">
+    <div class="ep-card-header"><h3>系统资源</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+        <tbody>
+          <tr>
+            <td style="width:200px;font-weight:500;">磁盘使用率</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill {{if $disk_pct>80}}is-danger{{elseif $disk_pct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$disk_pct}}%"></div>
+              </div>
+              <span style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$disk_used}} / {{$disk_total}}（{{$disk_pct}}%）</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>系统设置</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=setting&a=set&sub={{$sub}}' method='post' class="ep-form">
+        {{foreach item=e from=$env}}
+        <div class="form-group">
+          <label>{{$lang[$e.name]}}</label>
+    <div class="controls">
+            <input type='hidden' name='name[]' value='{{$e.name}}'/>
+            {{if $e.value.0=='TEXT'}}
+            <input type='text' name='{{$e.name}}' value='{{if !$e.password}}{{$val[$e.name].value}}{{/if}}'>
+            {{else if $e.value.0=='RADIO'}}
+            <div class="ep-flex ep-flex-wrap ep-gap-2">
+              {{foreach item=v from=$e.value.1}}
+              <label><input type='radio' name='{{$e.name}}' {{if $val[$e.name].value==$v.1}}checked{{/if}} value='{{$v.1}}'> {{$lang[$v.0]}}</label>
+              {{/foreach}}
+            </div>
+            {{else if $e.value.0=='CHECKBOX'}}
+            <span class="badge badge-warning">CHECKBOX</span>
+            {{/if}}
+          </div>
+  </div>
+        {{/foreach}}
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn" style="width:200px;">设置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

@@ -1,0 +1,235 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+function rand_skey(passwd_id) {
+    var pwchars = "abcdefhjmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWYXZ";
+    var passwordlength = 16;
+    passwd_id.value = '';
+    for ( i = 0; i < passwordlength; i++ ) {
+    	passwd_id.value += pwchars.charAt( Math.floor( Math.random() * pwchars.length ) )
+    }
+    return true;
+}
+var msg = "{{$msg}}";
+$(document).ready(function(){
+	if (msg != '') {
+		art.dialog({id:'id22',content:msg,icon: 'face-smile',left:'50%',top:'20%'});
+	}
+	var domain = $("#vhost_domain").val();
+	var domainkey = $("#dnsdundomainkey").val();
+	if (domain && domainkey) {
+		var cname = $("#cname_host").val();
+		if (!cname) {
+			$("#cname_host_msg").html("<span class='help-text danger'>*必填</span>");
+		}
+	}
+});
+function checkEnt()
+{
+	$.ajax({
+		url:'?c=nodes&a=checkEnt',
+		dataType:'json',
+		success:function(a) {
+			if (a.code != 1) {
+				$("#check_ent_td").html("<span class='badge badge-danger'>异常</span>"+a.message);
+				return ;
+			}
+			$("#check_ent_td").html("<b class='ep-text-success'>过期时间:</b>"+a.expire+" <span class='badge badge-success'>正常</span>");
+			if (a.warning) {
+				alert(a.warning);
+			}
+		}
+	});
+}
+function showEntMem()
+{
+	var str = "请将得到的授权信息放在kangle安装目录下的nodewww/webftp/config.php文件中\n\n";
+		str += "并且将源index.html文件放在kangle安装目录下的/etc/目录\n\n";
+		str += "使用注意:用户访问站点面板/vhost/时必需使用授权的域名才可生效\n\n";
+	str += "再到些处点击验证授权,如果验证通过，则用户在绑定域名的时候\n\n";
+	str += "会自动将源index.html复制到用户绑定的目录下\n\n";
+	str += "这样用户打开域名时将有一个您制定的默认内容显示给用户\n\n";
+	str += "方便用户快速的使用您的空间,更加友好\n";
+	alert(str);
+}
+function testDnsdun()
+{
+	var dnsdundomain = $("#dnsdundomain").val();
+	var vhost_domain = $("#vhost_domain").val();
+	var domainkey = $("#dnsdundomainkey").val();
+	if (!dnsdundomain || !domainkey || !vhost_domain) {
+		alert('赠送域名,dnsdun域名或api密钥未填写');
+		return;
+	}
+	if (dnsdundomain != vhost_domain) {
+		var vl = vhost_domain.length;
+		if( vhost_domain.substr(vl - dnsdundomain.length) != dnsdundomain ) {
+			alert('dnsdun的域名必需为赠送域名的主域名');
+			return;
+		}
+	}
+	$("#cname_host_msg").html("<span class='help-text danger'>*必填</span>");
+	$.ajax({url:'?c=nodes&a=testDnsdun',data:{domain:dnsdundomain,domainkey:domainkey},dataType:'json',success:function(ret) {
+		if (ret['code'] != 200) {
+			$("#dnsdun_test").html("<span class='badge badge-danger'>不可用</span>");
+			return;
+		}
+		$("#dnsdun_test").html("<span class='badge badge-success'>可用</span>");
+	}
+	});
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3><i data-lucide="settings"></i> 设置服务器信息</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=nodes&a={{$action}}&name={{$node.name}}" method="post" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">基础设置</div>
+          <div class="form-group">
+            <label>日志保存时间:</label>
+    <div class="controls">
+              <input name="logs_day" style="width:60px;" value="{{if $setting.logs_day}}{{$setting.logs_day}}{{else}}60{{/if}}">&nbsp;天
+              <label class="ep-checkbox-label"><input name="webalizer" id="webalizer" type="checkbox" value='1' {{if $setting.webalizer==1}}checked{{/if}}>开启日志分析</label>
+              <label class="ep-checkbox-label"><input name="no_del_data" id="no_del_data" type="checkbox" value='1' {{if $setting.no_del_data!=0}}checked{{/if}}>删除网站保留数据</label>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>物理盘:</label>
+    <div class="controls">
+              <select name='dev'>
+                {{foreach from=$devs item=dev}}
+                <option value='{{$dev}}' {{if $dev==$node.dev}}selected{{/if}}>{{$dev}}</option>
+                {{/foreach}}
+              </select>
+              <span class="help-text danger">*请选择网站空间所在的磁盘目录，选错将无法使用磁盘配额功能.</span>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>kangle端口设置</label>
+    <div class="controls">
+              <input name='port' value="{{if $node.port}}{{$node.port}}{{else}}3311{{/if}}" style="width:80px;">
+            </div>
+  </div>
+          <div class="form-group">
+            <label>面板通信安全码:</label>
+    <div class="controls">
+              <input name='skey' value="{{$setting.skey}}"><button type="button" class="btn btn-sm" onclick='rand_skey(this.form.skey)'><i data-lucide="refresh-cw"></i> 随机</button>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>面板title:</label>
+    <div class="controls">
+              <input name='title' value="{{$setting.title}}">
+            </div>
+  </div>
+          <div class="form-group">
+            <label>面板foot代码:</label>
+    <div class="controls">
+              <textarea name='footer' rows=4>{{$setting.footer}}</textarea>
+            </div>
+  </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">数据库设置</div>
+          <div class="form-group">
+            <label>mysql数据库:</label>
+    <div class="controls">
+              账号:<input name="db_user" id='db_user' value="{{if $node.db_user}}{{$node.db_user}}{{/if}}" style="width:100px;">
+              密码:<input name="db_passwd" type="password" id='db_passwd' value="{{$node.db_passwd}}" autoComplete='off' style="width:100px;">
+              端口:<input name="db_port" id='db_port' value="{{$node.db_port}}" style="width:60px;">
+              主机:<input name="db_host" id='db_host' value="{{$node.db_host}}" style="width:120px;">
+              <label class="ep-checkbox-label"><input name="del_test_database" type='checkbox' value=1 {{if !$node.db_user&&!$node.db_passwd}}checked{{/if}}>删除test数据库</label>
+            </div>
+  </div>
+          {{if strcasecmp(substr( php_uname('s'),0,3),'win')==0}}
+          <div class="form-group">
+            <label>sqlserver数据库:</label>
+    <div class="controls">
+              账号:<input name="sqlsrv_user" id='sqlsrv_user' value="{{$node.sqlsrv_user}}" style="width:100px;">
+              密码:<input name="sqlsrv_passwd" type="password" id='sqlsrv_passwd' value="{{$node.sqlsrv_passwd}}" autoComplete='off' style="width:100px;">
+              端口:<input name="sqlsrv_port" id='sqlsrv_port' value="{{if $node.sqlsrv_port}}{{$node.sqlsrv_port}}{{/if}}" autoComplete='off' style="width:60px;">
+            </div>
+  </div>
+          {{/if}}
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">域名绑定设置</div>
+          <div class="form-group">
+            <label>域名绑定设置:</label>
+    <div class="controls">
+              赠送域名:<input name='vhost_domain' id="vhost_domain" value="{{$setting.vhost_domain}}" style="width:160px;" title='用于开通空间后，自动给空间绑定一个二级域名'/>
+              域名绑定CNAME记录:<input name='cname_host' id="cname_host" value="{{$setting.cname_host}}" style="width:160px;" placeholder="*会自动替换成用户名" title='该CNAME域名需要先解析到服务器IP'/>
+              <span id="cname_host_msg"></span>
+              <label class="ep-checkbox-label"><input name="domain_bind" id="domain_bind" type="checkbox" value='1' {{if $setting.domain_bind==1}}checked{{/if}}>允许泛绑定域名</label>
+            </div>
+  </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">运行环境</div>
+          <div class="form-group">
+            <label>模板目录:</label>
+    <div class="controls">
+              <select name='view_dir'>
+                {{for $i=0;$i<$view_dir_count;$i++}}
+                <option value="{{$view_dir[$i]}}" {{if $setting.view_dir==$view_dir[$i]}}selected {{/if}}>{{$view_dir[$i]}}</option>
+                {{/for}}
+              </select>
+              <span class="help-text">用于切换admin和vhost目录下view目录的模板</span>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>默认PHP版本:</label>
+    <div class="controls">
+              <select name='default_version'>
+                {{foreach from=$phpversions key=key item=row}}
+                <option value="{{$key}}" {{if $setting.default_version==$key}}selected{{/if}}>{{$row}}</option>
+                {{/foreach}}
+              </select>
+              <span class="help-text">新增网站默认的PHP版本</span>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>PHP-CLI版本:</label>
+    <div class="controls">
+              <select name='phpcli_version'>
+                <option value="">未设置</option>
+                {{foreach from=$phpcli_versions key=key item=row}}
+                <option value="{{$key}}" {{if $setting.phpcli_version==$key}}selected{{/if}}>{{$row}}</option>
+                {{/foreach}}
+              </select>
+              <span class="help-text">命令行运行php时使用的PHP版本</span>
+            </div>
+  </div>
+          <div class="form-group">
+            <label>中文文件名编码:</label>
+    <div class="controls">
+              <select name='file_encoding' style="width:160px;">
+                <option value="utf8" {{if $setting.file_encoding=='utf8'}}selected{{/if}}>UTF-8</option><option value="gbk" {{if $setting.file_encoding=='gbk'}}selected{{/if}}>GBK</option>
+              </select>
+              <span class="help-text">在线文件管理器中文文件名默认编码</span>
+            </div>
+  </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">FTP相关设置</div>
+          <div class="form-group">
+            <label>FTP相关设置:</label>
+    <div class="controls">
+              ftp端口<input name='ftp_port' value="{{if $setting.ftp_port}}{{$setting.ftp_port}}{{else}}21{{/if}}" style="width:60px;">
+              pasv端口范围(最小端口:最大端口)<input name='ftp_pasv_port' value="{{$setting.ftp_pasv_port}}" placeholder="默认为30000:50000" style="width:200px;">
+            </div>
+  </div>
+        </div>
+
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="save"></i> 确认提交</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

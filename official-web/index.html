@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyPanel Heavy · 现代化虚拟主机控制面板</title>
+  <meta name="description" content="EasyPanel Heavy 是基于 Docker 的现代化虚拟主机控制面板，一行命令完成部署，支持多 PHP 版本、自动 SSL 与数据持久化。" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <!-- ============ 背景光晕装饰层（玻璃拟态氛围） ============ -->
+  <div class="decor" aria-hidden="true">
+    <span class="orb orb-blue"></span>
+    <span class="orb orb-purple"></span>
+    <span class="orb orb-pink"></span>
+    <span class="orb orb-green"></span>
+  </div>
+
+  <!-- ============ 顶部导航（玻璃态 sticky） ============ -->
+  <header class="nav" id="top">
+    <div class="nav-inner">
+      <a class="nav-logo" href="#top">
+        <span class="nav-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+            <path d="M3 9h18"></path>
+            <path d="M9 21V9"></path>
+          </svg>
+        </span>
+        <span class="nav-logo-text">EasyPanel Heavy</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="打开菜单" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav-links" id="navLinks">
+        <a href="#features">特性</a>
+        <a href="#install">安装</a>
+        <a href="#systems">支持系统</a>
+        <a href="#params">参数</a>
+        <a href="#advantages">优势</a>
+        <a class="nav-github" href="https://github.com/kanglesoft/EasyPanel" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ Hero ============ -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-badges">
+          <span class="badge">Docker</span>
+          <span class="badge">多 PHP</span>
+          <span class="badge">自动 SSL</span>
+        </div>
+        <h1 class="hero-title">EasyPanel Heavy<br />开箱即用的虚拟主机控制面板</h1>
+        <p class="hero-sub">把虚拟主机控制面板装进容器，一行命令搞定。</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#install">立即安装</a>
+          <a class="btn btn-ghost" href="#features">了解特性</a>
+        </div>
+      </div>
+      <div class="hero-glow" aria-hidden="true"></div>
+    </section>
+
+    <!-- ============ 一条命令安装（核心区） ============ -->
+    <section class="install" id="install">
+      <div class="section-head">
+        <h2 class="section-title">一条命令安装</h2>
+        <p class="section-desc">在一台干净的 Linux 服务器上，复制下面的命令执行即可。</p>
+      </div>
+
+      <div class="install-card">
+        <div class="install-tabs" role="tablist">
+          <button class="tab-btn active" data-tab="script" role="tab" aria-selected="true">一键脚本</button>
+          <button class="tab-btn" data-tab="git" role="tab" aria-selected="false">Git 克隆</button>
+        </div>
+
+        <!-- 方式一：一键脚本 -->
+        <div class="tab-panel active" data-panel="script">
+          <div class="code-block">
+            <div class="code-head">
+              <span class="code-lang">bash</span>
+              <button class="copy-btn" data-copy="install-script" type="button">复制</button>
+            </div>
+            <pre class="code-body"><code id="install-script"><span class="tok-cmd">bash</span> &lt;(curl -fsSL <span class="tok-url">https://raw.githubusercontent.com/kanglesoft/EasyPanel/main/install.sh</span>)</code></pre>
+          </div>
+          <p class="hint">提示：命令会自动从 GitHub 拉取安装脚本，在干净 Linux 服务器上以 root 运行即可。</p>
+        </div>
+
+        <!-- 方式二：Git 克隆 -->
+        <div class="tab-panel" data-panel="git">
+          <div class="code-block">
+            <div class="code-head">
+              <span class="code-lang">bash</span>
+              <button class="copy-btn" data-copy="install-git" type="button">复制</button>
+            </div>
+            <pre class="code-body"><code id="install-git">git clone <span class="tok-url">https://github.com/kanglesoft/EasyPanel.git</span> &amp;&amp; cd EasyPanel &amp;&amp; <span class="tok-cmd">sudo ./install.sh</span></code></pre>
+          </div>
+          <p class="hint">提示：克隆后进入 EasyPanel 目录运行安装脚本。</p>
+        </div>
+
+        <p class="install-note">需 <strong>root</strong> 权限 · 建议使用<strong>干净</strong>的 Linux 服务器 · 推荐配置 <strong>2 核 4G</strong> 以上。</p>
+      </div>
+    </section>
+
+    <!-- ============ 特性卡片 ============ -->
+    <section class="features" id="features">
+      <div class="section-head">
+        <h2 class="section-title">核心特性</h2>
+        <p class="section-desc">围绕容器化部署的真实能力，开箱即用。</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <path d="M3 9h18"></path>
+              <path d="M8 4v16"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">容器化部署</h3>
+          <p class="feature-desc">面板、数据库与多版本 PHP 统一由 Docker Compose 编排管理，环境一致、易于迁移。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3 3 8l9 5 9-5-9-5Z"></path>
+              <path d="M3 13l9 5 9-5"></path>
+              <path d="M3 18l9 5 9-5"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">多 PHP 版本</h3>
+          <p class="feature-desc">默认内置 PHP 7.4，可通过 <code>add_php.sh</code> 快速接入 PHP 8.x 独立容器，按需扩展。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"></path>
+              <path d="m7 10 5 5 5-5"></path>
+              <path d="M5 21h14"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">自动安装 Docker</h3>
+          <p class="feature-desc">在支持的发行版上，安装脚本自动检测并安装 Docker Engine 与 Compose 插件，无需手动预装。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="10" width="16" height="11" rx="2"></rect>
+              <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+              <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none"></circle>
+            </svg>
+          </div>
+          <h3 class="feature-title">SSL 支持</h3>
+          <p class="feature-desc">集成 acme.sh，可在容器内申请并自动续期 Let's Encrypt 证书，HTTPS 开箱即用。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="6" rx="8" ry="3"></ellipse>
+              <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"></path>
+              <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">数据持久化</h3>
+          <p class="feature-desc">所有业务数据通过 bind 挂载保存在 <code>./data</code> 目录，容器重建不丢失。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <path d="M7 9l3 3-3 3"></path>
+              <path d="M13 15h4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">交互 / 无人值守</h3>
+          <p class="feature-desc">可交互设置密码，也支持 <code>--auto</code> 全自动模式，适配自动化批量部署。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 核心优势 ============ -->
+    <section class="features" id="advantages">
+      <div class="section-head">
+        <h2 class="section-title">核心优势</h2>
+        <p class="section-desc">在开源基础上做的那些改进。</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+              <path d="M8 20h8"></path>
+              <path d="M12 16v4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">全新现代化界面</h3>
+          <p class="feature-desc">重新设计的轻量玻璃拟态控制台，操作更直观、移动端更友好。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h3l2-7 4 16 3-9 2 4h4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">可选启用 BBR</h3>
+          <p class="feature-desc">一行参数开启 TCP BBR 拥塞控制，显著提升网络吞吐。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m8 8-4 4 4 4"></path>
+              <path d="m16 8 4 4-4 4"></path>
+              <path d="m13 5-2 14"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">超级方便的多版本 PHP</h3>
+          <p class="feature-desc">内置 PHP 7.4，配合 <code>add_php.sh</code> 一键拉起 PHP 8.x 独立容器。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"></path>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">自动化 SSL 申请</h3>
+          <p class="feature-desc">集成 acme.sh，证书自动申请与续期，HTTPS 开箱即用。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="7" rx="2"></rect>
+              <rect x="3" y="13" width="18" height="7" rx="2"></rect>
+              <path d="M7 7.5h.01"></path>
+              <path d="M7 16.5h.01"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">新系统无缝支持</h3>
+          <p class="feature-desc">适配 Debian 12 / Ubuntu 24.04 / AlmaLinux / Rocky 等最新发行版。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="8" width="8" height="11" rx="4"></rect>
+              <path d="M9 8V5"></path>
+              <path d="M15 8V5"></path>
+              <path d="M12 5v3"></path>
+              <path d="M8 12H4"></path>
+              <path d="M20 12h-4"></path>
+              <path d="M8 16H4"></path>
+              <path d="M20 16h-4"></path>
+              <path d="M12 12v4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">大量细小 BUG 修复</h3>
+          <p class="feature-desc">在 upstream 基础上修复众多体验与稳定性问题，更稳更顺手。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 6c-2-1.5-5-1.5-7 0v12c2-1.5 5-1.5 7 0 2-1.5 5-1.5 7 0V6c-2-1.5-5-1.5-7 0Z"></path>
+              <path d="M12 6v12"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">完全开源可学习</h3>
+          <p class="feature-desc">脚本与配置以 MIT 开源，欢迎学习、讨论与共建。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 支持系统 ============ -->
+    <section class="systems" id="systems">
+      <div class="section-head">
+        <h2 class="section-title">支持系统</h2>
+        <p class="section-desc">以下发行版已验证可用于 EasyPanel Heavy 部署。</p>
+      </div>
+
+      <div class="sys-group">
+        <h4 class="sys-group-title">Debian</h4>
+        <div class="sys-badges">
+          <span class="sys-badge">Debian 12</span>
+          <span class="sys-badge">Debian 11</span>
+        </div>
+      </div>
+      <div class="sys-group">
+        <h4 class="sys-group-title">Ubuntu</h4>
+        <div class="sys-badges">
+          <span class="sys-badge">Ubuntu 24.04</span>
+          <span class="sys-badge">Ubuntu 22.04</span>
+          <span class="sys-badge">Ubuntu 20.04</span>
+        </div>
+      </div>
+      <div class="sys-group">
+        <h4 class="sys-group-title">CentOS</h4>
+        <div class="sys-badges">
+          <span class="sys-badge">CentOS 7</span>
+          <span class="sys-badge">CentOS 8</span>
+          <span class="sys-badge">CentOS Stream 10</span>
+          <span class="sys-badge">CentOS Stream 9</span>
+        </div>
+      </div>
+      <div class="sys-group">
+        <h4 class="sys-group-title">AlmaLinux</h4>
+        <div class="sys-badges">
+          <span class="sys-badge">AlmaLinux 10</span>
+          <span class="sys-badge">AlmaLinux 9</span>
+          <span class="sys-badge">AlmaLinux 8</span>
+        </div>
+      </div>
+      <div class="sys-group">
+        <h4 class="sys-group-title">Rocky Linux</h4>
+        <div class="sys-badges">
+          <span class="sys-badge">Rocky Linux 10</span>
+          <span class="sys-badge">Rocky Linux 9</span>
+          <span class="sys-badge">Rocky Linux 8</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 安装参数说明 ============ -->
+    <section class="params" id="params">
+      <div class="section-head">
+        <h2 class="section-title">安装参数说明</h2>
+        <p class="section-desc">通过 <code>install.sh</code> 的参数自定义部署行为（支持组合使用）。</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="params-table">
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--auto</code></td>
+              <td>全自动模式：随机生成密码，不安装额外 PHP 版本，无需交互。</td>
+            </tr>
+            <tr>
+              <td><code>--kangle-pass=XXX</code></td>
+              <td>指定面板管理员密码（替换 XXX）。</td>
+            </tr>
+            <tr>
+              <td><code>--mysql-pass=YYY</code></td>
+              <td>指定 MySQL root 密码（替换 YYY）。</td>
+            </tr>
+            <tr>
+              <td><code>--php-versions=8.2,8.5</code></td>
+              <td>非交互安装额外的 PHP 版本，逗号分隔多个版本号。</td>
+            </tr>
+            <tr>
+              <td><code>--enable-bbr</code></td>
+              <td>非交互模式下启用 TCP BBR 拥塞控制，提升网络吞吐。</td>
+            </tr>
+            <tr>
+              <td><code>--force-recreate</code></td>
+              <td>强制干净重建：移除旧容器与卷后重新部署。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ 页脚 ============ -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">EasyPanel Heavy</div>
+      <p class="footer-license">EasyPanel Heavy 新增脚本与配置遵循 <strong>MIT 开源</strong> 发布。</p>
+      <p class="footer-disclaimer">免责声明：EasyPanel Heavy 基于开源组件构建，底层组件版权归各自原作者所有。</p>
+      <p class="footer-thanks">特别鸣谢：本项目参考 <a href="https://github.com/funnycups/kangle" target="_blank" rel="noopener">funnycups/kangle</a>。</p>
+      <p class="footer-notice">声明：本项目并非 Kangle / EasyPanel 官方产品，仅供学习、讨论与互相交流使用；如涉及侵权，请联系后下架。</p>
+      <a class="footer-github" href="https://github.com/kanglesoft/EasyPanel" target="_blank" rel="noopener">GitHub 仓库</a>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

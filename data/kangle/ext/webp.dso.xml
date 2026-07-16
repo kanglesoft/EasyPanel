@@ -1,0 +1,4 @@
+<!--#start 1 -->
+<config>
+<dso_extend name='webp' filename='bin/webp.${dso}'/>
+</config>

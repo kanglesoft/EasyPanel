@@ -1,0 +1,63 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>访问内容过滤</h3></div>
+    <div class="ep-card-body">
+
+      <!-- 功能开关与操作：保留 confirm() 原文，按 btn-group 分组 -->
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <div class="btn-group">
+            {{if $name}}<a href='javascript:if(confirm("真的要禁用关键词过滤吗")){window.location="?c=access&a=startFilter&status=0"}'; class="btn btn-sm btn-danger">禁用功能</a>{{else}}
+            <a href='javascript:if(confirm("真的要启用关键词过滤吗")){window.location="?c=access&a=startFilter&status=1"}'; class="btn btn-sm btn-success">启用功能</a>{{/if}}
+            <a href='javascript:if(confirm("真的要清空所有设置吗")){window.location="?c=access&a=emptyFilter"}'; class="btn btn-sm"><i data-lucide="trash"></i> 清空设置</a>
+            <a href="?c=access&a=saveFile" class="btn btn-sm btn-secondary"><i data-lucide="upload"></i> 关键词导出</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增关键词：模式 B -->
+      <form action='?c=access&a=addfilter' method='post' class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">新增关键词</div>
+          <div class="form-group">
+            <label>关键词</label>
+    <div class="controls">
+    <input name='filter' id='filter' value='' >
+    <span style="color:var(--color-danger);">*每次输入一个关键词</span>
+  </div>
+  </div>
+          <div class="ep-flex ep-gap-2 ep-mt-4">
+            <button type='submit' class="btn btn-sm"><i data-lucide="check"></i> 提交</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- 关键词导入：模式 B -->
+      <form id="form1" name="form1" enctype="multipart/form-data" method="post" action="?c=access&a=readFile" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">关键词导入</div>
+          <div class="form-group">
+            <label>关键词导入</label>
+    <div class="controls">
+    <input name="upfile" type="file" id="upfile" />
+    <button type="submit" name="Submit" class="btn btn-sm"><i data-lucide="check"></i> 确认提交</button>
+    <button type="reset" name="Submit2" class="btn btn-sm btn-secondary">重新选择</button>
+    <span style="color:var(--color-danger);">*请确认导入的文件编码为utf-8</span>
+  </div>
+  </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- 已设置关键词：保留 {{$key}} 原文输出 -->
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>已设置关键词</h3></div>
+    <div class="ep-card-body">
+      <div>{{$key}}</div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

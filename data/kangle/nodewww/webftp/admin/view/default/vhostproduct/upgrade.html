@@ -1,0 +1,60 @@
+{{include file='common/head.html'}}
+<script language='javascript' src='/style/common.js'></script>
+<script language="javascript">
+function changeProduct()
+{
+	var product = new Array(
+			{{foreach from=$products item=product}}
+			new Array({{$product.web_quota}},{{$product.db_quota}},{{$product.price}}),
+			{{/foreach}}
+			new Array(0,0,0));
+	var i = upgrade.product_id.selectedIndex;
+	$('web_quota').innerHTML=product[i][0]+"M";
+	$('db_quota').innerHTML = product[i][1] + "M";
+	$('price').innerHTML = product[i][2]/100 + '元/年';
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>升级虚拟主机 {{$name}}</h3></div>
+    <div class="ep-card-body">
+      <form name='upgrade' action="?c=product&a=upgrade&name={{$name}}&product_type=vhost" method="post" class="ep-form">
+        <div class="form-group">
+          <label>升级到产品</label>
+    <div class="controls">
+      <select name='product_id' onChange='changeProduct()' style="width:260px;">
+              {{foreach from=$products item=product}}
+              <option value='{{$product.id}}'>{{$product.name}}</option>
+              {{/foreach}}
+            </select>
+    </div>
+  </div>
+        <div class="form-group">
+          <label>空间大小:</label>
+    <div class="controls">
+      <div id='web_quota'></div>
+    </div>
+  </div>
+        <div class="form-group">
+          <label>数据库大小:</label>
+    <div class="controls">
+      <div id='db_quota'></div>
+    </div>
+  </div>
+        <div class="form-group">
+          <label>价格</label>
+    <div class="controls">
+      <div id='price'></div>
+    </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn" style="width:200px;">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script language='javascript'>
+changeProduct();
+</script>
+{{include file='common/foot.html'}}

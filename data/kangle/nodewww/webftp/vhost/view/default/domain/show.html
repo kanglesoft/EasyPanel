@@ -1,0 +1,68 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/domain.js?v=3'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>域名绑定</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive"><table class="table ep-mb-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>域名</th>
+            <th>{{if $user.cdn}}源站IP{{else}}目录{{/if}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$list item=row}}
+          <tr id='{{$row.id}}t'>
+            <td>[<a href="javascript:domain_del('{{$row.name}}',{{$row.id}})">删除</a>]{{if $user.cdn && $ssl}}&nbsp;[<a href="?c=ssl&a=domainSslForm&domain={{$row.name}}">SSL证书</a>]{{/if}}</td>
+            <td>
+              {{if $row.ssl>0}}<i data-lucide="lock" style="width:16px;height:16px;margin-left:4px;vertical-align:middle;color:var(--color-success);"></i>{{/if}}
+              <a href='http://{{$row.name}}' target='_blank'>{{$row.name}}</a>
+            </td>
+            <td>{{$row.value}}{{if $row.proto}}&nbsp;({{$row.proto}}){{/if}}&nbsp;[<a href="javascript:domain_edit('{{$row.name}}')">修改</a>]</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+
+      <form name='nodeform' action="javascript:domain_add();" method="post" class="ep-form">
+        <div class="ep-alert ep-alert-warning ep-mb-4">
+          增加域名绑定，在添加绑定之前请先解析域名：<strong>{{$domain_note}}</strong>
+        </div>
+        <div class="form-group">
+          <label>域名</label>
+    <div class="controls"><input type='text' name='domain' id='domain' value="{{$domain.domain}}" /></div>
+  </div>
+        {{if $subdir_flag}}
+        <div class="form-group">
+          <label>{{if $user.cdn}}源站IP{{else}}目录{{/if}}</label>
+    <div class="controls"><input type='text' name='subdir' id='subdir' value="{{$default_subdir}}" /></div>
+  </div>
+        {{if $user.cdn}}
+        <div class="form-group">
+          <label>回源协议</label>
+    <div class="controls"><select name="proto" id="proto" onchange="if(this.value=='https'||this.value=='follow')alert('选择此项必须先在源站配置好SSL证书')">
+            <option value="http">http</option>
+            <option value="https">https</option>
+            <option value="follow">协议跟随</option>
+            {{if getRole('admin')}}<option value="tcp">tcp</option>{{/if}}
+          </select></div>
+  </div>
+        {{/if}}
+        {{/if}}
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type="button" id='button' class="btn" onclick='domain_add();' value="确定" />
+          <input type="button" id='button_import' class="btn btn-secondary" onclick='piao_domain_import();' value="批量增加" />
+          <input type="button" id='button_cancel' class="btn btn-secondary" style="display:none" onclick='cancel_edit();' value="取消编辑" /></div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
+<script>
+  nodeform.domain.focus();
+</script>

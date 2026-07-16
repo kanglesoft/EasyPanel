@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<whm version="1.0">
+<extend name='vhs' dso='${kangle_home}/bin/vhost'/>
+<extend name='start_proftpd' cmd='/vhs/proftpd/sbin/proftpd -S 0.0.0.0'/>
+<extend name='stop_proftpd' cmd='/usr/bin/killall proftpd'/>
+<extend name='mount' cmd='/bin/mount -o remount,noatime,usrquota ${dev}'/>
+<extend name='quotacheck' cmd='/sbin/quotacheck -cmnf ${dev}'/>
+<extend name='sleep' cmd='/bin/sleep 2'/>
+<call name='init_node' extend='vhs'>
+<event type='before' extend='mount' force='1'/>
+<event type='before' extend='quotacheck' force='1'/>
+</call>
+<call name='set_quota' extend='vhs'>
+</call>
+<call name='get_quota' extend='vhs'>
+</call>
+<call name='scan_quota' extend='vhs'>
+</call>
+<call name='init_vh' extend='vhs'>
+<event type='after' extend='vhs' call='set_quota' force='1'/>
+</call>
+<call name='destroy_vh' extend='vhs'>
+</call>
+<call name='reboot_ftp' extend='start_proftpd'>
+<event type='before' extend='stop_proftpd' force='1'/>
+<event type='before' extend='sleep' force='1'/>
+</call>
+<call name='list_dev' extend='vhs'>
+</call>
+</whm>

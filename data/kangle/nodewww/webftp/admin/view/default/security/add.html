@@ -1,0 +1,59 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+	var msg = "{{$msg}}";
+	$(document).ready(function() {
+		if (msg != '') {
+			art.dialog({content : msg,top : '10%',title:"",lock:true});
+		}
+	})
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>安全设置</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=security&a=add" method="post" class="ep-form">
+        <div class="form-group">
+          <label>管理员登陆图片码验证:</label>
+    <div class="controls">
+    <label class="ep-switch {{if $setting.admin_login_img==1}}is-on{{else}}is-off{{/if}}">
+    <span class="track"></span>
+    <input type="checkbox" name="admin_login_img" value="1" {{if $setting.admin_login_img==1}}checked{{/if}} style="position:absolute;opacity:0;">
+    </label>
+    <span style="margin-left:16px;">图片字数<input name="admin_login_img_sum" type='text' value="{{if $setting.admin_login_img_sum}}{{$setting.admin_login_img_sum}}{{else}}6{{/if}}" ></span>
+  </div>
+  </div>
+        <div class="form-group">
+          <label>用户登陆图片码验证:</label>
+    <div class="controls">
+    <label class="ep-switch {{if $setting.vhost_login_img==1}}is-on{{else}}is-off{{/if}}">
+    <span class="track"></span>
+    <input type="checkbox" name="vhost_login_img" value="1" {{if $setting.vhost_login_img==1}}checked{{/if}} style="position:absolute;opacity:0;">
+    </label>
+    <span style="margin-left:16px;">图片字数<input name="vhost_login_img_sum" type='text' value="{{if $setting.vhost_login_img_sum}}{{$setting.vhost_login_img_sum}}{{else}}6{{/if}}" ></span>
+  </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn" style="width:200px;"><i data-lucide="check"></i> 确认提交</button>
+        </div>
+        <div class="form-group">
+          <label>其他设置:</label>
+    <div class="controls">
+    <b>{{if is_https()}}<a href="javascript:change_https(0)">使用HTTP访问面板</a>{{else}}<a href="javascript:change_https(1)">使用HTTPS访问面板</a>{{/if}}</b>
+    &nbsp;&nbsp;
+    <b><a href="?c=security&a=sslForm">面板SSL证书配置</a></b>
+  </div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function change_https(status){
+	if(status == 1){
+		top.location.href='https://'+top.location.hostname+':4412'+top.location.pathname;
+	}else{
+		top.location.href='http://'+top.location.hostname+':3312'+top.location.pathname;
+	}
+}
+</script>
+{{include file='common/foot.html'}}

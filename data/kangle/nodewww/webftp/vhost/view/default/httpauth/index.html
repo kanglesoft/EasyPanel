@@ -1,0 +1,83 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>HTTP认证</h3>
+      <a href='?c=httpauth&a=sync' class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重建</a>
+    </div>
+    <div class="ep-card-body">
+      <div class="modal hide" id="changePassword">
+        <form action='?c=httpauth&a=changePassword' method='POST' class="ep-form">
+          <div class="modal-header">
+            <a class="close" data-dismiss="modal" onclick='hide_div("changePassword")'>×</a>
+            <h3><div id='changePasswordTitle2'></div></h3>
+          </div>
+          <div class="modal-body">
+            <input name='httpuser' type=hidden value='' id='httpuser'>
+            <div class="form-group">
+              <label>输入新密码:</label>
+              <div class="controls">
+                <input name='passwd' id='passwd'>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="#" data-dismiss="modal" class="btn btn-secondary" onclick='hide_div("changePassword")'><i data-lucide="power-off"></i> 关闭</a>
+            <input type='submit' class="btn" value='修改'>
+          </div>
+        </form>
+      </div>
+
+      <div class="ep-table-responsive"><table class="table ep-mb-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>用户名</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$httpusers item=httpuser}}
+          <tr>
+            <td>[<a href='?c=httpauth&a=del&httpuser={{$httpuser.user}}'>删除</a>]
+              [<a href=# onclick=changePassword("{{$httpuser.user}}")>修改密码</a>]
+            </td>
+            <td>{{$httpuser.user}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+
+      <form action='?c=httpauth&a=add' method='post' class="ep-form">
+        <div class="form-group">
+          <label>用户名:</label>
+          <div class="controls">
+            <input name='httpuser' class="span3">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>密码:</label>
+          <div class="controls">
+            <input name='passwd' class="span3">
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <input type='submit' value='增加' class="btn">
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function changePassword(httpuser) {
+    $("#changePasswordTitle2").html("修改"+httpuser+"的密码");
+    $("#httpuser").val(httpuser);
+    $("#changePassword").show();
+    $("#passwd").focus();
+  }
+  function hide_div(id) {
+    $("#"+id).hide();
+  }
+</script>
+{{include file='common/foot.html'}}

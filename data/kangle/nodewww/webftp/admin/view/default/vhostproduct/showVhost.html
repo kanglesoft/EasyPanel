@@ -1,0 +1,119 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>查找虚拟主机</h3>
+    </div>
+    <div class="ep-card-body">
+      <form name="form1" method="post" action="?c=vhost&a=showVhost" class="ep-search-form ep-mb-4">
+        <label>输入ftp用户名或#uid或域名:</label>
+        <input name="user" type="text" id="user" value="{{$user}}" placeholder="输入用户名/#uid/域名">
+        <button type="submit" name="Submit" class="btn btn-sm"><i data-lucide="search"></i> 搜索</button>
+      </form>
+    </div>
+  </div>
+
+  {{if $msg}}
+  <div class="ep-card">
+    <div class="ep-card-body" style="text-align:center;">
+      <span style="color:var(--color-danger);">{{$msg}}</span>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if $row}}
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>产品信息</h3>
+      <div class="actions">
+        [<a href='javascript:if(confirm("真的要删除空间吗,为将导致数据无法恢复,如果你想关闭空间，可以把该空间的状态改为非0")){ window.location="?c=vhost&a=del&name={{$row.name}}";}'>删除空间</a>]
+        [<a href='?c={{$smarty.request.c}}&a=resync&name={{$row.name}}'>重建空间</a>]
+        [<a href='javascript:if(confirm("真的要重设用户密码吗")){ window.location="?c={{$smarty.request.c}}&a=randPassword&name={{$row.name}}";}'>重设FTP密码</a>]
+        [<a href='javascript:if(confirm("真的要重设数据库密码吗")){ window.location="?c={{$smarty.request.c}}&a=randDbPassword&name={{$row.name}}";}'>重设数据库密码</a>]
+        [<a href='?c={{$smarty.request.c}}&a=impLogin&name={{$row.name}}'>控制面板</a>]
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <table class="table" cellpadding="0" cellspacing="0">
+        <tbody>
+          <tr><td style="width:200px;font-weight:500;">UID：</td><td>{{$row.uid}}</td></tr>
+          <tr><td style="width:200px;font-weight:500;">服务器IP</td><td>{{gethostbyname($smarty.server.SERVER_NAME)}}</td></tr>
+          <tr><td style="width:200px;font-weight:500;">模板</td><td>{{$row.templete}}:{{$row.subtemplete}}</td></tr>
+          <tr><td style="width:200px;font-weight:500;">服务器路径</td><td>{{$row.doc_root}}</td></tr>
+          <tr><td style="width:200px;font-weight:500;">创建时间</td><td>{{date("Y-m-d H:i:s",$row.create_time)}}</td></tr>
+          <tr><td style="width:200px;font-weight:500;">状态</td>
+            <td>
+              <form action='?c={{$smarty.request.c}}&a=setStatus&name={{$row.name}}' method='post' name='status_form' class="ep-form">
+                <select name='status' onChange="javascript:status_form.submit()" style="width:auto;">
+                  {{for $i=0; $i<2; $i++}}
+                  <option value='{{$i}}' {{if $i==$row.status}} selected {{/if}}>
+                  {{if $i==0}}正常{{else}}暂停{{/if}}
+                  </option>
+                  {{/for}}
+                </select>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DT04: 资源使用情况（只读 table，使用率单元格换进度条，语义色由 {{if}} 判断） -->
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>资源使用情况</h3></div>
+    <div class="ep-card-body">
+      <table class="table" cellpadding="0" cellspacing="0">
+        <tbody>
+          <tr>
+            <td style="width:200px;font-weight:500;">空间使用率</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill {{if $row.space_pct>80}}is-danger{{elseif $row.space_pct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$row.space_pct}}%"></div>
+              </div>
+              <span style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$row.space_used}} / {{$row.space_total}}（{{$row.space_pct}}%）</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:200px;font-weight:500;">流量使用率</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill {{if $row.flow_pct>80}}is-danger{{elseif $row.flow_pct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$row.flow_pct}}%"></div>
+              </div>
+              <span style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$row.flow_used}} / {{$row.flow_total}}（{{$row.flow_pct}}%）</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:200px;font-weight:500;">磁盘使用率</td>
+            <td>
+              <div class="progress-bar">
+                <div class="progress-fill {{if $row.disk_pct>80}}is-danger{{elseif $row.disk_pct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$row.disk_pct}}%"></div>
+              </div>
+              <span style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$row.disk_used}} / {{$row.disk_total}}（{{$row.disk_pct}}%）</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {{if $list}}
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>域名绑定目录</h3></div>
+    <div class="ep-card-body">
+      <table class="table" cellpadding="0" cellspacing="0">
+        <thead>
+          <tr><th>域名</th><th>目录</th></tr>
+        </thead>
+        <tbody>
+          {{foreach from=$list item=row}}
+          <tr><td>{{$row.name}}</td><td>{{$row.value}}</td></tr>
+          {{/foreach}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+  {{/if}}
+</div>
+{{include file='common/foot.html'}}

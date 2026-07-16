@@ -1,0 +1,44 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  {{if $msg}}
+  <div class="ep-alert ep-alert-danger ep-mb-4">{{$msg}}</div>
+  {{/if}}
+
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>环境变量设置</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive"><table class="table">
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>值</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach item=e from=$env}}
+          <form action='?c=tplenv&a=setEnv' method='post'>
+          <tr>
+            <td>{{$lang[$e.name]}}</td>
+            <td>
+              <input type='hidden' name='name' value='{{$e.name}}'/>
+              {{if $e.value.0=='TEXT'}}
+              <input type='text' name='{{$e.name}}' value='{{if !$e.password}}{{$val[$e.name]}}{{/if}}'>
+              {{else if $e.value.0=='RADIO'}}
+              {{foreach item=v from=$e.value.1}}
+              <label><input type='radio' name='{{$e.name}}' {{if $val[$e.name]==$v.1}}checked{{/if}} value='{{$v.1}}'> {{$lang[$v.0]}}</label>
+              {{/foreach}}
+              {{else if $e.value.0=='CHECKBOX'}}
+              CHECKBOX
+              {{/if}}
+            </td>
+            <td><button type='submit' class="btn btn-sm"><i data-lucide="check"></i> 设置</button></td>
+          </tr>
+          </form>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

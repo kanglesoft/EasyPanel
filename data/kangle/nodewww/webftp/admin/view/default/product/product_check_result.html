@@ -1,0 +1,17 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-body" style="text-align:center;padding:48px 24px;">
+      <div style="font-size:48px;margin-bottom:16px;">{{if $result==1}}<i data-lucide="x-circle"></i>{{else}}<i data-lucide="check-circle"></i>{{/if}}</div>
+      <div style="font-size:16px;margin-bottom:16px;">
+        {{if $result==1}}
+        {{$param}}已经被别人注册了!请选过一个吧.
+        {{else}}
+        {{$param}}可用
+        {{/if}}
+      </div>
+      <a href="javascript:history.go(-1)" class="btn btn-sm btn-secondary"><i data-lucide="arrow-left"></i> 返回</a>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

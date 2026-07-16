@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<whm version="1.0">
+
+<extend type='shell' name='mysql_dumpin_sql' async='1'>
+	<commands stdin="${vhfile:$file}" runas='user'>
+		<command>${kangle_home}/bin/mysql${exe} -f -h ${url:host} -u ${url:vh} -p${url:passwd}  ${url:vh}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='remote_mysql_dumpin_sql' async='1'>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/mysqldump${exe} -f -h ${url:rehost} -u ${url:reuser} -p${url:repasswd} ${url:redate}</command>
+		<command>${kangle_home}/bin/mysql${exe} -f -h ${url:host} -u ${url:vh} -p${url:passwd}  ${url:vh}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='mysql_dumpin_compress_sql' async='1'>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/7z${exe} x -so ${vhfile:$file}</command>
+		<command>${kangle_home}/bin/mysql${exe} -f -h ${url:host} -u ${url:vh} -p${url:passwd} ${url:vh}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='system_mysql_dumpin_compress_sql' async='1'>
+	<commands  runas='system'>
+		<command>${kangle_home}/bin/7z${exe} x -so ${vhfile:$file}</command>
+		<command>${kangle_home}/bin/mysql${exe} -f -u ${url:user} -p${url:passwd} ${url:dbname}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='mysql_dumpout_sql' async='1'>
+	<commands runas='user'>
+		<command>${kangle_home}/bin/busybox${exe} mkdir backup</command>
+	</commands>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/mysqldump${exe} -f -h ${url:host} -u ${url:vh} -p${url:passwd} ${url:vh}</command>
+		<command>${kangle_home}/bin/7z${exe} a -si${url:vh}.sql ${vhfile:$file}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='mysql_dumpout_sql_system' async='1'>
+	<commands  runas='system'>
+		<command>${kangle_home}/bin/mysqldump${exe} -f -u ${url:user} -p${url:passwd} ${url:dbname}</command>
+		<command>${kangle_home}/bin/7z${exe} a ${url:file} -si${url:dbname}.sql </command>
+	</commands>
+</extend>
+
+<extend type='shell' name='backup_web' async='1'>
+	<commands runas='user'>
+		<command>${kangle_home}/bin/busybox${exe} mkdir backup</command>
+	</commands>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/7z${exe} a -r ${url:password} -y -xr0!backup -xr0!logs -xr0!webalizer ${url:ext_arg} ${vhfile:$file} ${vhfile:/}*</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='backup_web_system' async='1'>
+	<commands  runas='system'>
+		<command>${kangle_home}/bin/7z${exe} a ${url:file} -r ${url:password}  ${url:xr} ${url:ext_arg} ${vhfile:/}*</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='restore_web' async='1'>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/7z${exe} x -r ${url:password} -y ${url:ext_arg} -o${vhfile:/} ${vhfile:$file}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='wget' async='1'>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/wget${exe} ${url:ext_arg} ${url:url} -O ${vhfile:$file}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='system_wget' async='1'>
+	<commands  runas='system'>
+		<command>${kangle_home}/bin/wget${exe} ${url:ext_arg} ${url:url} -O ${url:file}</command>
+	</commands>
+</extend>
+
+<extend type='shell' name='restore' async='1'>
+	<commands  runas='user'>
+		<command>${kangle_home}/bin/7z${exe} x ${url:file} -O${url:out_dir} ${url:passwd} ${url:mode} ${url:listfile}</command>
+	</commands>
+</extend>
+
+<!-- sql mysql dumpin -->
+<call name='mysql_dump_in' extend='mysql_dumpin_sql'></call>
+
+<!-- .7z mysql dumpin -->
+<call name='mysql_dump_in_compress' extend='mysql_dumpin_compress_sql'></call>
+
+<!-- remote mysql sumpin -->
+<call name='remote_mysql_dumpin_sql' extend='remote_mysql_dumpin_sql'></call>
+
+<!-- system_mysql_dumpin_compress_sql -->
+<call name='system_mysql_dumpin_compress_sql' extend='system_mysql_dumpin_compress_sql'></call>
+
+
+<!-- mysql out -->
+<call name='mysql_dump_out' extend='mysql_dumpout_sql'></call>
+
+<!-- mysql out -->
+<call name='mysql_dumpout_sql_system' extend='mysql_dumpout_sql_system'></call>
+
+
+<!-- web backup -->
+<call name='backup_web' extend='backup_web'></call>
+
+<!-- backup_web_system -->
+<call name='backup_web_system' extend='backup_web_system'></call>
+
+<!-- restore_web -->
+<call name='restore_web' extend='restore_web'></call>
+
+<!--wget -->
+<call name='wget' extend='wget'></call>
+
+<!--system_wget -->
+<call name='system_wget' extend='system_wget'></call>
+
+<!--restore-->
+<call name='restore' extend='restore'></call>
+</whm>
+

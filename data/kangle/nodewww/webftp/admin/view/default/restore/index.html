@@ -1,0 +1,32 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>恢复备份</h3></div>
+    <div class="ep-card-body">
+      <form name='form1' action='?c=restore&a=restore' method='post' class="ep-form">
+        {{if is_array($listdir)}}
+        <div class="form-group">
+          <label>选择恢复文件</label>
+    <div class="controls">
+    <div class="ep-flex ep-flex-wrap ep-gap-2">
+    {{foreach from=$listdir item=row}}
+    <label><input type="checkbox" name='dir' value="{{$row}}">{{$row}}&nbsp;&nbsp;{{if substr($row,-1)=='f'}}全备份{{else}}增量备份{{/if}}</label>
+    {{/foreach}}
+  </div>
+          </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="check"></i> 确定</button>
+        </div>
+        {{else}}
+        <div class="ep-empty">
+          <div class="ep-empty-icon"><i data-lucide="package"></i></div>
+          <div class="ep-empty-title">暂无可用备份</div>
+          <div>请先到自动备份设置中创建备份</div>
+        </div>
+        {{/if}}
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

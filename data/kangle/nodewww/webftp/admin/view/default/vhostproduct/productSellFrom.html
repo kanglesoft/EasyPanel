@@ -1,0 +1,85 @@
+{{include file='common/head.html'}}
+<script language='javascript' src='/style/common.js'></script>
+<script language='javascript'>
+function show(url)
+{
+	window.open(url,'','height=100,width=250,resize=no,scrollbars=no,toolsbar=no,top=200,left=200');
+}
+function check_user_old()
+{
+	show('?c=product&a=check&product_type=vhost&name='+document.nodeform.name.value);
+}
+function check_register()
+{
+	if(nodeform.name.value.length<3){
+		alert('用户名长度最小为3个字母');
+		return false;
+	}
+	if(nodeform.name.value=='root'){
+		alert('root为保留账号，请选择其他账号');
+		return false;
+	}
+	return nodeform.submit();
+}
+function product_input()
+{
+	document.getElementById("product").style.display="inline";
+}
+function check_user_result()
+{
+	if (xmlhttp.readyState==4) {
+		var msg='';
+		var ret=0;
+		try{
+			if(xmlhttp.status == 200){
+				var dataArray=xmlhttp.responseXML.getElementsByTagName('result');
+				ret = dataArray[0].getAttribute('ret');
+				if(ret=='1'){
+					msg="用户名可用";
+					document.getElementById('check_user_result').innerHTML=msg;
+					return;
+				}else{
+					msg="用户名不可用";
+					document.getElementById('check_user_result').innerHTML=msg;
+					return;
+				}
+			}
+		}catch(e){alert(e)}
+	}
+}
+function check_user(va)
+{
+	if(va==""){
+		return false;
+	}
+	var url='?c=vhostproduct&a=ajaxCheckUser&name='+va;
+	ajax_open_url(url,check_user_result);
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card" id='product'>
+    <div class="ep-card-header"><h3>新增网站</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=product&a=sell&product_id={{$product_id}}" method="post" class="ep-form">
+        <div class="form-group">
+          <label>网站名：</label>
+    <div class="controls">
+      <input name="name" type="text" id="name" onblur="check_user(this.value)" style="width:260px;">
+            <span style="color:var(--color-danger);" id='check_user_result'>*必填</span>
+    </div>
+  </div>
+        <div class="form-group">
+          <label>密码:</label>
+    <div class="controls">
+      <input name='passwd' type="password" id="passwd" style="width:260px;">
+            <span style="color:var(--color-danger);">*必填</span>
+    </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="button" class="btn" onClick="check_register()" style="width:200px;">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

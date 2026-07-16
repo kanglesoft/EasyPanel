@@ -1,0 +1,60 @@
+{{include file='common/head.html'}}
+<script>
+  function ssi_del(name) {
+    if (confirm("确认删除吗？") == false) {
+      return;
+    }
+    window.location = "?c=ssi&a=del&name=" + name;
+  }
+</script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>SSI设置</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive"><table class="table ep-mb-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>顺序</th>
+            <th>映射</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$path_map item=row}}
+          <tr>
+            <td>[<a href="javascript:ssi_del('0,{{$row.name}}')">删除</a>]</td>
+            <td>{{$row.id}}</td>
+            <td>路径：{{$row.rawname}}</td>
+          </tr>
+          {{/foreach}}
+          {{foreach from=$file_map item=row}}
+          <tr>
+            <td>[<a href="javascript:ssi_del('1,{{$row.name}}')">删除</a>]</td>
+            <td>{{$row.id}}</td>
+            <td>扩展名：{{$row.rawname}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+
+      <form action="?c=ssi&a=add" method="post" class="ep-form">
+        <div class="form-group">
+          <label>新增映射</label>
+    <div class="controls">
+      <div class="controls ep-flex ep-flex-wrap ep-gap-2 ep-items-center">
+            <select name='file_ext' class="span2">
+              <option value='1'>文件扩展名</option>
+              <option value='0'>路径</option>
+            </select>
+            <input type='text' name='value' class="span2" placeholder="映射值" />
+            <label>顺序号：<input type='text' name='id' value='100' size=6 class="span1" /></label>
+            <button type="submit" class="btn"><i data-lucide="plus"></i> 确定</button>
+          </div>
+    </div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

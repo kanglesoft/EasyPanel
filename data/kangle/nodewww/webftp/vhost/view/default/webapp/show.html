@@ -1,0 +1,53 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>添加删除程序</h3>
+      <a href='?c=webapp&a=browse' class="btn btn-sm btn-secondary"><i data-lucide="download"></i> 在线安装程序</a>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive"><table class="table">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>状态</th>
+            <th>程序</th>
+            <th>域名</th>
+            <th>目录</th>
+            <th>物理路径</th>
+            <th>安装时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$list item=row}}
+          <tr>
+            <td>[<a href="javascript:if(confirm('确定删除{{$row.appname}} V{{$row.appver}}?')){location='?c=webapp&a=uninstall&id={{$row.id}}';}">删除</a>]</td>
+            <td>
+              {{if $row.status==0}}<a href='?c=webapp&a=install&step=1&appid={{$row.appid}}&appname={{$row.appname}}&appver={{$row.appver}}&id={{$row.id}}&domain={{$row.domain}}&dir={{$row.dir}}'>未完成，重新安装</a>{{else}}<span class="badge badge-success">成功</span>{{/if}}
+            </td>
+            <td>{{$row.appname}} V{{$row.appver}}</td>
+            <td>{{$row.domain}}</td>
+            <td>{{$row.dir}}</td>
+            <td>{{$row.phy_dir}}</td>
+            <td>{{$row.install_time}}</td>
+          </tr>
+          {{foreachelse}}
+          <tr>
+            <td colspan="7">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="package"></i></div>
+                <h4>暂无数据</h4>
+                <p>当前没有安装任何程序。</p>
+              </div>
+            </td>
+          </tr>
+          {{/foreach}}
+          <tr>
+            <td colspan="7">共计 {{$sum}} 条记录</td>
+          </tr>
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

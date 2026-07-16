@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<whm version="1.0">
+<extend name='webapp' dso='${kangle_home}/bin/webapp'/>
+<call name='download' extend='webapp'>
+</call>
+<call name='query_download' extend='webapp'>
+</call>
+<call name='install' extend='webapp'>
+</call>
+<call name='uninstall' extend='webapp'>
+</call>
+<call name='query_install' extend='webapp'>
+</call>
+<call name='query_uninstall' extend='webapp'>
+</call>
+<call name='compress' extend='webapp'>
+</call>
+<call name='decompress' extend='webapp'>
+</call>
+</whm>

@@ -1,0 +1,86 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+function copyText(id, btn){
+	var el = document.getElementById(id);
+	if (!el) return;
+	el.select();
+	el.setSelectionRange(0, el.value.length);
+	var ok = false;
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		try {
+			navigator.clipboard.writeText(el.value);
+			ok = true;
+		} catch (e) {}
+	}
+	if (!ok) {
+		try {
+			document.execCommand('copy');
+			ok = true;
+		} catch (e) {}
+	}
+	if (ok && btn) {
+		var old = btn.innerHTML;
+		btn.innerHTML = '<i data-lucide="check"></i> 已复制';
+		if (typeof lucide !== 'undefined') lucide.createIcons();
+		setTimeout(function(){ btn.innerHTML = old; if (typeof lucide !== 'undefined') lucide.createIcons(); }, 1500);
+	}
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="shield"></i> 证书详情：{{$domain}}</h3>
+      <div class="actions">
+        <a href="?c=acmessl&amp;a=index" class="btn btn-sm btn-secondary">返回列表</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="form-section">
+        <div class="form-section-title">公钥证书（fullchain）</div>
+        <div class="form-group">
+          <div class="controls">
+            <textarea id="certCrt" readonly rows="10">{{$certificate}}</textarea>
+            <div class="ep-flex ep-gap-2 ep-mt-2">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="copyText('certCrt', this);"><i data-lucide="copy"></i> 复制公钥</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">私钥（private key）</div>
+        <div class="form-group">
+          <div class="controls">
+            <textarea id="certKey" readonly rows="8">{{$certificate_key}}</textarea>
+            <div class="ep-flex ep-gap-2 ep-mt-2">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="copyText('certKey', this);"><i data-lucide="copy"></i> 复制私钥</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" id="apply">
+        <div class="form-section-title">应用到已有网站</div>
+        <form action="?c=acmessl&amp;a=applyToVhost" method="post" class="ep-form">
+          <input type="hidden" name="domain" value="{{$domain}}">
+          <div class="form-group">
+            <label>选择要应用证书的网站</label>
+            <div class="controls">
+              <select name="vhost" required>
+                <option value="">-- 请选择 --</option>
+                {{foreach from=$vhosts item=v}}
+                <option value="{{$v.name}}">{{$v.name}}（{{$v.doc_root}}）</option>
+                {{/foreach}}
+              </select>
+              <span class="form-hint">证书将写入网站目录的 ssl.crt 与 ssl.key，并自动通知 Kangle 重载配置。</span>
+            </div>
+          </div>
+          <div class="ep-flex ep-gap-2 ep-mt-4">
+            <button type="submit" class="btn btn-success"><i data-lucide="check-circle"></i> 应用证书</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

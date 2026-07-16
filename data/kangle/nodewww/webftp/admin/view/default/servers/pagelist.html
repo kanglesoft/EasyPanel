@@ -1,0 +1,125 @@
+{{include file='common/head.html'}}
+<script language='javascript' src='{{$STATIC}}scripts/server.js'></script>
+<script language='javascript' src='/style/md5.js'></script>
+<script language='javascript'>
+$(document).ready(function() {
+	$.ajax({
+		type:'post',
+		url:'?c=slave&a=slaveGetAll',
+		data:null,
+		dataType:'json',
+		success:function(msg) {
+			if (msg['count'] <=0){
+				return;
+			}
+			for(i=0;i<msg['count'];i++){
+				check_slave(msg['slaves'][i]['server'],msg['slaves'][i]['slave']);
+			}
+		}
+	});
+});
+function check_slave(server,slave) {
+	$.ajax( {
+		type : 'get',
+		url : '?c=slave&a=checkSlave',
+		data : 'slave=' + slave + '&server=' + server,
+		dataType : 'json',
+		success : function(msg) {
+			var code = msg['code'];
+			var img = "";
+			if (code == 200) {
+				if (msg['msg']!=null && msg['msg']!="") {
+					img += '<span class="badge badge-danger"';
+				}else{
+					img += '<span class="badge badge-success"';
+				}
+			} else {
+				img += '<span class="badge badge-danger"';
+			}
+			if (msg['msg'] != null && msg['msg']!="") {
+				img += ' title="' + msg['msg'] + '"';
+			}
+			img += ">状态</span>";
+			var md5 = MD5_hexhash(slave);
+			var id = md5.substr(0,6);
+			$("#" + id).html(img);
+		}
+	});
+}
+</script>
+<div class="piao_wid">
+<div id='msg' class='piao_server' style='display: none'></div>
+</div>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>服务器设置</h3>
+      <div class="actions">
+        <a href='javascript:piao_server_add();' class="btn btn-sm"><i data-lucide="plus"></i> + 增加域名服务器</a>
+        <a href='javascript:server_init();' class="btn btn-sm btn-secondary">初始化域名服务器</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>操作</th><th>服务器名称</th><th>域名服务器(域名)</th><th>辅服务器</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>
+                <div class="btn-group">
+                  <a href="javascript:server_del('{{$row.server}}')" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <a href="javascript:piao_server_update('{{$row.server}}','{{$row.ns}}')" class="btn btn-sm"><i data-lucide="edit"></i> 修改</a>
+                  <a href="javascript:piao_slave_add('{{$row.server}}');" class="btn btn-sm"><i data-lucide="plus"></i> 添加辅服务器</a>
+                  <a href="?c=servers&a=tools&server={{$row.server}}" class="btn btn-sm">调试工具</a>
+                </div>
+              </td>
+              <td>{{$row.server}}</td>
+              <td>{{$row.ns}}</td>
+              <td>
+                <table class="table" cellpadding="0" cellspacing="1">
+                  {{for $i=0;$i< count($row.slaves);$i++}}
+                  <tr>
+                    <td>
+                      <div class="btn-group">
+                        <a href="#" onclick="slave_del('{{$row.slaves[$i].server}}','{{$row.slaves[$i].slave}}')" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                        <a href="#" onclick="piao_slave_update('{{$row.slaves[$i].server}}','{{$row.slaves[$i].slave}}','{{$row.slaves[$i].ns}}','{{$row.slaves[$i].skey}}')" class="btn btn-sm"><i data-lucide="edit"></i> 修改</a>
+                      </div>
+                    </td>
+                    <td>{{$row.slaves[$i].slave}}</td>
+                    <td>{{$row.slaves[$i].ns}}</td>
+                    <td id='{{substr(md5($row.slaves[$i].slave),0,6)}}'></td>
+                  </tr>
+                  {{/for}}
+                </table>
+              </td>
+            </tr>
+            {{foreachelse}}
+            <tr>
+              <td colspan="4">
+                <div class="ep-empty">
+                  <div class="ep-empty-icon"><i data-lucide="server"></i></div>
+                  <h4>暂无数据</h4>
+                  <p>当前没有域名服务器记录。</p>
+                </div>
+              </td>
+            </tr>
+            {{/foreach}}
+            <tr>
+              <td colspan="4" style="text-align:right;">
+                {{if $page>1}}<a href='?c=servers&a=serverPageList&page=0'>首页</a>
+                <a href='?c=servers&a=serverPageList&page={{$page-1}}'>上一页</a>{{else}}首页 上一页{{/if}}
+                {{if $page!=$total_page}}<a href='?c=servers&a=serverPageList&page={{$page+1}}'>下一页</a>
+                <a href='?c=servers&a=serverPageList&page={{$total_page}}'>尾页</a>{{else}}下一页 尾页{{/if}}
+                {{$page}}/{{$total_page}}&nbsp;共计{{$count}}记录&nbsp;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

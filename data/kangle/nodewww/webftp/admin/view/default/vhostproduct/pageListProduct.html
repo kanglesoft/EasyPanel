@@ -1,0 +1,96 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+function echo_title(arr)
+{
+	alert(arr.id);
+}
+jQuery(document).ready(function(){
+	var msg = '{{$msg}}';
+	if (msg != '') {
+		var success = '{{$success}}';
+		if (success != '') {
+			art.dialog({id:'successmsg',content:msg,icon:'succeed',time:3});
+		}else {
+			art.dialog({id:'successmsg',content:msg,icon:'error',time:3});
+		}
+	}
+});
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="list"></i> 产品列表</h3>
+      <div class="actions">
+        <a href="?c=vhostproduct&a=addProductFrom" class="btn btn-sm"><i data-lucide="plus-circle"></i> 增加产品</a>
+        <a href='http://wiki.kangleweb.com/Easypanel%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98#.E9.9D.A2.E6.9D.BF.E4.B8.AD.E7.9A.84.E4.BA.A7.E5.93.81.E5.88.97.E8.A1.A8.E6.9C.89.E4.BB.80.E4.B9.88.E7.94.A8.E5.A4.84' target=_blank class="btn btn-sm btn-secondary"><i data-lucide="help-circle"></i> 帮助?</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>id</th>
+              <th>产品名称</th>
+              <th>空间(M)</th>
+              <th>数据库(M)</th>
+              <th>连接数</th>
+              <th>域名个数</th>
+              <th>模块</th>
+              <th>开通FTP</th>
+              <th>速度限制</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>
+                <div class="btn-group">
+                  <a href='javascript:if(confirm("确定要删除?")){ window.location="?c=vhostproduct&a=delProduct&id={{$row.id}}";}' class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <a href='?c=vhostproduct&a=editproductForm&id={{$row.id}}' class="btn btn-sm"><i data-lucide="settings"></i> 修改</a>
+                  <a href='?c=product&a=sellForm&product_id={{$row.id}}' class="btn btn-sm"><i data-lucide="plus-circle"></i> 增加网站</a>
+                </div>
+              </td>
+              <td>{{$row.id}}</td>
+              <td>{{$row.product_name}}</td>
+              <td>{{$row.web_quota}}</td>
+              <td>{{$row.db_quota}}</td>
+              <td>{{if $row.max_connect==0}}不限{{else}}{{$row.max_connect}}{{/if}}</td>
+              <td>{{if $row.domain==-1}}不限{{else}}{{$row.domain}}{{/if}}</td>
+              <td>{{if $row.module}}{{$row.module}}{{else}}{{$row.templete}}{{if $row.subtemplete!=""}}:{{$row.subtemplete}}{{/if}}{{/if}}</td>
+              <td>{{if $row.ftp==1}}是{{else}}否{{/if}}</td>
+              <td>{{if $row.speed_limit==0}}不限{{else}}{{$row.speed_limit/1024}}KB/S{{/if}}</td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="10">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="inbox"></i></div>
+                <h4>暂无数据</h4>
+                <p>还没有任何产品，点击右上角"增加产品"开始创建。</p>
+              </div>
+            </td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+      <div class="ep-pagination">
+        {{if $page>1}}
+        <a href='?c=vhostproduct&a=pageListProduct&page=0'>首页</a>
+        <a href='?c=vhostproduct&a=pageListProduct&page={{$page-1}}'>上一页</a>
+        {{else}}
+        <span>首页</span><span>上一页</span>
+        {{/if}}
+        {{if $page!=$total_page}}
+        <a href='?c=vhostproduct&a=pageListProduct&page={{$page+1}}'>下一页</a>
+        <a href='?c=vhostproduct&a=pageListProduct&page={{$total_page}}'>尾页</a>
+        {{else}}
+        <span>下一页</span><span>尾页</span>
+        {{/if}}
+        <span>{{$page}}/{{$total_page}}</span>
+        <span>共计{{$count}}记录</span>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

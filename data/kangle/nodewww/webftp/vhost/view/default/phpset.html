@@ -1,0 +1,137 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>切换PHP版本</h3></div>
+    <div class="ep-card-body">
+      <form action="?c=phpset&a=change" method="POST" onsubmit="return change_version()" class="ep-form">
+        <div class="form-group">
+          <label>当前版本</label>
+    <div class="controls"><div>{{$version}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>切换版本</label>
+    <div class="controls">
+            <select name="v" id="v">
+              {{foreach from=$versions key=key item=row}}
+              <option value="{{$key}}" {{if $version==$row}}selected{{/if}}>{{$row}}</option>
+              {{/foreach}}
+            </select>
+            <button type="submit" class="btn"><i data-lucide="check"></i> 确定</button></div>
+  </div>
+        {{if strncasecmp(PHP_OS, 'WIN', 3) != 0}}
+        <p class="help-text">提示：切换版本之后下方自定义的PHP环境设置会重置</p>
+        {{/if}}
+      </form>
+    </div>
+  </div>
+
+  {{if strncasecmp(PHP_OS, 'WIN', 3) != 0}}
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>{{$version}} 环境设置</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=phpset&a=edit' method='post' onsubmit="return edit_submit()" id="form-store" class="ep-form">
+        <h4 class="ep-mb-3 ep-text-danger">PHP扩展开关</h4>
+        <div class="ep-table-responsive"><table class="table ep-mb-4">
+          <thead>
+            <tr>
+              <th>扩展</th>
+              <th>状态</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$extlist key=key item=row}}
+            <tr>
+              <td><strong>{{$row.name}}</strong></td>
+              <td>
+                <label><input name='ext[{{$key}}]' type='radio' value='0' {{if $row.value==0}}checked{{/if}}/> 关闭</label>
+                <label><input name='ext[{{$key}}]' type='radio' value='1' {{if $row.value==1}}checked{{/if}}/> 开启</label>
+              </td>
+              <td><span class="help-text">{{$row.description}}</span></td>
+            </tr>
+            {{/foreach}}
+          </tbody>
+        </table></div>
+
+        <h4 class="ep-mb-3 ep-text-danger">PHP参数设置</h4>
+        <div class="ep-table-responsive"><table class="table ep-mb-4">
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>值</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$configlist key=key item=row}}
+            <tr>
+              <td><strong>{{$key}}</strong></td>
+              <td>
+                {{if $row.type=='switch'}}
+                <label><input name='config[{{$key}}]' type='radio' value='0' {{if $row.value==0}}checked{{/if}}/> 关闭</label>
+                <label><input name='config[{{$key}}]' type='radio' value='1' {{if $row.value==1}}checked{{/if}}/> 开启</label>
+                {{elseif $row.type=='number'}}
+                <input name="config[{{$key}}]" type='number' class="wid_tpl" value="{{$row.value}}" {{if $row.maxlimit>0}}max="{{$row.maxlimit}}"{{/if}} {{if $row.minlimit>0}}min="{{$row.minlimit}}"{{/if}}>
+                {{elseif $row.type=='number-M'}}
+                <input name="config[{{$key}}]" type='number' class="wid_tpl" value="{{$row.value}}" {{if $row.maxlimit>0}}max="{{$row.maxlimit}}"{{/if}} {{if $row.minlimit>0}}min="{{$row.minlimit}}"{{/if}}>M
+                {{else}}
+                不支持的参数设置
+                {{/if}}
+              </td>
+              <td><span class="help-text">{{$row.description}}</span></td>
+            </tr>
+            {{/foreach}}
+          </tbody>
+        </table></div>
+
+        <div class="form-group">
+          <label></label>
+    <div class="controls">
+            <button type='submit' class="btn"><i data-lucide="send"></i> 提交</button>
+            <button type="button" class="btn btn-danger" onclick="reset_ini()"><i data-lucide="rotate-ccw"></i> 重置</button>
+          </div>
+  </div>
+      </form>
+
+      <div class="ep-alert ep-alert-warning ep-mt-4">
+        <ul>
+          <li>提交设置后会自动重启网站进程。</li>
+          <li>部分PHP扩展之间会产生冲突，请按需开启，如果都开启网站可能会出现504错误。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+</div>
+
+<script>
+function change_version() {
+  var v = $("#v").val();
+  if(v=="")return;
+  $.post( "?c=phpset&a=change", {v:v},
+    function(data){ alert(data); window.location.reload();}
+  );
+  return false;
+}
+function edit_submit(){
+  $.post( "?c=phpset&a=edit", $("#form-store").serialize(), function(msg){
+    alert(msg);
+    if (msg == "修改成功") {
+      window.location.reload();
+    }
+  });
+  return false;
+}
+function reset_ini() {
+  if (!confirm("确定重置PHP环境设置吗?"))return;
+  $.get('?c=phpset&a=reset', function(msg){
+    if (msg != "重置成功") {
+      return alert(msg);
+    }
+    window.location.reload();
+  });
+}
+</script>
+{{include file='common/foot.html'}}

@@ -1,0 +1,255 @@
+/* =========================================================================
+   easypanel · webftp 基础样式（现代设计系统，与后台 theme 同源）
+   仅重做视觉，class 名称保持不变，dialog / 表单 / 按钮通用。
+   ========================================================================= */
+
+:root {
+  --c-primary: #6d4aff;
+  --c-primary: oklch(43.91% 0.322 284.15deg);
+  --c-primary-hover: oklch(50% 0.26 284.15deg);
+  --c-primary-active: oklch(35% 0.30 284.15deg);
+  --c-primary-subtle: oklch(43.91% 0.322 284.15deg / 9%);
+  --c-primary-ring: oklch(43.91% 0.322 284.15deg / 16%);
+
+  --c-bg: #f7f7fb;
+  --c-bg: oklch(98.2% 0.004 260deg);
+  --c-surface: #ffffff;
+  --c-surface-2: oklch(98.4% 0.003 260deg);
+  --c-border: oklch(92.8% 0.01 260deg);
+  --c-border-strong: oklch(87% 0.015 260deg);
+  --c-text: oklch(37.4% 0.022 260deg);
+  --c-text-strong: oklch(27.9% 0.02 260deg);
+  --c-muted: oklch(55.4% 0.023 260deg);
+  --c-muted-2: oklch(70.8% 0.02 260deg);
+
+  --c-success: oklch(64.12% 0.211 149.21deg);
+  --c-success-hover: oklch(57% 0.18 149.21deg);
+  --c-danger: oklch(59.4% 0.222 22.09deg);
+  --c-danger-hover: oklch(52% 0.18 25deg);
+  --c-warning: oklch(72% 0.15 70deg);
+  --c-warning-hover: oklch(65% 0.14 70deg);
+  --c-info: oklch(58% 0.13 230deg);
+  --c-info-hover: oklch(52% 0.12 230deg);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, .04), 0 1px 2px rgba(15, 23, 42, .03);
+  --shadow-float: 0 8px 24px rgba(15, 23, 42, .06), 0 2px 8px rgba(15, 23, 42, .04);
+  --shadow-dialog: 0 16px 48px rgba(15, 23, 42, .12), 0 4px 16px rgba(15, 23, 42, .06);
+
+  --font: system-ui, -apple-system, "BlinkMacSystemFont", "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Hiragino Sans GB", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-size: 14px;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 头部块 ---------- */
+.head_block, .head_block2, .head_block3 {
+  background: var(--c-primary);
+  color: #fff;
+  padding: 9px 14px;
+  text-align: left;
+  margin-top: 15px;
+  border: 1px solid var(--c-primary);
+  border-radius: 10px 10px 0 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+.head_block3 { width: 50%; height: auto; }
+
+/* ---------- 内容卡片 ---------- */
+.block {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  border-radius: 0 0 10px 10px;
+  box-shadow: var(--shadow-card);
+}
+.block2 {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- 弹层 / 浮层 ---------- */
+.show_div, .show_div2, .show_div3, .show_div_upfile, .show_sync, .help, .editfile {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
+  position: absolute;
+  padding: 16px 18px;
+  line-height: 1.6;
+  color: var(--c-text);
+}
+.show_div { top: 240px; }
+.show_div2 { top: 40%; left: 23%; width: 660px; }
+.show_div2_wid { width: 540px; }
+.show_div2_wid2 { width: 660px; }
+.show_div3 { top: 40%; left: 43%; width: 380px; height: auto; }
+.show_div_upfile { top: 40%; left: 23%; width: 660px; height: auto; }
+.show_sync { top: 25%; left: 23%; width: 500px; height: auto; }
+.help { top: 18%; left: 23%; width: 560px; height: auto; background: oklch(78% 0.16 85deg / 14%); border-color: var(--c-warning); }
+.editfile { top: 25%; left: auto; right: auto; }
+
+/* ---------- 通用表格 ---------- */
+table { max-width: 100%; background-color: transparent; border-collapse: collapse; border-spacing: 0; }
+.table { width: 100%; margin-bottom: 18px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-card); }
+.table th, .table td { padding: 10px 12px; line-height: 1.5; text-align: left; vertical-align: middle; border-top: 1px solid var(--c-border); }
+.table th { font-weight: 600; color: var(--c-text-strong); background: var(--c-surface-2); }
+.table thead:first-child tr:first-child th, .table thead:first-child tr:first-child td { border-top: 0; }
+.table tbody + tbody { border-top: 2px solid var(--c-border); }
+.table-condensed th, .table-condensed td { padding: 5px 8px; }
+.table-bordered { border: 1px solid var(--c-border); border-radius: var(--radius); }
+.table-bordered th, .table-bordered td { border-left: 1px solid var(--c-border); }
+.table-striped tbody tr:nth-child(odd) td, .table-striped tbody tr:nth-child(odd) th { background-color: var(--c-surface-2); }
+.table-hover tbody tr:hover td, .table-hover tbody tr:hover th { background-color: var(--c-primary-subtle); }
+
+/* ---------- 按钮（扁平化，紫色主色） ---------- */
+.btn {
+  display: inline-block;
+  *display: inline; *zoom: 1;
+  padding: 7px 16px;
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--c-text-strong);
+  text-align: center;
+  vertical-align: middle;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.btn:hover, .btn:focus {
+  color: var(--c-text-strong);
+  text-decoration: none;
+  background-color: var(--c-surface-2);
+  border-color: var(--c-muted-2);
+}
+.btn:active { background-color: var(--c-border); outline: 0; }
+.btn.disabled, .btn[disabled] { cursor: default; opacity: .55; box-shadow: none; }
+
+.btn-large { padding: 10px 20px; font-size: 15px; }
+.btn-small { padding: 5px 10px; font-size: 12px; }
+.btn-mini { padding: 3px 8px; font-size: 12px; }
+.btn-block { display: block; width: 100%; }
+
+.btn-primary, .btn-primary:hover, .btn-primary:focus {
+  color: #fff; text-shadow: none; border-color: var(--c-primary);
+  background-color: var(--c-primary);
+}
+.btn-primary:hover, .btn-primary:focus { background-color: var(--c-primary-hover); border-color: var(--c-primary-hover); }
+.btn-primary:active { background-color: var(--c-primary-active); border-color: var(--c-primary-active); }
+
+.btn-success, .btn-success:hover { color: #fff; background-color: var(--c-success); border-color: var(--c-success); }
+.btn-success:hover { background-color: var(--c-success-hover); }
+.btn-danger, .btn-danger:hover { color: #fff; background-color: var(--c-danger); border-color: var(--c-danger); }
+.btn-danger:hover { background-color: var(--c-danger-hover); }
+.btn-warning, .btn-warning:hover { color: #fff; background-color: var(--c-warning); border-color: var(--c-warning); }
+.btn-warning:hover { background-color: var(--c-warning-hover); }
+.btn-info, .btn-info:hover { color: #fff; background-color: var(--c-info); border-color: var(--c-info); }
+.btn-info:hover { background-color: var(--c-info-hover); }
+.btn-inverse, .btn-inverse:hover { color: #fff; background-color: var(--c-text-strong); border-color: var(--c-text-strong); }
+
+.btn-group { position: relative; display: inline-block; *zoom: 1; *margin-left: .3em; }
+.btn-group .btn { position: relative; float: left; margin-left: -1px; border-radius: 0; }
+.btn-group .btn:first-child { margin-left: 0; border-top-left-radius: var(--radius-sm); border-bottom-left-radius: var(--radius-sm); }
+.btn-group .btn:last-child { border-top-right-radius: var(--radius-sm); border-bottom-right-radius: var(--radius-sm); }
+.btn-toolbar { margin-top: 9px; margin-bottom: 9px; }
+.btn-toolbar .btn-group { display: inline-block; *display: inline; *zoom: 1; }
+
+/* ---------- 简易弹窗（artDialog 之外的内容） ---------- */
+.modal {
+  position: fixed; top: 50%; left: 50%; z-index: 1050; overflow: auto;
+  width: 560px; margin: -250px 0 0 -280px;
+  background-color: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--radius); box-shadow: var(--shadow-dialog);
+}
+.modal-header { padding: 12px 16px; border-bottom: 1px solid var(--c-border); font-weight: 600; }
+.modal-body { overflow-y: auto; max-height: 400px; padding: 16px; }
+.modal-footer { padding: 12px 16px; text-align: right; background-color: var(--c-surface-2); border-top: 1px solid var(--c-border); border-radius: 0 0 var(--radius) var(--radius); }
+.modal-footer .btn + .btn { margin-left: 6px; }
+.close { float: right; font-size: 20px; font-weight: bold; line-height: 1; color: var(--c-muted); opacity: .6; cursor: pointer; }
+.close:hover { color: var(--c-text-strong); opacity: 1; text-decoration: none; }
+
+.hide { display: none; }
+
+/* ---------- 杂项 ---------- */
+#header { width: 100%; background: var(--c-text-strong); height: 35px; color: #fff; margin-bottom: 60px; }
+.STYLE1 { color: var(--c-text); }
+.font_1 { font-size: 14px; color: var(--c-danger); }
+.red { color: var(--c-danger); }
+#container2 { width: 60%; margin-left: auto; margin-right: auto; }
+#fileblock { border-top: 1px solid var(--c-border-strong); }
+.td_bgc { border-bottom: 1px solid var(--c-border); padding-left: 12px; }
+#location { margin: 10px 0; padding-left: 12px; }
+.mar { margin-bottom: 5px; }
+.mar_top { margin: 5px 0; line-height: 30px; }
+.padd { padding-left: 7%; }
+.padd2 { padding-left: 24%; }
+.padd3 { padding-left: 19%; }
+.padd4 { padding-left: 38%; }
+.right_2 { padding-left: 10px; }
+.tb_wid { width: 50%; }
+.tb_wid2 { width: 60%; }
+#tb_wid3 { width: 130px; }
+.tb_wid4 { width: 760px; }
+.tb_wid5 { width: 840px; }
+.tb_wid6 { width: 920px; }
+.td_hg { height: 30px; }
+.td_hg2 { padding-top: 30px; height: 100px; }
+#table_2 { width: 100%; border: 0; line-height: 30px; }
+.arrow { height: 20px; }
+.webftp_left { position: absolute; width: 90px; padding-top: 20px; }
+#ft { width: 620px; margin: 10px 0; font-size: 12px; }
+#flk { text-align: right; }
+#flk img { vertical-align: middle; }
+.y { float: right; }
+.aui_state_focus { margin-left: 10px; }
+.container { width: 940px; margin-left: auto; margin-right: auto; *zoom: 1; }
+p { margin: 0 0 9px; font-size: 14px; line-height: 1.6; }
+p small { font-size: 11px; color: var(--c-muted); }
+
+/* ===== 暗黑模式（默认跟随系统，可手动切换并持久化，见 top.html 主题按钮） ===== */
+/* 系统偏好为暗色且未显式选择“亮色”时，套用暗色令牌 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-bg: oklch(19% 0.008 260deg);
+    --c-surface: oklch(24% 0.011 260deg);
+    --c-surface-2: oklch(28% 0.013 260deg);
+    --c-border: oklch(34% 0.014 260deg);
+    --c-border-strong: oklch(42% 0.018 260deg);
+    --c-text: oklch(90% 0.008 260deg);
+    --c-text-strong: oklch(97% 0.004 260deg);
+    --c-muted: oklch(70% 0.014 260deg);
+    --c-muted-2: oklch(58% 0.014 260deg);
+    --c-primary-subtle: oklch(43.91% 0.322 284.15deg / 16%);
+    --c-primary-ring: oklch(43.91% 0.322 284.15deg / 22%);
+  }
+}
+/* 显式选择“暗色”（即便系统为亮色也生效） */
+:root[data-theme="dark"] {
+  --c-bg: oklch(19% 0.008 260deg);
+  --c-surface: oklch(24% 0.011 260deg);
+  --c-surface-2: oklch(28% 0.013 260deg);
+  --c-border: oklch(34% 0.014 260deg);
+  --c-border-strong: oklch(42% 0.018 260deg);
+  --c-text: oklch(90% 0.008 260deg);
+  --c-text-strong: oklch(97% 0.004 260deg);
+  --c-muted: oklch(70% 0.014 260deg);
+  --c-muted-2: oklch(58% 0.014 260deg);
+  --c-primary-subtle: oklch(43.91% 0.322 284.15deg / 16%);
+  --c-primary-ring: oklch(43.91% 0.322 284.15deg / 22%);
+}

@@ -1,0 +1,11 @@
+<!--#start 500 -->
+<config>
+<CreateProcess>AsUser</CreateProcess>
+<log level='3' logs_day='' rotate_time='0 0 * * *'/>
+<vhs>
+<vh_database
+driver='bin/vhs_sqlite.so'
+dbname='etc/vhs.db'
+/>
+</vhs>
+</config>

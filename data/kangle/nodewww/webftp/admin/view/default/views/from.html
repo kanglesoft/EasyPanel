@@ -1,0 +1,32 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>增加DNS线路</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=views&a=viewsAdd" method="post" class="ep-form">
+        <div class="form-group">
+          <label>名称:</label>
+    <div class="controls">
+    <input name='name' >&nbsp;字母,数字的集合
+  </div>
+  </div>
+        <div class="form-group">
+          <label>描述:</label>
+    <div class="controls">
+    <input name='desc' >&nbsp;别名，如:江西电信
+  </div>
+  </div>
+        <div class="form-group">
+          <label>key:</label>
+    <div class="controls">
+    <input name='key' >
+  </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn" style="width:200px;"><i data-lucide="check"></i> 确认提交</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

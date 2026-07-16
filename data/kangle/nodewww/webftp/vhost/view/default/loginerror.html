@@ -1,0 +1,15 @@
+{{assign var='layout_type' value='login'}}
+{{assign var='title' value='EasyPanel 用户中心'}}
+{{include file='common/head.html'}}
+
+<div class="login-page">
+  <div class="login-card">
+    <h1>登录失败</h1>
+    <div class="ep-alert ep-alert-danger" style="margin-bottom:16px;">
+      {{$errormsg|default:'用户名或密码错误'}}
+    </div>
+    <a href="?c=session&amp;a=loginForm" class="btn ep-w-full"><i data-lucide="log-in"></i> 重新登录</a>
+  </div>
+</div>
+
+{{include file='common/foot.html'}}

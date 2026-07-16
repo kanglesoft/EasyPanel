@@ -1,0 +1,17 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>当前连接信息</h3></div>
+    <div class="ep-card-body">
+      <div id='rq' class='connect'>Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script src='{{$STATIC}}js/connection.js'></script>
+<script>
+  {{$con}};
+  sortrq(2);
+</script>
+{{include file='common/foot.html'}}

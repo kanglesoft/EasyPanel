@@ -1,0 +1,31 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>FTP设置</h3>
+      <a href="ftp://{{$user.name}}@{{gethostbyname($smarty.server.SERVER_NAME)}}" target='_blank' class="btn btn-sm btn-secondary"><i data-lucide="folder"></i> 在线FTP</a>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=index&a=ftp' method='post' class="ep-form">
+        <div class="form-group">
+          <label>FTP开关</label>
+    <div class="controls"><div>
+            <label><input name='ftp' type='radio' value='1' {{if $user.ftp==1}}checked{{/if}} /> 启用</label>
+            <label><input name='ftp' type='radio' value='2' {{if $user.ftp==2}}checked{{/if}} /> 禁用</label></div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>FTP目录</label>
+    <div class="controls"><input name="ftp_subdir" type='text' placeholder="默认为根目录" value="{{$user.ftp_subdir}}">
+          <p class="help-text">多级目录格式如: admin/view/default</p></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='submit' class="btn" value='提交'></div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

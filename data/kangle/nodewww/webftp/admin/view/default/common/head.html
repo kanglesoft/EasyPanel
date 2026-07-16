@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{$title|default:'EasyPanel 管理后台'}}</title>
+<style>{{$ep_theme_css}}</style>
+<script>
+(function(){
+  var theme = localStorage.getItem('ep-theme') || 'auto';
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
+<script src="/style/jquery.js"></script>
+<script src="/style/jq.cookie.js"></script>
+<script src="/style/public.js"></script>
+<script src="/style/artdialog/artDialog.js"></script>
+<script src="/style/lucide.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+  var sidebar = document.getElementById('epSidebar');
+  var overlay = document.getElementById('epSidebarOverlay');
+  var toggles = document.querySelectorAll('.menu-toggle');
+  var closeBtns = document.querySelectorAll('.sidebar-close');
+  function openSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.add('is-open');
+    if(overlay) overlay.classList.add('is-visible');
+  }
+  function closeSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.remove('is-open');
+    if(overlay) overlay.classList.remove('is-visible');
+  }
+  function toggleSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.toggle('is-open');
+    if(overlay) overlay.classList.toggle('is-visible');
+  }
+  toggles.forEach(function(btn){ btn.addEventListener('click', toggleSidebar); });
+  closeBtns.forEach(function(btn){ btn.addEventListener('click', closeSidebar); });
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+
+  // Theme toggle
+  var themes = ['auto', 'light', 'dark'];
+  var themeLabels = {'auto':'自动', 'light':'明亮', 'dark':'暗黑'};
+  var themeIcons = {'auto':'monitor', 'light':'sun', 'dark':'moon'};
+  function getCurrentTheme(){
+    var saved = localStorage.getItem('ep-theme') || 'auto';
+    if (saved !== 'auto') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(theme){
+    localStorage.setItem('ep-theme', theme);
+    var root = document.documentElement;
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+    } else if (theme === 'light') {
+      root.setAttribute('data-theme', 'light');
+    } else {
+      root.removeAttribute('data-theme');
+    }
+    var btn = document.getElementById('epThemeToggle');
+    var icon = btn ? btn.querySelector('i[data-lucide], svg') : null;
+    var label = btn ? btn.querySelector('.theme-label') : null;
+    if (icon) {
+      icon.setAttribute('data-lucide', themeIcons[theme] || 'sun');
+    }
+    if (btn) {
+      btn.setAttribute('title', '切换主题（当前：' + themeLabels[theme] + '）');
+    }
+    if (label) {
+      label.textContent = themeLabels[theme] || '明亮';
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+  var themeBtn = document.getElementById('epThemeToggle');
+  if (themeBtn) {
+    applyTheme(localStorage.getItem('ep-theme') || 'auto');
+    themeBtn.addEventListener('click', function(){
+      var current = localStorage.getItem('ep-theme') || 'auto';
+      var idx = themes.indexOf(current);
+      var next = themes[(idx + 1) % themes.length];
+      applyTheme(next);
+    });
+  }
+
+  // Custom switch toggle
+  document.querySelectorAll('.ep-switch').forEach(function(sw){
+    var checkbox = sw.querySelector('input[type="checkbox"]');
+    if (!checkbox) return;
+    sw.addEventListener('click', function(e){
+      if (e.target === checkbox) return;
+      e.preventDefault();
+      checkbox.checked = !checkbox.checked;
+      sw.classList.toggle('is-on', checkbox.checked);
+      sw.classList.toggle('is-off', !checkbox.checked);
+    });
+    checkbox.addEventListener('change', function(){
+      sw.classList.toggle('is-on', checkbox.checked);
+      sw.classList.toggle('is-off', !checkbox.checked);
+    });
+  });
+});
+</script>
+</head>
+<body>
+<div id="script"></div>
+
+{{if $layout_type == 'login' || ($smarty.get.c == 'session' && ($smarty.get.a == 'loginForm' || $smarty.get.a == 'login'))}}
+<!-- 登录页：head.html 不输出外壳，由 login.html 自行提供 -->
+{{elseif $layout_type == 'install'}}
+<!-- 安装向导：简单外壳，无侧边栏 -->
+<div class="ep-layout">
+  <div class="ep-main" style="margin-left:0;">
+    <header class="ep-header">
+      <div class="ep-breadcrumb">
+        <span class="current">{{$breadcrumb|default:'安装向导'}}</span>
+      </div>
+    </header>
+{{else}}
+<div class="ep-layout">
+  <div class="ep-sidebar-overlay" id="epSidebarOverlay"></div>
+  <aside class="ep-sidebar" id="epSidebar">
+    <div class="ep-sidebar-logo">
+      <div class="ep-sidebar-logo-text">
+        <h1>EasyPanel</h1>
+        <p>管理后台</p>
+      </div>
+      <button type="button" class="sidebar-close" aria-label="关闭菜单"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="ep-sidebar-nav">
+      <div class="nav-section-title">服务器管理</div>
+      <ul>
+        <li><a href="?c=index&amp;a=main" class="{{if $smarty.get.c|default:'index'=='index'}}active{{/if}}"><i data-lucide="monitor"></i>服务器信息</a></li>
+        <li><a href="?c=nodes&amp;a=editForm&amp;name=localhost" class="{{if $smarty.get.c=='nodes' && $smarty.get.a=='editForm'}}active{{/if}}"><i data-lucide="settings"></i>服务器设置</a></li>
+        <li><a href="?c=nodes&amp;a=initForm&amp;name=localhost" class="{{if $smarty.get.c=='nodes' && $smarty.get.a=='initForm'}}active{{/if}}"><i data-lucide="refresh-cw"></i>初始化服务器</a></li>
+        <li><a href="{{$dbadmin_url}}" target="_blank"><i data-lucide="database"></i>mysql管理</a></li>
+        <li><a href="?c=nodes&amp;a=virtualhost" class="{{if $smarty.get.c=='nodes' && $smarty.get.a=='virtualhost'}}active{{/if}}"><i data-lucide="globe"></i>虚拟主机设置</a></li>
+      </ul>
+
+      <div class="nav-section-title">网站管理</div>
+      <ul>
+        <li><a href="?c=vhost&amp;a=pageVhost" class="{{if $smarty.get.c=='vhost'}}active{{/if}}"><i data-lucide="globe"></i>所有网站</a></li>
+        <li><a href="?c=product&amp;a=sellForm&amp;product=vhost" class="{{if $smarty.get.c=='product' && $smarty.get.a=='sellForm'}}active{{/if}}"><i data-lucide="plus-circle"></i>新增网站</a></li>
+        <li><a href="?c=vhostproduct&amp;a=pageListProduct" class="{{if $smarty.get.c=='vhostproduct'}}active{{/if}}"><i data-lucide="list"></i>产品列表</a></li>
+      </ul>
+
+      <div class="nav-section-title">其他设置</div>
+      <ul>
+        <li><a href="?c=manynode&amp;a=pageList" class="{{if $smarty.get.c=='manynode'}}active{{/if}}"><i data-lucide="layers"></i>多节点设置</a></li>
+        <li><a href="?c=backup&amp;a=addForm" class="{{if $smarty.get.c=='backup'}}active{{/if}}"><i data-lucide="archive"></i>备份恢复</a></li>
+        <li><a href="?c=migrate&amp;a=index" class="{{if $smarty.get.c=='migrate'}}active{{/if}}"><i data-lucide="arrow-left-right"></i>数据迁移</a></li>
+        <li><a href="?c=flow&amp;a=flowSort&amp;t=day" class="{{if $smarty.get.c=='flow'}}active{{/if}}"><i data-lucide="bar-chart"></i>流量排名</a></li>
+        <li><a href="?c=acmessl&amp;a=index" class="{{if $smarty.get.c=='acmessl'}}active{{/if}}"><i data-lucide="shield-check"></i>SSL 证书</a></li>
+        <li><a href="?c=security&amp;a=addFrom" class="{{if $smarty.get.c=='security'}}active{{/if}}"><i data-lucide="shield"></i>安全设置</a></li>
+      </ul>
+
+      <div class="nav-section-title">账号管理</div>
+      <ul>
+        <li><a href="?c=session&amp;a=changePasswordForm" class="{{if $smarty.get.c=='session' && $smarty.get.a=='changePasswordForm'}}active{{/if}}"><i data-lucide="key"></i>修改帐号信息</a></li>
+        <li><a href="?c=session&amp;a=logout"><i data-lucide="log-out"></i>退出登录</a></li>
+      </ul>
+    </nav>
+    <div class="ep-sidebar-footer">
+      <div class="ep-sidebar-user">
+        <div class="ep-avatar">{{if $role.admin}}{{$role.admin|substr:0:1|upper}}{{else}}A{{/if}}</div>
+        <div>
+          <div class="user-name">{{$role.admin|default:'管理员'}}</div>
+          <div class="user-role">Administrator</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="ep-main">
+    <header class="ep-header">
+      <div class="ep-breadcrumb">
+        <button type="button" class="menu-toggle" aria-label="切换菜单"><i data-lucide="menu"></i></button>
+        <a href="?c=index&amp;a=main">首页</a>
+        <span class="sep">/</span>
+        <span class="current">{{$breadcrumb|default:'当前页面'}}</span>
+      </div>
+      <div class="ep-header-actions">
+        <button type="button" id="epThemeToggle" class="btn btn-sm btn-secondary" title="切换主题" aria-label="切换主题">
+          <i data-lucide="sun"></i>
+          <span class="theme-label">明亮</span>
+        </button>
+        <a href="?c=session&amp;a=changePasswordForm" class="btn btn-sm btn-secondary">账号</a>
+        <a href="?c=session&amp;a=logout" class="btn btn-sm btn-danger">退出</a>
+      </div>
+    </header>
+{{/if}}

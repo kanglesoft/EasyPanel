@@ -1,0 +1,52 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>禁止IP访问</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=access&a=addip' method='post' style="margin-bottom:16px;" class="ep-form">
+        <div class="form-group">
+          <label>ip地址(如:192.168.0.1,192.168.0.1/24):</label>
+          <div class="controls">
+            <input name='ip' id='ip' value=''>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>禁止时间(0表示永久):</label>
+          <div class="controls">
+            <input name='life_time' value='60'>&nbsp;分钟
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn btn-sm"><i data-lucide="ban"></i> 禁止访问</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>已禁止IP列表</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+        <tbody>
+          {{foreach from=$ips item=row}}
+          <tr>
+            <td style="width:200px;">{{$row.ip}}</td>
+            <td style="width:200px;">{{if $row.expire==0}}永久{{else}}{{ceil(($row.expire-time())/60)}}分钟{{/if}}</td>
+            <td><a href="?c=access&a=delip&id={{$row.id}}">删除</a></td>
+          </tr>
+          {{foreachelse}}
+          <tr><td colspan="3">
+            <div class="ep-empty">
+              <div class="ep-empty-icon"><i data-lucide="shield"></i></div>
+              <h4>暂无数据</h4>
+              <p>当前没有已禁止的 IP。</p>
+            </div>
+          </td></tr>
+          {{/foreach}}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

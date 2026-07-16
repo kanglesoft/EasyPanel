@@ -1,0 +1,2 @@
+<!--#start 10 merge-->
+<config><vhs><vh_templete name='all_in_one' inherit='1' fflow='1' log_mkdir='1' logs_day='60' log_rotate_time='0 0 * * *' log_file='/nolog' app_share='0'><init_event event='vhost.whm:init_vh' /><destroy_event event='vhost.whm:destroy_vh'/></vh_templete></vhs></config>

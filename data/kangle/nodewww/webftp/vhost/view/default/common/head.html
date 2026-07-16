@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{$title|default:'用户控制面板'}}</title>
+<style>{{$ep_theme_css}}</style>
+<script>
+(function(){
+  var theme = localStorage.getItem('ep-theme') || 'auto';
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
+<script src="/style/jquery.js"></script>
+<script src="/style/jq.cookie.js"></script>
+<script src="/style/public.js"></script>
+<script src="/style/artdialog/artDialog.js"></script>
+<script src="/style/lucide.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+  var sidebar = document.getElementById('epSidebar');
+  var overlay = document.getElementById('epSidebarOverlay');
+  var toggles = document.querySelectorAll('.menu-toggle');
+  var closeBtns = document.querySelectorAll('.sidebar-close');
+  function openSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.add('is-open');
+    if(overlay) overlay.classList.add('is-visible');
+  }
+  function closeSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.remove('is-open');
+    if(overlay) overlay.classList.remove('is-visible');
+  }
+  function toggleSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.toggle('is-open');
+    if(overlay) overlay.classList.toggle('is-visible');
+  }
+  toggles.forEach(function(btn){ btn.addEventListener('click', toggleSidebar); });
+  closeBtns.forEach(function(btn){ btn.addEventListener('click', closeSidebar); });
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+
+  // Theme toggle
+  var themes = ['auto', 'light', 'dark'];
+  var themeLabels = {'auto':'自动', 'light':'明亮', 'dark':'暗黑'};
+  var themeIcons = {'auto':'monitor', 'light':'sun', 'dark':'moon'};
+  function getCurrentTheme(){
+    var saved = localStorage.getItem('ep-theme') || 'auto';
+    if (saved !== 'auto') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme(theme){
+    localStorage.setItem('ep-theme', theme);
+    var root = document.documentElement;
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+    } else if (theme === 'light') {
+      root.setAttribute('data-theme', 'light');
+    } else {
+      root.removeAttribute('data-theme');
+    }
+    var btn = document.getElementById('epThemeToggle');
+    var icon = btn ? btn.querySelector('i[data-lucide], svg') : null;
+    var label = btn ? btn.querySelector('.theme-label') : null;
+    if (icon) {
+      icon.setAttribute('data-lucide', themeIcons[theme] || 'sun');
+    }
+    if (btn) {
+      btn.setAttribute('title', '切换主题（当前：' + themeLabels[theme] + '）');
+    }
+    if (label) {
+      label.textContent = themeLabels[theme] || '明亮';
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+  var themeBtn = document.getElementById('epThemeToggle');
+  if (themeBtn) {
+    applyTheme(localStorage.getItem('ep-theme') || 'auto');
+    themeBtn.addEventListener('click', function(){
+      var current = localStorage.getItem('ep-theme') || 'auto';
+      var idx = themes.indexOf(current);
+      var next = themes[(idx + 1) % themes.length];
+      applyTheme(next);
+    });
+  }
+
+  // Custom switch toggle
+  document.querySelectorAll('.ep-switch').forEach(function(sw){
+    var checkbox = sw.querySelector('input[type="checkbox"]');
+    if (!checkbox) return;
+    sw.addEventListener('click', function(e){
+      if (e.target === checkbox) return;
+      e.preventDefault();
+      checkbox.checked = !checkbox.checked;
+      sw.classList.toggle('is-on', checkbox.checked);
+      sw.classList.toggle('is-off', !checkbox.checked);
+    });
+    checkbox.addEventListener('change', function(){
+      sw.classList.toggle('is-on', checkbox.checked);
+      sw.classList.toggle('is-off', !checkbox.checked);
+    });
+  });
+});
+</script>
+</head>
+<body>
+<div id="script"></div>
+
+{{if $layout_type == 'login' || ($smarty.get.c == 'session' && ($smarty.get.a == 'loginForm' || $smarty.get.a == 'login'))}}
+<!-- 登录页：head.html 不输出外壳，由 login.html 自行提供 -->
+{{else}}
+<div class="ep-layout">
+  <div class="ep-sidebar-overlay" id="epSidebarOverlay"></div>
+  <aside class="ep-sidebar" id="epSidebar">
+    <div class="ep-sidebar-logo">
+      <div class="ep-sidebar-logo-text">
+        <h1>EasyPanel</h1>
+        <p>用户控制面板</p>
+      </div>
+      <button type="button" class="sidebar-close" aria-label="关闭菜单"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="ep-sidebar-nav">
+      <div class="nav-section-title">概览</div>
+      <ul>
+        <li><a href="?c=index&amp;a=main" class="{{if $smarty.get.c|default:'index'=='index'}}active{{/if}}"><i data-lucide="home"></i> 主机信息</a></li>
+      </ul>
+
+      <div class="nav-section-title">网站管理</div>
+      <ul>
+        <li><a href="?c=domain&amp;a=show" class="{{if $smarty.get.c=='domain'}}active{{/if}}"><i data-lucide="globe"></i> 域名管理</a></li>
+        <li><a href="?c=webftp&amp;a=ls" class="{{if $smarty.get.c=='webftp'}}active{{/if}}"><i data-lucide="folder"></i> 文件管理</a></li>
+        <li><a href="?c=indexfile&amp;a=indexfilefrom" class="{{if $smarty.get.c=='indexfile'}}active{{/if}}"><i data-lucide="file-text"></i> 默认文档</a></li>
+      </ul>
+
+      <div class="nav-section-title">数据库</div>
+      <ul>
+        <li><a href="?c=mysql&amp;a=index" class="{{if $smarty.get.c=='mysql'}}active{{/if}}"><i data-lucide="database"></i> MySQL</a></li>
+        <li><a href="?c=mssql&amp;a=index" class="{{if $smarty.get.c=='mssql'}}active{{/if}}"><i data-lucide="server"></i> SQL Server</a></li>
+      </ul>
+
+      <div class="nav-section-title">安全与加速</div>
+      <ul>
+        <li><a href="?c=ssl&amp;a=ssl" class="{{if $smarty.get.c=='ssl'}}active{{/if}}"><i data-lucide="lock"></i> SSL 证书</a></li>
+        <li><a href="?c=protection&amp;a=add" class="{{if $smarty.get.c=='protection'}}active{{/if}}"><i data-lucide="shield"></i> 防盗链</a></li>
+        <li><a href="?c=banip&amp;a=addFrom" class="{{if $smarty.get.c=='banip'}}active{{/if}}"><i data-lucide="ban"></i> IP 黑名单</a></li>
+        <li><a href="?c=antisql&amp;a=antisqlfrom" class="{{if $smarty.get.c=='antisql'}}active{{/if}}"><i data-lucide="shield-alert"></i> SQL 注入防护</a></li>
+        <li><a href="?c=antiupload&amp;a=antiuploadfrom" class="{{if $smarty.get.c=='antiupload'}}active{{/if}}"><i data-lucide="shield-check"></i> 上传保护</a></li>
+      </ul>
+
+      <div class="nav-section-title">缓存与优化</div>
+      <ul>
+        <li><a href="?c=cache&amp;a=cachefrom" class="{{if $smarty.get.c=='cache'}}active{{/if}}"><i data-lucide="zap"></i> 页面缓存</a></li>
+        <li><a href="?c=cacheclean&amp;a=cachecleanfrom" class="{{if $smarty.get.c=='cacheclean'}}active{{/if}}"><i data-lucide="eraser"></i> 缓存清理</a></li>
+        <li><a href="?c=cdn&amp;a=addFrom" class="{{if $smarty.get.c=='cdn'}}active{{/if}}"><i data-lucide="map"></i> CDN 设置</a></li>
+        <li><a href="?c=gzip&amp;a=gzip" class="{{if $smarty.get.c=='gzip'}}active{{/if}}"><i data-lucide="minimize"></i> Gzip 压缩</a></li>
+      </ul>
+
+      <div class="nav-section-title">重写与规则</div>
+      <ul>
+        <li><a href="?c=rewrite&amp;a=rewriteFrom" class="{{if $smarty.get.c=='rewrite'}}active{{/if}}"><i data-lucide="file-code"></i> URL 重写</a></li>
+        <li><a href="?c=mime&amp;a=mimefrom" class="{{if $smarty.get.c=='mime'}}active{{/if}}"><i data-lucide="clipboard-list"></i> MIME 类型</a></li>
+        <li><a href="?c=response&amp;a=response" class="{{if $smarty.get.c=='response'}}active{{/if}}"><i data-lucide="arrow-up-from-line"></i> 响应头</a></li>
+      </ul>
+
+      <div class="nav-section-title">工具</div>
+      <ul>
+        <li><a href="?c=cron&amp;a=index" class="{{if $smarty.get.c=='cron'}}active{{/if}}"><i data-lucide="clock"></i> 定时任务</a></li>
+        <li><a href="?c=shell&amp;a=index" class="{{if $smarty.get.c=='shell'}}active{{/if}}"><i data-lucide="terminal"></i> 在线 Shell</a></li>
+        <li><a href="?c=subdir&amp;a=index" class="{{if $smarty.get.c=='subdir'}}active{{/if}}"><i data-lucide="folder-tree"></i> 子目录绑定</a></li>
+        <li><a href="?c=log&amp;a=index" class="{{if $smarty.get.c=='log'}}active{{/if}}"><i data-lucide="scroll-text"></i> 访问日志</a></li>
+      </ul>
+
+      <div class="nav-section-title">账号</div>
+      <ul>
+        <li><a href="?c=session&amp;a=changePasswordForm" class="{{if $smarty.get.c=='session' && $smarty.get.a=='changePasswordForm'}}active{{/if}}"><i data-lucide="key"></i> 修改密码</a></li>
+        <li><a href="?c=session&amp;a=logout"><i data-lucide="log-out"></i> 退出登录</a></li>
+      </ul>
+    </nav>
+    <div class="ep-sidebar-footer">
+      <div class="ep-sidebar-user">
+        <div class="ep-avatar">{{if $user.name}}{{$user.name|substr:0:1|upper}}{{else}}U{{/if}}</div>
+        <div>
+          <div class="user-name">{{$user.name|default:$vhost}}</div>
+          <div class="user-role">{{$user.product_name|default:'虚拟主机用户'}}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="ep-main">
+    <header class="ep-header">
+      <div class="ep-breadcrumb">
+        <button type="button" class="menu-toggle" aria-label="切换菜单"><i data-lucide="menu"></i></button>
+        <a href="?c=index&amp;a=main">首页</a>
+        <span class="sep">/</span>
+        <span class="current">{{$breadcrumb|default:'当前页面'}}</span>
+      </div>
+      <div class="ep-header-actions">
+        <button type="button" id="epThemeToggle" class="btn btn-sm btn-secondary" title="切换主题" aria-label="切换主题">
+          <i data-lucide="sun"></i>
+          <span class="theme-label">明亮</span>
+        </button>
+        <a href="?c=session&amp;a=changePasswordForm" class="btn btn-sm btn-secondary"><i data-lucide="key"></i> 账号</a>
+        <a href="?c=session&amp;a=logout" class="btn btn-sm btn-danger"><i data-lucide="log-out"></i> 退出</a>
+      </div>
+    </header>
+{{/if}}

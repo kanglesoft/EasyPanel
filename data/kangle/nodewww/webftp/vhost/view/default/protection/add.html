@@ -1,0 +1,62 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/protection.js'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>防盗链设置</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick='protection_empty()'><i data-lucide="trash"></i> 清空</button>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=protection&a=addPath' method='post' class="ep-form">
+        <div class="form-group">
+          <label>防盗链开关</label>
+    <div class="controls"><div>
+            {{if $name}}
+            <a href='javascript:protection_checkon(0)' title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:protection_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>保护路径</label>
+    <div class="controls"><input name='path' id='path' placeholder="正则匹配，例：^/download" /></div>
+  </div>
+        <div class="form-group">
+          <label>合法来源url</label>
+    <div class="controls"><input name='referer' id='referer' placeholder="正则，不写表示相同主机" /></div>
+  </div>
+        <div class="form-group">
+          <label>非法请求重定向</label>
+    <div class="controls"><input name='redirect' id='redirect' placeholder="不写则默认拒绝处理" /></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='button' onclick='protection_add()' value='提交' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>目录规则</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$paths item=row}}
+          <tr>
+            <td>[<a href='javascript:protection_del({{$row.id}})'>删除</a>]</td>
+            <td>{{$row.path}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

@@ -1,0 +1,26 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>{{if $action=='add'}}增加域名绑定{{else}}修改域名绑定{{/if}}</h3></div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=domain&a={{$action}}" method="post" class="ep-form">
+        <div class="form-group">
+          <label>域名</label>
+    <div class="controls"><input type='text' name='domain' id='domain' value="{{$domain.domain}}"></div>
+  </div>
+        {{if $subdir_flag}}
+        <div class="form-group">
+          <label>子目录</label>
+    <div class="controls"><input type='text' name='subdir' id='subdir' value="{{$default_subdir}}"></div>
+  </div>
+        {{/if}}
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type="submit" value="确定" class="btn"></div>
+  </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

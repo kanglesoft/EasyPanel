@@ -1,0 +1,38 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+function go_back()
+{
+	windows.location="?c=nodes&a=listNode";
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3><i data-lucide="refresh-cw"></i> 初始化服务器</h3></div>
+    <div class="ep-card-body">
+      <form name='frm' action='?c=nodes&a=init&name={{$name}}' method='post' class="ep-form">
+        <div class="form-group">
+          <label>初始化选项:</label>
+    <div class="controls">
+            <label class="ep-checkbox-label"><input name="init_flag" type="checkbox" id="init_flag" value="1" {{if !$dev}}checked{{/if}}>初始化磁盘配额<span class="help-text danger">*首次初始化执行</span></label>
+          </div>
+  </div>
+        <div class="form-group">
+          <label>配置更新:</label>
+    <div class="controls">
+            <label class="ep-checkbox-label"><input name="config_flag" type="checkbox" id="config_flag" value="1" checked {{if $smarty.session.setup_wizard==1}}onclick="this.checked=!this.checked"{{/if}}>更新配置文件,重启FTP</label>
+          </div>
+  </div>
+        <div class="form-group">
+          <label>服务重启:</label>
+    <div class="controls">
+            <label class="ep-checkbox-label"><input name="reboot_flag" type="checkbox" id="reboot_flag" value="1" checked {{if $smarty.session.setup_wizard==1}}onclick="this.checked=!this.checked"{{/if}}>重起kangle</label>
+          </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="check-circle"></i> 确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

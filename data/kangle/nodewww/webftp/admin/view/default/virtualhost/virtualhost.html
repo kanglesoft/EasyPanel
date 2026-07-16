@@ -1,0 +1,151 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+var use_msg_id;
+</script>
+<script language='javascript' src='{{$STATIC}}scripts/func.js'></script>
+<script language='javascript'>
+	$(document).ready(function(){
+		$("li").each(function(){
+			if (this.getAttribute("onclick")) {
+				return;
+			}
+		});
+	});
+</script>
+<style type='text/css'>
+.quick-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: calc(var(--spacing) * 4);
+}
+.quick-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--spacing) * 3);
+  padding: calc(var(--spacing) * 5);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-font-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.quick-action-btn:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+.qa-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand);
+}
+.qa-icon svg,
+.qa-icon i[data-lucide] {
+  width: 24px;
+  height: 24px;
+}
+.qa-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+.piao_msg {
+	position: absolute;
+	background-color: #218868;
+	color: red;
+	text-align: center;
+	font-size: 12;
+}
+.piao_ul {
+	list-style-type: none;
+	width: 100%;
+	height: 100%;
+}
+</style>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="globe"></i> 虚拟主机设置</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="quick-action-grid">
+        <a href='?c=response&a=gzipFrom' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="package"></i></span>
+          <span class="qa-label">开启gzip压缩</span>
+        </a>
+        <a href='?c=access&a=ip' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="ban"></i></span>
+          <span class="qa-label">禁止ip访问</span>
+        </a>
+        <a href='?c=access&a=filterFrom' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="search"></i></span>
+          <span class="qa-label">内容过滤</span>
+        </a>
+        <a href='?c=domain&a=domainFrom' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="globe"></i></span>
+          <span class="qa-label">域名设置</span>
+        </a>
+        <a href='javascript:if(confirm("当有域名绑定不了时可运行，确定要执行?")){ window.location="?c=vhost&a=delExpireDomain";}' target='main' title="当有域名绑定不上,或删除的空间已很久时可运行此处" class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="eraser"></i></span>
+          <span class="qa-label">清理无主域名</span>
+        </a>
+        <a href='?c=hostcdn&a=hostcdn' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="refresh-cw"></i></span>
+          <span class="qa-label">反向代理设置</span>
+        </a>
+        <a href='javascript:reset_cron()' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="clock"></i></span>
+          <span class="qa-label">重置计划任务</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="wrench"></i> 工具操作</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="quick-action-grid">
+        <a href='javascript:del_cache()' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="trash"></i></span>
+          <span class="qa-label">清理模板缓存</span>
+        </a>
+        <a href='#' id='lis' onclick='piao_loghanle(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="bar-chart"></i></span>
+          <span class="qa-label">日志分析</span>
+        </a>
+        <a href='#' id='ftp' onclick='piao_ftp(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="folder"></i></span>
+          <span class="qa-label">ftp开关</span>
+        </a>
+        <a href='#' id='ftp_connect' onclick='piao_ftpconnect(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="link"></i></span>
+          <span class="qa-label">ftp连接数</span>
+        </a>
+        <a href='#' id='ftp_usl' onclick='piao_ftpusl(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="arrow-up"></i></span>
+          <span class="qa-label">ftp上传速度</span>
+        </a>
+        <a href='#' id='ftp_dsl' onclick='piao_ftpdsl(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="arrow-down"></i></span>
+          <span class="qa-label">ftp下载速度</span>
+        </a>
+        <a href='#' id='htaccess' onclick='piao_htaccess(this)' target='main' class="quick-action-btn">
+          <span class="qa-icon"><i data-lucide="lock"></i></span>
+          <span class="qa-label">htaccess开关</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<div id='msg' class='piao_msg' style='display: none'></div>
+{{include file='common/foot.html'}}

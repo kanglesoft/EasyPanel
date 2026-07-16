@@ -1,0 +1,459 @@
+{{include file='common/head.html'}}
+<script type='text/javascript'>
+var msg = '{{$msg}}';
+function changePassword() {}
+function rebootProcess()
+{
+	if (confirm("确定要重启吗？这将对你现在运行中的网站中断请求！")) {
+		$.get("?c=index&a=rebootProcess", function(data) {
+			alert(data);
+		});
+	}
+}
+function refreshDbUsed(){
+	$.get("?c=index&a=refreshDbUsed", function(data) {
+		alert(data);
+		window.location.reload();
+	});
+}
+jQuery(document).ready(function() {
+	jQuery(".item").mouseover(function() {
+		jQuery(this).addClass('onMouseOver');
+	});
+	jQuery(".item").mouseout(function() {
+		jQuery(this).removeClass('onMouseOver');
+	});
+	if (msg != '') {
+		var dlog = art.dialog({id:'id232',time:3,content:msg,title:'提示',icon: 'warning',top:'53%'});
+	}
+});
+var webmit = '{{$user.web_quota}}';
+if (webmit == '') {
+	webmit = 0;
+}
+if (webmit > 0) {
+	var web_used = '{{$quota.web_used}}';
+	if (web_used == '') {
+		web_used = 0;
+	}
+	var web_use_len = (web_used / webmit) * 100;
+	var dbmit = '{{$quota.db_limit}}';
+	var db_used = '{{$quota.db_used}}';
+	if (db_used == '') {
+		db_used = 0;
+	}
+	if (dbmit == "") {
+		dbmit = 0;
+	}
+	if (dbmit > 0) {
+		var db_use_len = (db_used / dbmit) * 100;
+	}
+	jQuery(document).ready(function() {
+		if (web_use_len != null && web_use_len != 'undefined') {
+			if (web_use_len < 1) {
+				web_use_len = 1;
+			}
+			if (web_use_len > 100) {
+				web_use_len = 100;
+			}
+			var webCls = web_use_len > 80 ? 'is-danger' : (web_use_len > 60 ? 'is-warning' : 'is-success');
+			jQuery("#webdd").html("网页空间：<span class='badge badge-info'>大小：" + webmit + "M / 已使用：" + web_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + webmit + "M   已使用：" + web_use_len.toFixed(2) + "%'><div class='progress-fill " + webCls + "' style='width:" + web_use_len.toFixed(2) + "%'></div></div>");
+		}
+		if (db_use_len != null && db_use_len != 'undefined') {
+			if (db_use_len < 1) {
+				db_use_len = 1;
+			}
+			if (db_use_len > 100) {
+				db_use_len = 100;
+			}
+			var dbCls = db_use_len > 80 ? 'is-danger' : (db_use_len > 60 ? 'is-warning' : 'is-success');
+			jQuery("#db").html("数据空间：<span class='badge badge-info'>大小：" + dbmit + "M / 已使用：" + db_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + dbmit + "M   已使用：" + db_use_len.toFixed(2) + "%'><div class='progress-fill " + dbCls + "' style='width:" + db_use_len.toFixed(2) + "%'></div></div>");
+		}
+	});
+}
+</script>
+
+<style>
+/* 大卡片按钮网格 */
+.ep-big-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.ep-big-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e8eaf0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: #2c3e50;
+  min-height: 150px;
+}
+.ep-big-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  border-color: #4a90e2;
+  color: #2c3e50;
+}
+.ep-big-card .ep-big-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  color: #4a90e2;
+}
+.ep-big-card .ep-big-icon svg {
+  width: 40px;
+  height: 40px;
+}
+.ep-big-card .ep-big-label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.ep-big-card .ep-big-hint {
+  font-size: 12px;
+  color: #8b92a8;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+@media (max-width: 576px) {
+  .ep-big-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .ep-big-card {
+    padding: 22px 10px;
+    min-height: 130px;
+  }
+  .ep-big-card .ep-big-icon svg {
+    width: 34px;
+    height: 34px;
+  }
+  .ep-big-card .ep-big-label {
+    font-size: 14px;
+  }
+}
+</style>
+
+<div class="ep-content">
+  <!-- 顶部统计卡片 -->
+  <div class="ep-stats-row">
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="server"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">主机状态</div>
+        <div class="stat-value">
+          {{if $user.status==3}}<span class="badge badge-danger">数据库超限</span>{{elseif $user.status==2}}<span class="badge badge-danger">超流量</span>{{elseif $user.status==1}}<span class="badge badge-warning">暂停</span>{{else}}<span class="badge badge-success">正常</span>{{/if}}
+        </div>
+      </div>
+    </div>
+    {{if $user.cdn==0}}
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="hard-drive"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">网页空间</div>
+        <div class="stat-value" id="webdd"><span class="badge badge-info">计算中...</span></div>
+      </div>
+    </div>
+    {{if $quota.db_limit}}
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="database"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">数据空间</div>
+        <div class="stat-value" id="db"><span class="badge badge-info">计算中...</span></div>
+      </div>
+    </div>
+    {{/if}}
+    {{/if}}
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="activity"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">本月流量</div>
+        <div class="stat-value">{{number_format($flow.flow/1024,2)}}M</div>
+      </div>
+    </div>
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="gauge"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">带宽限制</div>
+        <div class="stat-value">{{if $user.speed_limit==0}}不限{{else}}{{$user.speed_limit/1024/1024*8}}Mbps{{/if}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷入口：大卡片按钮 -->
+  <div class="ep-card">
+    <div class="ep-card-header"><h3><i data-lucide="layout-grid"></i> 快捷功能入口</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-big-card-grid">
+        <a class="ep-big-card" href='?c=domain&amp;a=show'>
+          <div class="ep-big-icon"><i data-lucide="globe"></i></div>
+          <div class="ep-big-label">域名绑定</div>
+          <div class="ep-big-hint">域名 / SSL</div>
+        </a>
+
+        {{if $webftp_url}}
+        <a class="ep-big-card" href='{{$webftp_url}}'>
+          <div class="ep-big-icon"><i data-lucide="folder"></i></div>
+          <div class="ep-big-label">在线文件</div>
+          <div class="ep-big-hint">WebFTP</div>
+        </a>
+        {{/if}}
+
+        {{if $dbadmin_url}}
+        <a class="ep-big-card" href='{{$dbadmin_url}}' target='_blank'>
+          <div class="ep-big-icon"><i data-lucide="database"></i></div>
+          <div class="ep-big-label">数据库管理</div>
+          <div class="ep-big-hint">phpMyAdmin</div>
+        </a>
+        {{/if}}
+
+        <a class="ep-big-card" href='?c=shell&amp;a=index'>
+          <div class="ep-big-icon"><i data-lucide="archive"></i></div>
+          <div class="ep-big-label">数据备份</div>
+          <div class="ep-big-hint">备份恢复</div>
+        </a>
+
+        {{if $user.ftp>0}}
+        <a class="ep-big-card" href='?c=index&amp;a=ftpForm'>
+          <div class="ep-big-icon"><i data-lucide="radio"></i></div>
+          <div class="ep-big-label">FTP 设置</div>
+          <div class="ep-big-hint">账号权限</div>
+        </a>
+        {{/if}}
+
+        <a class="ep-big-card" href='?c=session&amp;a=changePasswordForm'>
+          <div class="ep-big-icon"><i data-lucide="key"></i></div>
+          <div class="ep-big-label">修改密码</div>
+          <div class="ep-big-hint">登录密码</div>
+        </a>
+
+        {{if $user.cdn==0 && $user.module=='php'}}
+        <a class="ep-big-card" href='?c=phpset&amp;a=phpset'>
+          <div class="ep-big-icon"><i data-lucide="code"></i></div>
+          <div class="ep-big-label">PHP 设置</div>
+          <div class="ep-big-hint">版本切换</div>
+        </a>
+        {{/if}}
+
+        <a class="ep-big-card" href='?c=flow&amp;a=viewFlow&amp;t=day'>
+          <div class="ep-big-icon"><i data-lucide="bar-chart"></i></div>
+          <div class="ep-big-label">流量统计</div>
+          <div class="ep-big-hint">流量图</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=cache&amp;a=cacheFrom'>
+          <div class="ep-big-icon"><i data-lucide="zap"></i></div>
+          <div class="ep-big-label">缓存设置</div>
+          <div class="ep-big-hint">页面缓存</div>
+        </a>
+
+        <a class="ep-big-card" href="?c=cacheclean&amp;a=cachecleanFrom">
+          <div class="ep-big-icon"><i data-lucide="eraser"></i></div>
+          <div class="ep-big-label">清除缓存</div>
+          <div class="ep-big-hint">一键清理</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=banip&amp;a=addTableFrom'>
+          <div class="ep-big-icon"><i data-lucide="ban"></i></div>
+          <div class="ep-big-label">黑名单</div>
+          <div class="ep-big-hint">IP 封禁</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=protection&amp;a=addProtectionTableFrom'>
+          <div class="ep-big-icon"><i data-lucide="shield"></i></div>
+          <div class="ep-big-label">防盗链</div>
+          <div class="ep-big-hint">Referer</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=anticc&amp;a=anticcFrom'>
+          <div class="ep-big-icon"><i data-lucide="shield-check"></i></div>
+          <div class="ep-big-label">防 CC</div>
+          <div class="ep-big-hint">CC 防护</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=connection&amp;a=connectionFrom'>
+          <div class="ep-big-icon"><i data-lucide="link"></i></div>
+          <div class="ep-big-label">连接信息</div>
+          <div class="ep-big-hint">在线连接</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=capability&amp;a=capabilityFrom'>
+          <div class="ep-big-icon"><i data-lucide="activity"></i></div>
+          <div class="ep-big-label">性能分析</div>
+          <div class="ep-big-hint">请求分析</div>
+        </a>
+
+        <a class="ep-big-card" href="?c=speed&amp;a=speedFrom">
+          <div class="ep-big-icon"><i data-lucide="rocket"></i></div>
+          <div class="ep-big-label">带宽限制</div>
+          <div class="ep-big-hint">限速</div>
+        </a>
+
+        {{if $user.cdn==0 && $user.cron>0}}
+        <a class="ep-big-card" href='?c=cron&amp;a=index'>
+          <div class="ep-big-icon"><i data-lucide="clock"></i></div>
+          <div class="ep-big-label">计划任务</div>
+          <div class="ep-big-hint">Cron</div>
+        </a>
+        {{/if}}
+
+        {{if $user.cdn==0}}
+        <a class="ep-big-card" href='?c=httpauth&amp;a=index'>
+          <div class="ep-big-icon"><i data-lucide="lock"></i></div>
+          <div class="ep-big-label">HTTP 认证</div>
+          <div class="ep-big-hint">访问密码</div>
+        </a>
+        {{/if}}
+
+        {{if $ssl}}
+        <a class="ep-big-card" href='?c=ssl&amp;a=sslForm'>
+          <div class="ep-big-icon"><i data-lucide="lock"></i></div>
+          <div class="ep-big-label">SSL 证书</div>
+          <div class="ep-big-hint">上传证书</div>
+        </a>
+        {{/if}}
+
+        {{if $ssl}}
+        <a class="ep-big-card" href='/admin/?c=acmessl&amp;a=applyForm' target='_blank'>
+          <div class="ep-big-icon"><i data-lucide="shield"></i></div>
+          <div class="ep-big-label">免费 SSL</div>
+          <div class="ep-big-hint">acme.sh 申请</div>
+        </a>
+        {{/if}}
+
+        {{if $user.htaccess}}
+        <a class="ep-big-card" href='?c=rewrites&amp;a=show'>
+          <div class="ep-big-icon"><i data-lucide="file-code"></i></div>
+          <div class="ep-big-label">伪静态</div>
+          <div class="ep-big-hint">Rewrite</div>
+        </a>
+        {{/if}}
+
+        <a class="ep-big-card" href='?c=rewrite&amp;a=rewriteFrom'>
+          <div class="ep-big-icon"><i data-lucide="file-code"></i></div>
+          <div class="ep-big-label">域名跳转</div>
+          <div class="ep-big-hint">重定向</div>
+        </a>
+
+        <a class="ep-big-card" href='?c=info&amp;a=showErrorPage'>
+          <div class="ep-big-icon"><i data-lucide="file-text"></i></div>
+          <div class="ep-big-label">错误码</div>
+          <div class="ep-big-hint">自定义页面</div>
+        </a>
+
+        {{if $user.cdn==0}}
+        <a class="ep-big-card" href='?c=indexfile&amp;a=indexfileFrom'>
+          <div class="ep-big-icon"><i data-lucide="file-stack"></i></div>
+          <div class="ep-big-label">默认文件</div>
+          <div class="ep-big-hint">首页文件</div>
+        </a>
+        {{/if}}
+
+        {{if $user.ssi}}
+        <a class="ep-big-card" href='?c=ssi&amp;a=show'>
+          <div class="ep-big-icon"><i data-lucide="puzzle"></i></div>
+          <div class="ep-big-label">SSI 设置</div>
+          <div class="ep-big-hint">服务器包含</div>
+        </a>
+        {{/if}}
+
+        {{if $user.cdn==0}}
+        <a class="ep-big-card" href='javascript:rebootProcess();'>
+          <div class="ep-big-icon"><i data-lucide="refresh-cw"></i></div>
+          <div class="ep-big-label">重启进程</div>
+          <div class="ep-big-hint">网站进程</div>
+        </a>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+
+  <!-- 主机信息明细 -->
+  <div class="ep-card">
+    <div class="ep-card-header"><h3><i data-lucide="info"></i> 虚拟主机信息</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table">
+          <tbody>
+            <tr><td style="width:180px;">用户名</td><td>{{$user.name}}</td></tr>
+            <tr><td>创建时间</td><td>{{date("Y-m-d H:i:s",$user.create_time)}}</td></tr>
+            {{if $user.expire_time2 !=0}}
+            <tr><td>到期时间</td><td>{{date("Y-m-d H:i:s",$user.expire_time2)}}</td></tr>
+            {{/if}}
+            {{if $user.cdn==0}}{{if $admin}}
+            <tr><td>网站目录</td><td>{{$user.doc_root}}</td></tr>
+            {{/if}}{{/if}}
+            <tr>
+              <td>主机状态</td>
+              <td>
+                {{if $user.status==3}}<span class="badge badge-danger">数据库超限</span> [<a href="javascript:refreshDbUsed()">刷新</a>]
+                {{elseif $user.status==2}}<span class="badge badge-danger">超流量</span>
+                {{elseif $user.status==1}}<span class="badge badge-warning">暂停</span>
+                {{else}}<span class="badge badge-success">正常</span>{{/if}}
+              </td>
+            </tr>
+            {{if $user.cdn==0}}
+            <tr><td>ftp 账号</td><td>{{$user.name}}</td></tr>
+            <tr><td>ftp 密码</td><td>和网站密码同步</td></tr>
+            <tr><td id="webdd">网页空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
+            {{if $quota.db_limit}}
+            <tr><td id="db">数据空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
+            {{if $user.db_type!='sqlsrv'}}
+            <tr><td>数据库地址</td><td>{{$node.db_host}}</td></tr>
+            <tr><td>数据库端口</td><td>{{$node.db_port}}</td></tr>
+            {{/if}}
+            <tr><td>数据库名</td><td>{{$user.db_name}}</td></tr>
+            <tr><td>数据库用户名</td><td>{{$user.db_name}}</td></tr>
+            {{/if}}
+            {{/if}}
+            <tr><td>绑定域名限制</td><td>{{if $user.domain==-1}}不限{{else}}{{$user.domain}}个{{/if}}</td></tr>
+            <tr><td>最大连接数</td><td>{{if $user.max_connect==0}}不限{{else}}{{$user.max_connect}}{{/if}}</td></tr>
+            <tr><td>流量限制</td><td>{{if $user.flow_limit}}{{$user.flow_limit}}G/月{{else}}不限{{/if}}</td></tr>
+            <tr><td>本月流量</td><td>{{number_format($flow.flow/1024,2)}}M</td></tr>
+            <tr><td>缓存命中率</td><td>{{if $flow.flow>0}}{{number_format($flow.flow_cache*100/$flow.flow,2)}}%{{else}}0%{{/if}}</td></tr>
+            <tr><td>带宽</td><td>{{if $user.speed_limit==0}}不限{{else}}{{$user.speed_limit/1024/1024*8}}Mbps{{/if}}</td></tr>
+            {{if $user.cdn==0}}
+            <tr><td>语言</td><td>{{if $user.module}}{{$user.module}}{{else}}{{$user.templete}}:{{$user.subtemplete}}{{/if}}</td></tr>
+            {{if count($subtempletes)>1 && $user.cs==1}}
+            <tr>
+              <td>版本切换</td>
+              <td>
+                <form name='frm' action='?c=index&amp;a=changeSubtemplete' method='post' class="ep-form ep-form-inline">
+                  <div class="form-group form-group-compact">
+                    <label></label>
+    <div class="controls">
+                      <select name='subtemplete' onChange='frm.submit()'>
+                        <option value=''>--请选择版本--</option>
+                        {{foreach from=$subtempletes item=subtemplete}}
+                        <option value='{{$subtemplete}}'{{if $subtemplete==$user.subtemplete}}selected{{/if}}>{{$subtemplete}}</option>
+                        {{/foreach}}
+                      </select>
+                    </div>
+  </div>
+                </form>
+              </td>
+            </tr>
+            {{/if}}
+            {{/if}}
+            {{if $module_link}}
+            <tr><td>模块链接</td><td>{{$module_link}}</td></tr>
+            {{/if}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

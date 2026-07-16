@@ -1,0 +1,4 @@
+<!--#start 1 -->
+<config>
+<dso_extend name='js' filename='bin/js.${dso}'/>
+</config>

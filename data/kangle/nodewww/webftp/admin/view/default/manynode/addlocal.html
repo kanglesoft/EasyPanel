@@ -1,0 +1,20 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>增加主节点名称</h3></div>
+    <div class="ep-card-body">
+      <form name='manynode' action="?c=manynode&a=addLocalname" method="post" class="ep-form">
+        <div class="form-group">
+          <label>节点名称:</label>
+    <div class="controls">
+    <input name='local_cdn_name' type='text' value="{{$local_cdn_name}}" >
+  </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn"><i data-lucide="check"></i> 确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

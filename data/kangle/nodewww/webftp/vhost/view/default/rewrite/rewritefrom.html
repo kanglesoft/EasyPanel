@@ -1,0 +1,74 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/rewrite.js'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>域名跳转设置</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=rewrite&a=rewriteAdd' method='post' name='form' class="ep-form">
+        <div class="form-group">
+          <label>跳转开关</label>
+    <div class="controls"><div>
+            {{if $at==0}}
+            <a href="?c=rewrite&a=rewriteCheckOn&status=1" title='点击开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="?c=rewrite&a=rewriteCheckOn&status=2" title='点击禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>域名</label>
+    <div class="controls"><input name="host" id='host' /></div>
+  </div>
+        <div class="form-group">
+          <label>跳转到域名</label>
+    <div class="controls"><input name='dst' id='dst' /></div>
+  </div>
+        <div class="form-group">
+          <label>跳转方式</label>
+    <div class="controls"><select name="code" id='code'>
+            <option value="301">301永久跳转</option>
+            <option value="302">302临时跳转</option>
+            {{if $user.cdn}}<option value="0">改写回源域名</option>{{/if}}
+          </select>
+          <a href='javascript:help();' class="ep-text-danger">帮助?</a></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='button' value='提交' onclick='rewrite_add();' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>序列</th>
+            <th>域名</th>
+            <th>跳转到域名</th>
+            <th>跳转方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$res item=row}}
+          <tr>
+            <td><a href="javascript:rewrite_del('{{$row.id}}')">删除</a></td>
+            <td>{{$row.id}}</td>
+            <td>{{$row.host}}</td>
+            <td>{{$row.dst}}</td>
+            <td>{{$row.code}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
+
+<script>
+  form.host.focus();
+</script>

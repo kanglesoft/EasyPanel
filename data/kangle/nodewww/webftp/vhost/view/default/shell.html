@@ -1,0 +1,54 @@
+{{include file='common/head.html'}}
+<script>
+var session='{{$session}}';
+function ReplaceAll(strOrg,strFind,strReplace)
+{
+        var index = 0;
+        while(strOrg.indexOf(strFind,index) != -1)
+        {
+                strOrg = strOrg.replace(strFind,strReplace);
+                index = strOrg.indexOf(strFind,index);
+        }
+        return strOrg
+}
+function check_result(result)
+{
+	var out = result['out'];
+	out = ReplaceAll(out," ","&nbsp;");
+	out = ReplaceAll(out,"\n","</br>");
+	$('#out').append(out);
+	whm_result(result['code']);
+}
+function whm_query()
+{
+	$.getJSON('?c=shell&a=query&session=' + session,check_result);
+}
+function whm_result(code)
+{
+	$('#status').empty();
+	if (code==201) {
+		$('#status').append('<span class="ep-status is-info"></span><span class="badge badge-info">运行中...</span>');
+		setTimeout(whm_query,2000);
+	} else if(code==200) {
+		$('#status').append('<span class="ep-status is-success"></span><span class="badge badge-success">完成</span>');
+	} else {
+		$('#status').append('<span class="ep-status is-error"></span><span class="badge badge-danger">执行错误:'+code+'</span>');
+	}
+}
+$(document).ready(function(){
+	var code={{$code}};
+	whm_result(code);
+});
+</script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>命令执行结果</h3></div>
+    <div class="ep-card-body">
+      <div id='out' class="ep-mono ep-p-3 ep-terminal">{{$out}}</div>
+      <div id='status' class="ep-mt-3"></div>
+      <div id='toolbox'></div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

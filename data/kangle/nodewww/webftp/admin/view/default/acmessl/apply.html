@@ -1,0 +1,63 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+var vhosts = {{$vhosts|json_encode}};
+function updateDomainHint(){
+	var sel = document.getElementById('vhostSelect');
+	var hint = document.getElementById('domainHint');
+	if (!sel || !hint) return;
+	var name = sel.value;
+	for (var i=0;i<vhosts.length;i++){
+		if (vhosts[i].name == name){
+			if (vhosts[i].domains && vhosts[i].domains.length > 0){
+				hint.innerHTML = '该网站已绑定域名：' + vhosts[i].domains.join('， ');
+			}else{
+				hint.innerHTML = '<span style="color:var(--color-danger);">该网站尚未绑定域名，请先绑定域名。</span>';
+			}
+			return;
+		}
+	}
+	hint.innerHTML = '';
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="plus-circle"></i> 申请 Let's Encrypt 免费 SSL 证书</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>HTTP-01 验证要求域名能通过 80 端口访问本服务器，且域名必须已绑定到目标网站。</span>
+      </div>
+      <form action="?c=acmessl&amp;a=apply" method="post" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">域名与网站</div>
+          <div class="form-group">
+            <label for="domainInput">要申请证书的域名</label>
+            <div class="controls">
+              <input type="text" name="domain" id="domainInput" placeholder="例如：ssl-test.babytomas.com" required>
+              <span class="form-hint">只填写一个主域名，acme.sh 会自动处理。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="vhostSelect">选择目标网站（可选）</label>
+            <div class="controls">
+              <select name="vhost" id="vhostSelect" onchange="updateDomainHint();">
+                <option value="">-- 自动根据域名匹配 --</option>
+                {{foreach from=$vhosts item=v}}
+                <option value="{{$v.name}}">{{$v.name}}{{if $v.doc_root}}（{{$v.doc_root}}）{{/if}}</option>
+                {{/foreach}}
+              </select>
+              <span class="form-hint" id="domainHint"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="shield"></i> 立即申请</button>
+          <a href="?c=acmessl&amp;a=index" class="btn btn-secondary">返回列表</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

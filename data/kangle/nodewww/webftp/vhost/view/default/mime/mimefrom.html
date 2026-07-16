@@ -1,0 +1,47 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/mime.js'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>MIME设置</h3></div>
+    <div class="ep-card-body">
+      <form action='?c=mime&a=mimeAdd' method='post' class="ep-form">
+        <div class="form-group">
+          <label>新增 MIME</label>
+    <div class="controls">
+      <div class="controls ep-flex ep-flex-wrap ep-gap-2 ep-items-center">
+            <label>扩展名：<input name='file_ext' class="span2" id='file_ext' placeholder="php"/></label>
+            <label>MIME：<input name='mime_type' class="span2" id='mime_type' /></label>
+            <label>缓存：<input name='cache_time' class="span2" value='3600' id='cache_time' />&nbsp;秒</label>
+            <label><input type='checkbox' name='gzip' value='1' id='gzip' /> 开启压缩</label>
+            <button type='button' class="btn" onclick='mime_add();'><i data-lucide="plus"></i> 增加</button>
+          </div>
+    </div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>文件扩展名</th>
+            <th>MIME类型</th>
+            <th>缓存时间</th>
+            <th>是否压缩</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$mime item=row}}
+          <tr>
+            <td><a href="javascript:del_mime('{{$row.file_ext}}')">删除</a></td>
+            <td>{{$row.file_ext}}</td>
+            <td>{{$row.mime_type}}</td>
+            <td>{{$row.cache_time}} 秒</td>
+            <td>{{if $row.gzip==1}}<span class="badge badge-success">是</span>{{else}}<span class="badge">否</span>{{/if}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

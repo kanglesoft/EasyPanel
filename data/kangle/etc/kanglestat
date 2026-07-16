@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# kangle        Startup script for the Apache HTTP Server
+#
+# chkconfig: - 85 15
+# description: Apache is a World Wide Web server.  It is used to serve \
+#	       HTML files and CGI.
+# processname: kangle
+# config: /etc/kangle/conf/kangle.conf
+# config: /etc/sysconfig/kangle
+# pidfile: /var/run/kangle.pid
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+
+KANGLE_LANG=${HTTPD_LANG-"C"}
+
+# This will prevent initlog from swallowing up a pass-phrase prompt if
+# mod_ssl needs a pass-phrase from the user.
+INITLOG_ARGS=""
+
+# Set HTTPD=/usr/sbin/kangle.worker in /etc/sysconfig/kangle to use a server
+# with the thread-based "worker" MPM; BE WARNED that some modules may not
+# work correctly with a thread-based MPM; notably PHP will refuse to start.
+
+# Path to the apachectl script, server binary, and short-form for messages.
+prog=kangle
+pidfile=${PIDFILE-/vhs/kangle/var/kangle.pid}
+RETVAL=0
+
+# The semantics of these two functions differ from the way apachectl does
+# things -- attempting to start while running is a failure, and shutdown
+# when not running is also a failure.  So we just do it the way init scripts
+# are expected to behave here.
+start() {
+        echo -n $"Starting $prog: "
+        LANG=$HTTPD_LANG 
+	ulimit -n 51200
+	/vhs/kangle/bin/kangle
+        RETVAL=$?
+	echo
+        [ $RETVAL = 0 ]
+        return $RETVAL
+}
+# When stopping kangle a delay of >10 second is required before SIGKILLing the
+# kangle parent; this gives enough time for the kangle parent to SIGKILL any
+# errant children.
+stop() {
+	echo -n $"Stopping $prog: "
+	/vhs/kangle/bin/kangle -q
+}
+restart() {
+	echo -n $"Restarting $prog: "
+	stop
+	start
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  restart)
+	stop
+	start
+	;;
+  reload)
+	reload
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart}"
+	exit 1
+esac
+
+exit $RETVAL

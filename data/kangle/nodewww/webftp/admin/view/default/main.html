@@ -1,0 +1,212 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+	function getSysInfo() {
+		var url = '?c=index&a=getSysInfo';
+		$.getJSON(url, outInfo);
+	}
+	function outInfo(info) {
+		if (info['os'] == 'windows') {
+			var mem = "已用:" + parseInt(info['memUsed']) + " M 空闲:" + parseInt(info['memFree'])
+				+ " M 总共: " + parseInt(info['memTotal']) + " M";
+		}else {
+			var mem = "已用:" + parseInt(info['memRealUsed']) + "M 使用率:" + parseInt(100*(info['memRealUsed']+info['memCached'])/info['memTotal']) + "%"  + ' (系统缓存使用:' + parseInt(info['memCached']) +  "M) "+"</br>" + "空闲:" + parseInt(info['memTotal']- info['memRealUsed']) + "M 总共:" + parseInt(info['memTotal']) +"M" ;
+		}
+		$('#mem').html(mem);
+		$('#avg').html(info['loadAvg']);
+		$('#time').html(info['uptime']);
+
+		var memTotal = parseInt(info['memTotal']) || 0;
+		var memPct = 0;
+		if (memTotal > 0) {
+			if (info['os'] == 'windows') {
+				memPct = Math.round(100 * parseInt(info['memUsed'] || 0) / memTotal);
+			} else {
+				memPct = Math.round(100 * (parseInt(info['memRealUsed'] || 0) + parseInt(info['memCached'] || 0)) / memTotal);
+			}
+		}
+		memPct = Math.max(0, Math.min(100, memPct));
+		var $memFill = $('#mem-progress .progress-fill');
+		$memFill.css('width', memPct + '%');
+		$memFill.removeClass('is-success is-warning is-danger')
+				.addClass(memPct > 80 ? 'is-danger' : (memPct > 60 ? 'is-warning' : 'is-success'));
+		$('#mem-progress-val').text(memPct + '%');
+
+		var diskPct = 0;
+		if (typeof info['diskPct'] !== 'undefined') {
+			diskPct = parseInt(info['diskPct']) || 0;
+		} else if (info['diskUsed'] && info['diskTotal']) {
+			diskPct = Math.round(100 * parseInt(info['diskUsed']) / parseInt(info['diskTotal']));
+		}
+		diskPct = Math.max(0, Math.min(100, diskPct));
+		var $diskFill = $('#disk-progress .progress-fill');
+		$diskFill.css('width', diskPct + '%');
+		$diskFill.removeClass('is-success is-warning is-danger')
+				 .addClass(diskPct > 80 ? 'is-danger' : (diskPct > 60 ? 'is-warning' : 'is-success'));
+		$('#disk-progress-val').text(diskPct + '%');
+	}
+	$(document).ready(function() {
+		$.ajax( {
+			type : 'get',
+			url : '?c=index&a=checkBind',
+			data : null,
+			dataType : 'json',
+			success : function(msg) {
+				if (msg['code'] != 400) {
+					var img = 'dns:';
+					if (msg['code'] == 200) {
+						img += '<span class="badge badge-success">正常</span>';
+					} else {
+						img += '<span class="badge badge-danger">异常</span>';
+					}
+					$("#localhost").append(img);
+				}
+			}
+		});
+	});
+</script>
+<div class="ep-content">
+  <div class="ep-stats-row">
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="monitor"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">服务器IP</div>
+        <div class="stat-value">{{gethostbyname($smarty.server.SERVER_NAME)}}</div>
+      </div>
+    </div>
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="package"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">EasyPanel 版本</div>
+        <div class="stat-value">{{$EASYPANEL_VERSION}}</div>
+      </div>
+    </div>
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="settings"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">Kangle 版本</div>
+        <div class="stat-value">{{$info->get('type')}} {{$info->get('version')}}</div>
+        <div><a href='{{$kangle_console_url}}' target=_blank>进入kangle管理后台</a></div>
+      </div>
+    </div>
+    <div class="ep-stat-card">
+      <div class="stat-icon-box"><i data-lucide="user"></i></div>
+      <div class="ep-stat-info">
+        <div class="stat-label">管理员账号</div>
+        <div class="stat-value">{{$role.admin}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="monitor"></i> 服务器信息</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table">
+          <tbody>
+            <tr>
+              <td>服务器IP:</td>
+              <td>{{gethostbyname($smarty.server.SERVER_NAME)}}</td>
+            </tr>
+            <tr>
+              <td>easypanel版本:</td>
+              <td>{{$EASYPANEL_VERSION}}
+              <div id="version_note"></div>
+              </td>
+            </tr>
+            <tr>
+              <td>kangle版本:</td>
+              <td>{{$info->get('type')}} {{$info->get('version')}}[<a
+                href='{{$kangle_console_url}}' target=_blank>进入kangle管理后台</a>]</td>
+            </tr>
+            <tr>
+              <td>内存信息:</td>
+              <td id='mem'><span class="skeleton" style="display:inline-block;width:220px;height:14px;border-radius:4px;"></span></td>
+            </tr>
+            <tr>
+              <td>内存使用率</td>
+              <td>
+                <div class="progress-bar" id="mem-progress">
+                  <div class="progress-fill {{if $memPct>80}}is-danger{{elseif $memPct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$memPct}}%"></div>
+                </div>
+                <span id="mem-progress-val" style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$memPct}}%</span>
+              </td>
+            </tr>
+            <tr>
+              <td>磁盘使用率</td>
+              <td>
+                <div class="progress-bar" id="disk-progress">
+                  <div class="progress-fill {{if $diskPct>80}}is-danger{{elseif $diskPct>60}}is-warning{{else}}is-success{{/if}}" style="width:{{$diskPct}}%"></div>
+                </div>
+                <span id="disk-progress-val" style="display:inline-block;margin-top:4px;font-size:12px;color:var(--color-font-secondary);">{{$diskPct}}%</span>
+              </td>
+            </tr>
+            <tr>
+              <td>系统负载:</td>
+              <td id='avg'></td>
+            </tr>
+            <tr>
+              <td>已启动:</td>
+              <td id='time'></td>
+            </tr>
+            <tr>
+              <td>管理员账号:</td>
+              <td>{{$role.admin}}</td>
+            </tr>
+            <tr>
+              <td>系统数据库:</td>
+              <td>
+              {{if "ok"==$dbisok}}<span class="badge badge-success">没有问题</span>{{else}}<span class="badge badge-danger">有问题:{{$dbisok}}</span>{{/if}}
+              </td>
+            </tr>
+            <tr>
+              <td>服务器状态:</td>
+              <td>
+              <div id='localhost'></div>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" class="ep-text-center"><span id='version_note'></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script language='javascript'>
+	function checkNode(node) {
+		var url = '?c=nodes&a=ajaxCheckNode&node=' + encodeURIComponent(node);
+		$('#' + node).html('加载中...');
+		$.ajax({
+			url: url,
+			type: 'GET',
+			dataType: 'xml',
+			success: function(xml) {
+				var whm = 0, db = 0, sqlsrv = 0;
+				try {
+					var $result = $(xml).find('result');
+					whm = $result.attr('whm') || 0;
+					db = $result.attr('db') || 0;
+					sqlsrv = $result.attr('sqlsrv') || 0;
+				} catch (e) {}
+				var msg = "web:";
+				msg += (whm == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>";
+				if (db != 2) {
+					msg += " mysql:" + ((db == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>");
+				}
+				if (sqlsrv != 2) {
+					msg += " sql server:" + ((sqlsrv == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>");
+				}
+				$('#' + node).html(msg);
+			},
+			error: function() {
+				$('#' + node).html('查询出错');
+			}
+		});
+	}
+	checkNode('localhost');
+	getSysInfo();
+</script>
+{{include file='common/foot.html'}}

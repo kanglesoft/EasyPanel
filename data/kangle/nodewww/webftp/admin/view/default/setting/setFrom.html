@@ -1,0 +1,21 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>支付方式设置</h3></div>
+    <div class="ep-card-body">
+      <form action="?c=setting&a=index" method='post' class="ep-form">
+        <div class="form-group">
+          <label>支付方式：</label>
+    <div class="controls">
+            <label class="ep-radio-label"><input type="radio" name="sub" value="alipay" checked="checked" /> 支付宝</label>
+            <label class="ep-radio-label"><input type="radio" name="sub" value="alipay" /> 网银在线</label>
+          </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type='submit' class="btn" style="width:200px;"><i data-lucide="check"></i> 确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

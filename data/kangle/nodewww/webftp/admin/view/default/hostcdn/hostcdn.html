@@ -1,0 +1,74 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>反向代理设置</h3></div>
+    <div class="ep-card-body">
+
+      <!-- 新增反向代理：模式 B 去 table 化 -->
+      <form action='?c=hostcdn&a=addHostcdn' method='post' class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">新增反向代理</div>
+          <div class="form-group">
+            <label>匹配域名</label>
+    <div class="controls">
+    <input name='v' id='reghost' value='' >
+  </div>
+  </div>
+          <div class="form-group">
+            <label>转向IP</label>
+    <div class="controls">
+    <input name='host' value='' >
+  </div>
+  </div>
+          <div class="form-group">
+            <label>端口</label>
+    <div class="controls">
+    <input name='port' value='80' >
+  </div>
+  </div>
+          <div class="ep-flex ep-gap-2 ep-mt-4">
+            <button type='submit' class="btn btn-sm"><i data-lucide="plus"></i> 增加</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- 反向代理列表：模式 C 增强 -->
+      {{if is_array($cdns)}}
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <span class="form-hint">共 {{$cdns|@count}} 条反向代理规则</span>
+        </div>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>匹配域名</th><th>转向IP</th><th>端口</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$cdns item=row}}
+            <tr>
+              <td>{{$row.v}}</td>
+              <td>{{$row.host}}</td>
+              <td>{{$row.port}}</td>
+              <td>
+                <span class="btn-group">
+                  <a href="?c=hostcdn&a=delHostcdn&id={{$row.id}}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                </span>
+              </td>
+            </tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="ep-empty">
+        <div class="ep-empty-icon"><i data-lucide="globe"></i></div>
+        <div class="ep-empty-title">暂无反向代理规则</div>
+        <div >在上方表单添加第一条规则</div>
+      </div>
+      {{/if}}
+
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

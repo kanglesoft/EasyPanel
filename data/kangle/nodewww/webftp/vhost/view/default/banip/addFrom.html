@@ -1,0 +1,120 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/banip.js?v=2'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>IP黑名单</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick='banip_del_all()'><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=banip&a=addBanip' method='post' class="ep-form">
+        <div class="form-group">
+          <label>IP黑名单开关</label>
+    <div class="controls"><div>
+            {{if $banip==0}}
+            <a href="javascript:banip_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:banip_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>禁止IP</label>
+    <div class="controls">
+            <input name='ip' id='ip' placeholder="192.168.0.1 或 192.168.0.1/24" />
+            <span class="help-text">禁止单个IP：192.168.0.1；禁止IP段：192.168.0.1/24</span>
+            <input type='button' onclick='banip_add();' value='增加' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>禁止IP</th>
+            <th>禁止时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$ips item=row}}
+          <tr>
+            <td><a href="javascript:banip_del({{$row.id}})">删除</a></td>
+            <td>{{$row.ip}}</td>
+            <td>{{if $row.expire==0}}永久{{else}}{{ceil(($row.expire-time())/60)}}分钟{{/if}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>URL黑名单</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick='banurl_del_all()'><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=banip&a=addBanip' method='post' class="ep-form">
+        <div class="form-group">
+          <label>URL黑名单开关</label>
+    <div class="controls"><div>
+            {{if $banurl==0}}
+            <a href="javascript:banurl_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:banurl_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>URL</label>
+    <div class="controls"><input name='url' id='url'/></div>
+  </div>
+        <div class="form-group">
+          <label>方法</label>
+    <div class="controls"><select name='meth' id='meth'>
+            <option value="">全部</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="!GET">!GET</option>
+            <option value="!POST">!POST</option>
+            <option value="!PUT">!PUT</option>
+            <option value="!DELETE">!DELETE</option>
+          </select></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='button' onclick='banurl_add();' value='增加' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>请求方法</th>
+            <th>禁止URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$urls item=row}}
+          <tr>
+            <td><a href="javascript:banurl_del({{$row.id}})">删除</a></td>
+            <td>{{$row.meth}}</td>
+            <td>{{$row.url}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

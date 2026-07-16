@@ -1,0 +1,68 @@
+# docker-compose.yml
+# 干净的三容器编排：
+#   kangle  (主)  kangle + easypanel，主容器内置 php7.4（local cmd:php74）
+#   mysql    (mysql8) 数据库，root 与 easypanel 用户均用 mysql_native_password
+#   额外 PHP 版本通过项目根 add_php.sh 动态启动独立 phpX.X-fpm 容器接入
+#
+# ───────────────────────── 统一路径规范（所有容器必须遵守）─────────────────────────
+#   宿主机路径                  容器路径            用途/挂载方
+#   ./data/kangle            -> /vhs/kangle       kangle 程序+配置+站点（kangle、phpXX 共享）
+#   ./data/homeftp           -> /home/ftp         站点家目录（kangle、phpXX 共享）
+#   ./data/mysql             -> /var/lib/mysql    MySQL 数据目录（仅 mysql）
+#   网络：kangle_net（固定名称，见文末 networks.name）— kangle / mysql / phpXX 唯一互通平面
+#   约定：
+#     - 任何需要访问站点 docroot 或 kangle 配置的容器，统一挂载 ./data/kangle -> /vhs/kangle
+#     - 额外 phpXX 容器不暴露宿主机端口，仅 kangle_net 内部 phpXX:9000 可达
+#     - 数据库仅在 kangle_net 内部可达；如需外部访问请在 install.sh 中显式开放
+# ─────────────────────────────────────────────────────────────────────────────────
+# 数据通过宿主 bind 挂载，便于查看/备份，且不污染镜像。
+# 密码等变量见同目录 .env（compose 会自动加载并用于插值）。
+
+services:
+  kangle:
+    build: ./kangle
+    container_name: kangle
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"     # HTTPS
+      - "3311:3311"   # kangle 管理
+      - "3312:3312"   # easypanel 后台
+      - "3313:3313"   # 预留（原 phpmyadmin 端口，已排除该组件）
+    volumes:
+      - ./data/kangle:/vhs/kangle:rw
+      - ./data/homeftp:/home/ftp:rw
+      - ./data/acme:/root/.acme.sh:rw
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      KANGLE_ADMIN_PASSWORD: ${KANGLE_ADMIN_PASSWORD:-kangle}
+    env_file: .env
+    networks:
+      - kangle_net
+
+  mysql:
+    build: ./mysql
+    container_name: mysql8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-kangle}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    env_file: .env
+    networks:
+      - kangle_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+networks:
+  kangle_net:
+    driver: bridge

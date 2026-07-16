@@ -1,0 +1,44 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+var error = '{{$error}}';
+jQuery(document).ready(function(){
+	if (error != '') {
+		 art.dialog({id:'id22',content:error ,icon: 'error',left:'50%',top:'20%'});
+	}
+	jQuery("input").focus(function(){
+		jQuery(this).addClass('onMouseOver');
+	});
+	jQuery("input").blur(function(){
+		jQuery(this).removeClass('onMouseOver');
+	});
+});
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="plus-circle"></i> {{if $action=='editProduct'}}修改产品{{else}}增加产品{{/if}}</h3>
+    </div>
+    <div class="ep-card-body">
+      <form name='nodeform' action="?c=vhostproduct&a={{$action}}&id={{$vhost.id}}" method="post" class="ep-form">
+        <div class="form-group">
+          <label>产品名称:</label>
+    <div class="controls">
+            <input name='product_name' type='text' value="{{$vhost.product_name}}" required>
+            <span class="help-text danger">*必填</span>
+          </div>
+  </div>
+        {{include file='common/product.html'}}
+        <div class="form-group">
+          <label>默认首页(多个由,分开):</label>
+    <div class="controls">
+            <input name='default_index' type='text' value="{{$vhost.default_index}}">
+          </div>
+  </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="save"></i> 确认提交</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
