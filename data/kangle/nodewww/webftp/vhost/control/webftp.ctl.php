@@ -7,7 +7,23 @@ class WebftpControl extends Control
 
 	public function __construct()
 	{
-		if ($_SESSION['webftp_user'] == '') {
+		// 自愈逻辑（修复问题[5]）：已登录的 vhost 用户应能直接使用网页 FTP。
+		// webftp() 通过会话变量建立 webftp 上下文；若因任何原因 webftp_user/webftp_docroot
+		// 缺失（会话未建立/丢失），这里从当前 vhost 会话或库记录回退重建，避免 “please login webftp first”。
+		if (empty($_SESSION['webftp_user']) || empty($_SESSION['webftp_docroot'])) {
+			$vhost = getRole('vhost');
+			$u = isset($_SESSION['user'][$vhost]) ? $_SESSION['user'][$vhost] : null;
+			if (empty($u) || empty($u['doc_root'])) {
+				$u = daocall('vhost', 'getVhost', array($vhost));
+			}
+			if (!empty($u) && !empty($u['doc_root'])) {
+				$_SESSION['webftp_docroot'] = $u['doc_root'];
+				$_SESSION['webftp_user']     = $u['uid'];
+				$_SESSION['webftp_group']    = $u['gid'];
+			}
+		}
+
+		if (empty($_SESSION['webftp_user']) || empty($_SESSION['webftp_docroot'])) {
 			exit('please login webftp first');
 		}
 

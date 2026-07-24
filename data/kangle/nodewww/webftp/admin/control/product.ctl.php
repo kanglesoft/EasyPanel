@@ -23,7 +23,20 @@ class ProductControl extends Control
 			$_REQUEST['target'] = 'self';
 		}
 
-		$products = apicall('product', 'getProducts', null);
+		try {
+			$products = apicall('product', 'getProducts', null);
+		} catch (\Throwable $e) {
+			// 底层节点/产品数据未配置（如 vhostproduct DAO 缺失）时，避免裸 500，
+			// 降级为仅含默认分组头的产品列表，保证下拉框可正常渲染。
+			$products = array(
+				array('name' => '--虚拟主机产品--', 'type' => '', 'id' => 0),
+			);
+		}
+
+		if (!is_array($products)) {
+			$products = array();
+		}
+
 		$this->_tpl->assign('products', $products);
 		$this->_tpl->assign('target', $_REQUEST['target']);
 		$this->_tpl->display('product/product_list.js');

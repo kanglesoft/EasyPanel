@@ -236,10 +236,106 @@ class IndexControl extends Control
 	{
 		$vhost = getRole('vhost');
 		$user = $_SESSION['user'][$vhost];
-		$dbadmin_url = 'http://' . $_SERVER['SERVER_NAME'] . ':3313/?db=' . $user['db_name'];
-		if(is_https()) $dbadmin_url = 'https://' . $_SERVER['SERVER_NAME'] . ':4413/?db=' . $user['db_name'];
+		$dbName = $user['db_name'];
+
+		$ssoConfig = '/vhs/kangle/nodewww/dbadmin_sso_config.php';
+		$ssoLib = '/vhs/kangle/nodewww/dbadmin_sso_lib.php';
+
+		if (!file_exists($ssoConfig) || !file_exists($ssoLib)) {
+			echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>MySQL 管理</title>'
+			     . '<style>body{font-family:Arial,sans-serif;padding:40px;text-align:center;background:#f5f5f5}'
+			     . 'h2{color:#333}.err{color:#e74c3c;font-size:16px;margin:20px 0}'
+			     . 'a{color:#3498db;text-decoration:none;border:1px solid #3498db;padding:8px 20px;border-radius:4px;display:inline-block;margin-top:15px}'
+			     . 'a:hover{background:#3498db;color:#fff}</style></head>'
+			     . '<body><h2>MySQL 数据库管理</h2>'
+			     . '<p class="err">phpMyAdmin 未安装或未配置，无法使用在线 MySQL 管理功能。</p>'
+			     . '<p>请联系管理员安装 phpMyAdmin 后再试。</p>'
+			     . '<a href="?c=index&a=main">返回主机信息</a></body></html>';
+			exit();
+		}
+
+		/* 确保 phpMyAdmin 单点登录账号已获得该 vhost 数据库的授权（幂等） */
+		$ok = $this->ensurePmaSso($dbName);
+		if (!$ok) {
+			echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>MySQL 管理</title>'
+			     . '<style>body{font-family:Arial,sans-serif;padding:40px;text-align:center;background:#f5f5f5}'
+			     . 'h2{color:#333}.err{color:#e74c3c;font-size:16px;margin:20px 0}'
+			     . 'a{color:#3498db;text-decoration:none;border:1px solid #3498db;padding:8px 20px;border-radius:4px;display:inline-block;margin-top:15px}'
+			     . 'a:hover{background:#3498db;color:#fff}</style></head>'
+			     . '<body><h2>MySQL 数据库管理</h2>'
+			     . '<p class="err">phpMyAdmin 授权失败，无法使用在线 MySQL 管理功能。</p>'
+			     . '<p>请确认 MySQL 服务正常运行后重试。</p>'
+			     . '<a href="?c=index&a=main">返回主机信息</a></body></html>';
+			exit();
+		}
+
+		/* 生成带签名、短时效的登录令牌（仅含 db 名与过期时间，密码不下发） */
+		$token = $this->makePmaToken($dbName);
+
+		/*
+		 * 将令牌写入 HttpOnly Cookie（同主机、跨端口共享：vhost 面板 :3312 与
+		 * phpMyAdmin :3313 同属一个主机名）。phpMyAdmin 内部 reload 重定向会剥离
+		 * 查询参数，故令牌走 Cookie 才能在自动登录时存活。
+		 */
+		setcookie('pma_sso_token', $token, array(
+			'path' => '/',
+			'httponly' => true,
+			'samesite' => 'Lax',
+		));
+
+		$proto = is_https() ? 'https' : 'http';
+		$port = is_https() ? '4413' : '3313';
+		$dbadmin_url = $proto . '://' . $_SERVER['SERVER_NAME'] . ':' . $port
+			. '/?db=' . urlencode($dbName);
+
 		ob_clean();
-		header('Location: '.$dbadmin_url);
+		header('Location: ' . $dbadmin_url);
+		exit();
+	}
+
+	/**
+	 * 为 phpMyAdmin 单点登录准备专用账号，并授予该 vhost 数据库的完整权限。
+	 * 使用 easypanel 节点特权 MySQL 连接（root），幂等、可重复调用。
+	 *
+	 * @param string $dbName vhost 数据库名
+	 * @return bool
+	 */
+	private function ensurePmaSso($dbName)
+	{
+		if (!$dbName || $dbName === 'mysql' || $dbName === 'root') {
+			return false;
+		}
+		$ssoConfig = '/vhs/kangle/nodewww/dbadmin_sso_config.php';
+		$ssoLib = '/vhs/kangle/nodewww/dbadmin_sso_lib.php';
+		if (!file_exists($ssoConfig) || !file_exists($ssoLib)) {
+			return false;
+		}
+		include_once $ssoConfig;
+		include_once $ssoLib;
+
+		$db = apicall('nodes', 'makeDbProduct', array('localhost'));
+		if (!$db) {
+			return false;
+		}
+		return $db->grantPma($dbName, PMA_SSO_USER, PMA_SSO_PASS);
+	}
+
+	/**
+	 * 生成 phpMyAdmin 单点登录令牌（HMAC 签名，含 db 名与过期时间）。
+	 *
+	 * @param string $dbName vhost 数据库名
+	 * @return string
+	 */
+	private function makePmaToken($dbName)
+	{
+		$ssoConfig = '/vhs/kangle/nodewww/dbadmin_sso_config.php';
+		$ssoLib = '/vhs/kangle/nodewww/dbadmin_sso_lib.php';
+		if (!file_exists($ssoConfig) || !file_exists($ssoLib)) {
+			return '';
+		}
+		include_once $ssoConfig;
+		include_once $ssoLib;
+		return pma_sso_sign($dbName);
 	}
 
 	public function ftp()

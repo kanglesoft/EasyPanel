@@ -108,14 +108,19 @@ if [[ -n "$DC" ]]; then
   # 清理可能残留的旧网络名（项目前缀）
   docker network ls --format '{{.Name}}' | grep -E 'kangle.*kangle_net|easypanel.*kangle_net' | while read -r net; do
     docker network rm "$net" >/dev/null 2>&1 && ok "移除网络: $net" || true
-  done
+  done || true
 
   # ───────────────────────── 3) 删除镜像 ─────────────────────────
   if [[ "$KEEP_IMAGES" -eq 0 ]]; then
     log "删除由本项目本地构建的镜像（kangle / mysql / phpXX）..."
     # --rmi local 仅删除 compose 本地构建的镜像，不影响外部拉取的 mysql:8 / php:* 基础镜像
-    $DC -f docker-compose.yml -f docker-compose.override.yml down --rmi local >/dev/null 2>&1 \
-      || $DC down --rmi local >/dev/null 2>&1 || true
+    $DC -f docker-compose.yml -f docker-compose.override.yml down --rmi local >/dev/null 2>&1 || true
+    # 兜底：显式按项目前缀清除本地构建镜像（不受 compose 状态 / override 缺失影响）
+    docker images --format '{{.Repository}}:{{.Tag}}' \
+      | grep -E "^kangle-easypanel-" \
+      | while read -r img; do
+          docker rmi -f "$img" >/dev/null 2>&1 && ok "删除镜像: $img" || true
+        done
     ok "本地构建镜像已删除"
   else
     log "保留所有镜像（--keep-images）"
@@ -150,6 +155,8 @@ if [[ "$PURGE_DOCKER" -eq 1 ]]; then
   warn "即将卸载 Docker Engine。这将影响本机所有 Docker 容器与镜像！"
   if confirm "确认完全卸载 Docker Engine（docker-ce / docker-compose-plugin 等）?"; then
     log "卸载 Docker Engine..."
+    # 本项目仅支持 deb + rhel 系：rhel 系的 Fedora / Oracle Linux / Amazon Linux 同样走 dnf，
+    # 已在本分支覆盖；未识别包管理器的发行版走 else 仅告警、不致命，无需新增 zypper/apk。
     if command -v dnf >/dev/null 2>&1; then
       dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-compose 2>/dev/null || true
     elif command -v yum >/dev/null 2>&1; then

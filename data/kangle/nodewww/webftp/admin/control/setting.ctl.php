@@ -11,10 +11,32 @@ class SettingControl extends Control
 	{
 		@load_conf('pub:settingrule');
 		@load_conf('pub:setting');
-		$sub = $_REQUEST['sub'];
-		$info = $GLOBALS['settingrule'][$sub];
+
+		$settingrule = (isset($GLOBALS['settingrule']) && is_array($GLOBALS['settingrule']))
+			? $GLOBALS['settingrule'] : array();
+		$setting_cfg = (isset($GLOBALS['setting_cfg']) && is_array($GLOBALS['setting_cfg']))
+			? $GLOBALS['setting_cfg'] : array();
+
+		$sub = isset($_REQUEST['sub']) ? trim(strval($_REQUEST['sub'])) : '';
+
+		// 配置文件（settingrule）缺失时优雅提示，避免裸 500 / 空白页
+		if (empty($settingrule)) {
+			$this->assign('msg', '系统设置规则未配置（settingrule 配置文件缺失），请联系管理员或完成安装初始化。');
+			$this->assign('env', array());
+			$this->assign('val', $setting_cfg);
+			$this->assign('sub', $sub);
+			return $this->fetch('setting/show.html');
+		}
+
+		// 未指定 sub 或指定的分组不存在时，默认取第一个分组
+		if ($sub === '' || !isset($settingrule[$sub])) {
+			$keys = array_keys($settingrule);
+			$sub = $keys[0];
+		}
+
+		$info = $settingrule[$sub];
 		$this->assign('env', $info);
-		$this->assign('val', $GLOBALS['setting_cfg']);
+		$this->assign('val', $setting_cfg);
 		$this->assign('sub', $sub);
 		return $this->fetch('setting/show.html');
 	}

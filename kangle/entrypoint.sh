@@ -103,6 +103,89 @@ else
     echo "[entrypoint] WARN: skip sync_flow cron (php bin or shell.php not found)"
 fi
 
+# ── 健壮的 MySQL 就绪等待（修复问题[1]：避免 kangle/easypanel 初始化时 MySQL 尚未真正可用，
+#    出现 "dependency mysql failed to start" / easypanel 连库竞态）──
+# 说明：docker-compose 的 depends_on: condition: service_healthy 仅保证 mysqladmin ping 通过，
+#    但 mysql 在“healthy”后仍需极短时间为 root 应用权限/刷新授权表，此时 easypanel 立即连库可能瞬时失败。
+#    这里用 kangle 内置 php74（带 mysqli）真正连一次库并跑 SELECT 1，连不上就重试最多 N 次（默认 120s），
+#    全部失败也只是告警后继续启动（不阻断容器），由 easypanel 后续自愈重试。
+wait_for_mysql()
+{
+	local max_attempts=60          # 60 * 2s ≈ 120s
+	local attempt=0
+	local host="${MYSQL_HOST:-mysql}"
+	local port="${MYSQL_PORT:-3306}"
+	local pass="${MYSQL_ROOT_PASSWORD:-}"
+	local php="$PHP_BIN"
+	[ -z "$php" ] && php="$(command -v php74 2>/dev/null || command -v php 2>/dev/null || true)"
+
+	if [ -z "$php" ]; then
+		echo "[entrypoint] WARN: 未找到 PHP 运行时，跳过 MySQL 就绪等待"
+		return 0
+	fi
+	if [ -z "$pass" ]; then
+		echo "[entrypoint] WARN: MYSQL_ROOT_PASSWORD 未设置，跳过 MySQL 就绪等待"
+		return 0
+	fi
+
+	echo "[entrypoint] 等待 MySQL ($host:$port) 就绪（最多 ${max_attempts} 次）..."
+	while [ "$attempt" -lt "$max_attempts" ]; do
+		attempt=$((attempt + 1))
+		if "$php" -r "try { \$c = new mysqli('$host','root','$pass','','', (int)$port); if (\$c->connect_error) exit(1); \$c->query('SELECT 1'); exit(0);} catch (\Throwable \$e) { exit(1);}" >/dev/null 2>&1; then
+			echo "[entrypoint] MySQL 已就绪（第 ${attempt} 次尝试）"
+			return 0
+		fi
+		sleep 2
+	done
+	echo "[entrypoint] WARN: 等待 MySQL 超时，仍尝试启动 kangle（easypanel 会自行重试连库）"
+	return 0
+}
+wait_for_mysql
+
+# ── 启动 pure-ftpd（修复 webftp 文件管理白屏问题）──
+# webftp 底层通过容器内部 localhost:21 访问 pure-ftpd；easypanel 的 FTP 认证
+# 由 pure-authd 调用 /vhs/kangle/bin/pureftp_auth（从 sqlite vhs.db 按 vhost name
+# 校验 md5 密码、返回 doc_root 作为家目录）完成。FTP 服务缺失则 webftp 白屏。
+# 镜像内已通过 Dockerfile 预置 /vhs/pure-ftpd/sbin/{pure-ftpd,pure-authd}。
+start_ftp()
+{
+    local FT="${PURE_FTPD_BIN:-/vhs/pure-ftpd/sbin/pure-ftpd}"
+    local AUTH="${PURE_AUTH_BIN:-/vhs/pure-ftpd/sbin/pure-authd}"
+    local AUTH_SCRIPT="${PUREFTP_AUTH:-/vhs/kangle/bin/pureftp_auth}"
+    local SOCK="/var/run/ftpd.sock"
+
+    if [ ! -x "$FT" ] || [ ! -x "$AUTH" ]; then
+        echo "[entrypoint] WARN: pure-ftpd 未安装（镜像缺少二进制），跳过 FTP 启动（webftp 将不可用）"
+        return 0
+    fi
+    if [ ! -x "$AUTH_SCRIPT" ]; then
+        echo "[entrypoint] WARN: pureftp_auth 验证器缺失（$AUTH_SCRIPT），跳过 FTP 启动"
+        return 0
+    fi
+
+    # 清理上一次遗留的进程与 socket，避免重建容器后重复拉起 / socket 被占用
+    pkill -x pure-ftpd 2>/dev/null || true
+    pkill -x pure-authd 2>/dev/null || true
+    sleep 1
+    rm -f "$SOCK" 2>/dev/null || true
+
+    # 先拉起认证代理（extauth 后端），再拉起 pure-ftpd 主服务
+    "$AUTH" --daemonize -s "$SOCK" -r "$AUTH_SCRIPT" 2>/dev/null
+    # pure-ftpd: -l extauth 走外部认证；-B 后台守护；-H 不解析 DNS；
+    # -A 限制用户在家目录（chroot）；-E 禁止匿名登录
+    "$FT" --daemonize -l extauth:"$SOCK" -A -E -H -B 2>/dev/null
+
+    # 确认 21 端口已就绪（容器内 ss/netstat 常返回空，用 /dev/tcp 探活）
+    sleep 1
+    if (exec 3<>/dev/tcp/127.0.0.1/21) 2>/dev/null; then
+        exec 3>&- 2>/dev/null || true
+        echo "[entrypoint] pure-ftpd started (port 21 listening, extauth backend)"
+    else
+        echo "[entrypoint] WARN: pure-ftpd 启动后 21 端口未监听，webftp 可能不可用"
+    fi
+}
+start_ftp
+
 # 拉起 kangle（与上游镜像行为一致：先拉起 kangle，再用 tail 保持容器存活）
 echo "[entrypoint] starting kangle ..."
 /vhs/kangle/bin/kangle 2>&1 || echo "[entrypoint] WARN: kangle exited with code $?"

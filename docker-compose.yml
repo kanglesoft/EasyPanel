@@ -37,8 +37,8 @@ services:
       - ./data/homeftp:/home/ftp:rw
       - ./data/acme:/root/.acme.sh:rw
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      KANGLE_ADMIN_PASSWORD: ${KANGLE_ADMIN_PASSWORD:-kangle}
+    # 密码仅来自 .env（由 install.sh 生成强口令），不再设置静默弱口令兜底，
+    # 防止 .env 变量缺失时容器自动回落到默认弱口令 'kangle'。
     env_file: .env
     networks:
       - kangle_net
@@ -47,13 +47,16 @@ services:
     build: ./mysql
     container_name: mysql8
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-kangle}
+    # 同上：MYSQL_ROOT_PASSWORD 仅来自 .env，避免静默弱口令兜底。
+    env_file: .env
+    # MySQL 8.4 默认不再加载 mysql_native_password 插件；而 easypanel / 旧版 PHP
+    # mysqli 驱动仅支持该插件。必须显式启用，否则 native_password 账户登录会报
+    # "Plugin 'mysql_native_password' is not loaded"。
+    command: ["mysqld", "--mysql-native-password=ON"]
     ports:
       - "3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
-    env_file: .env
     networks:
       - kangle_net
     healthcheck:
@@ -65,4 +68,5 @@ services:
 
 networks:
   kangle_net:
+    name: kangle_net
     driver: bridge

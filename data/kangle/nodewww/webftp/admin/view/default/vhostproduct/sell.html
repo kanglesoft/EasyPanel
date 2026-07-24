@@ -35,7 +35,18 @@ function check_open_url(va)
 }
 function open_advance()
 {
-	document.getElementById('advance').style.display="";
+	var adv = document.getElementById('advance');
+	var link = document.getElementById('advance_link');
+	// 双向折叠：已展开则收起，已收起则展开
+	// 注意：展开时必须显式设为 'block'，不能设为 ''（空字符串会被 CSS 默认 block 覆盖，
+	// 导致第二次点击时 adv.style.display 仍为 '' 而永远走不到收起分支）
+	if (adv.style.display == 'none' || adv.style.display == '') {
+		adv.style.display = 'block';
+		if (link) { link.innerHTML = '收起'; }
+	} else {
+		adv.style.display = 'none';
+		if (link) { link.innerHTML = '展开'; }
+	}
 }
 function check_user_result()
 {
@@ -135,7 +146,7 @@ function display_product(va)
         <div class="form-group">
           <label>高级(为空系统自动完成):</label>
     <div class="controls">
-      [<a href='javascript:open_advance()'>展开</a>]
+      [<a href='javascript:open_advance()' id='advance_link'>展开</a>]
             <div style='display:none' id='advance'>
             运行用户:<input type='text' name='uid' value='{{$vhost.uid}}' style="width:120px;"><br>
             组/密码:<input type='text' name='gid' value='{{$vhost.gid}}' style="width:120px;"><br>

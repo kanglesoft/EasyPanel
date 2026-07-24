@@ -194,7 +194,7 @@ function check_db(status)
     <label>数据库类型:</label>
     <div class="controls">
       <label class="ep-radio-label"><input type='radio' name='db_type' value='mysql' {{if !$vhost || $vhost.db_type!='sqlsrv'}}checked{{/if}}>mysql</label>
-      <label class="ep-radio-label"><input type='radio' name='db_type' value='sqlsrv' {{if $vhost && $vhost.db_type=='sqlsrv'}}checked{{/if}}>sql server</label>
+      {{* <label class="ep-radio-label"><input type='radio' name='db_type' value='sqlsrv'>sql server</label> *}}
     </div>
   </div>
   <div class="form-group cdnpanel">

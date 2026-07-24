@@ -29,7 +29,7 @@
 <port>3312</port>
 <host>*</host>
 </vh>
-<vh name='_dbadmin' doc_root='nodewww/dbadmin' index='index.html,index.php' app_share='0' inherit='off' user='#990' group='#990'>
+<vh name='_dbadmin' doc_root='nodewww/dbadmin/mysql' index='index.html,index.php' app_share='0' inherit='off' user='#990' group='#990'>
 <map file_ext='php' extend='cmd:nodephp' allow_method='*'/>
 <port>3313</port>
 <host>*</host>

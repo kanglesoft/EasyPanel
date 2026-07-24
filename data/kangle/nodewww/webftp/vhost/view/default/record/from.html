@@ -1,0 +1,60 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>添加解析记录</h3></div>
+    <div class="ep-card-body">
+      <form action="?c=record&a=recordAdd" method="post" class="ep-form">
+        <input type="hidden" name="domain" value="{{$domain}}">
+        <div class="form-group">
+          <label>域名</label>
+          <div class="controls">
+            <input type="text" name="domain_show" id="domain_show" value="{{$domain}}" readonly>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>主机记录</label>
+          <div class="controls">
+            <input type="text" name="name" id="name" value="@" placeholder="@ 或 www 等子域名">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>记录类型</label>
+          <div class="controls">
+            <select name="type" id="type">
+              <option value="A">A</option>
+              <option value="CNAME">CNAME</option>
+              <option value="MX">MX</option>
+              <option value="TXT">TXT</option>
+              <option value="AAAA">AAAA</option>
+              <option value="NS">NS</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>记录值</label>
+          <div class="controls">
+            <input type="text" name="value" id="value" placeholder="例如 1.2.3.4 或 target.example.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>解析线路</label>
+          <div class="controls">
+            <input type="text" name="view" id="view" value="默认">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>TTL(秒)</label>
+          <div class="controls">
+            <input type="text" name="ttl" id="ttl" value="600">
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn" style="width:200px;"><i data-lucide="check"></i> 确认提交</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{include file='common/foot.html'}}

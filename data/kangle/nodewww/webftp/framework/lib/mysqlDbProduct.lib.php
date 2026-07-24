@@ -69,6 +69,36 @@ class MysqlDbProduct extends DbProduct
 		return $this->query(array('SET PASSWORD FOR \'' . $user . '\'@\'%\' = PASSWORD( \'' . $passwd . '\' )'));
 	}
 
+	/**
+	 * 为 phpMyAdmin 单点登录创建/授权专用账号，并授予指定 vhost 数据库的完整权限。
+	 * 由 vhost 面板 dbadmin() 调用（已通过节点特权账号连接），幂等可重复执行。
+	 *
+	 * @param string $dbName   vhost 数据库名
+	 * @param string $pmaUser  SSO 账号名
+	 * @param string $pmaPass  SSO 账号密码
+	 * @return bool
+	 */
+	public function grantPma($dbName, $pmaUser, $pmaPass)
+	{
+		if (!$this->pdo) {
+			return false;
+		}
+		if ($dbName == 'mysql' || $dbName == 'root' || $dbName == '') {
+			return false;
+		}
+		if ($pmaUser == '' || $pmaPass == '') {
+			return false;
+		}
+
+		$sqls = array(
+			"CREATE DATABASE IF NOT EXISTS `" . $dbName . "`",
+			"CREATE USER IF NOT EXISTS '" . $pmaUser . "'@'%' IDENTIFIED BY '" . $pmaPass . "'",
+			"GRANT ALL PRIVILEGES ON `" . $dbName . "`.* TO '" . $pmaUser . "'@'%'",
+			'FLUSH PRIVILEGES',
+		);
+		return $this->query($sqls);
+	}
+
 	public function used($uid, $failedreturnfalse = false)
 	{
 		$user = $uid;

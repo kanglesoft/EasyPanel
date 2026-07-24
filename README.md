@@ -12,12 +12,29 @@
 
 ## 支持的发行版
 
-- Debian 12 / 11
-- Ubuntu 24.04 / 22.04 / 20.04
-- CentOS 7 / 8
-- CentOS Stream 10 / 9
-- AlmaLinux 10 / 9 / 8
-- Rocky Linux 10 / 9 / 8
+本项目仅支持 **deb 系** 与 **rhel 系** 发行版（包管理器为 `apt` / `dnf` / `yum`）。**不支持 Alpine、不支持 openSUSE。**
+
+**deb 系（Debian / Ubuntu 及衍生，如 Linux Mint）**
+
+- ✅ Debian 11 / 12 / 13
+- ✅ Ubuntu 20.04 / 22.04 / 24.04 / 26.04 LTS（及衍生 deb 系）
+- ⚠️ Debian ≤ 10、Ubuntu ≤ 18.04：已 EOL，仍可用但不推荐
+
+**rhel 系（CentOS / RHEL / AlmaLinux / Rocky / Oracle Linux / Amazon Linux / Fedora）**
+
+- ✅ CentOS Stream 9 / 10
+- ✅ RHEL 8 / 9 / 10
+- ✅ AlmaLinux 8 / 9 / 10
+- ✅ Rocky Linux 8 / 9 / 10
+- ✅ Oracle Linux 8 / 9 / 10
+- ✅ Amazon Linux 2023
+- ✅ Fedora
+- ⚠️ CentOS 6 / 7 / 8、CentOS Stream 8、RHEL 7：已 EOL，仍可用但不推荐
+
+**说明**
+
+- 内核版本 < 4.9 时，安装脚本会**自动隐藏 BBR 选项**（TCP BBR 需内核 ≥ 4.9）。
+- 未在上述清单中的发行版：若已预装 Docker Engine + Compose 插件，可直接运行安装脚本；否则需参考 [Docker 官方文档](https://docs.docker.com/engine/install/) 手动安装 Docker 后重跑。
 
 ## 环境要求
 

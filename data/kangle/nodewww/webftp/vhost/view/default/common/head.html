@@ -19,6 +19,7 @@
 <script src="/style/jq.cookie.js"></script>
 <script src="/style/public.js"></script>
 <script src="/style/artdialog/artDialog.js"></script>
+<link rel="stylesheet" href="/style/artdialog/skins/twitter.css">
 <script src="/style/lucide.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -134,21 +135,21 @@ document.addEventListener('DOMContentLoaded', function(){
       <div class="nav-section-title">网站管理</div>
       <ul>
         <li><a href="?c=domain&amp;a=show" class="{{if $smarty.get.c=='domain'}}active{{/if}}"><i data-lucide="globe"></i> 域名管理</a></li>
-        <li><a href="?c=webftp&amp;a=ls" class="{{if $smarty.get.c=='webftp'}}active{{/if}}"><i data-lucide="folder"></i> 文件管理</a></li>
+        <li><a href="?c=webftp&amp;a=enter" class="{{if $smarty.get.c=='webftp'}}active{{/if}}"><i data-lucide="folder"></i> 文件管理</a></li>
         <li><a href="?c=indexfile&amp;a=indexfilefrom" class="{{if $smarty.get.c=='indexfile'}}active{{/if}}"><i data-lucide="file-text"></i> 默认文档</a></li>
       </ul>
 
       <div class="nav-section-title">数据库</div>
       <ul>
-        <li><a href="?c=mysql&amp;a=index" class="{{if $smarty.get.c=='mysql'}}active{{/if}}"><i data-lucide="database"></i> MySQL</a></li>
-        <li><a href="?c=mssql&amp;a=index" class="{{if $smarty.get.c=='mssql'}}active{{/if}}"><i data-lucide="server"></i> SQL Server</a></li>
+        <li><a href="?c=index&amp;a=dbadmin" class="{{if $smarty.get.c=='index' && $smarty.get.a=='dbadmin'}}active{{/if}}"><i data-lucide="database"></i> MySQL</a></li>
+        {{* <li><a href="?c=index&amp;a=dbadmin" class=""><i data-lucide="server"></i> SQL Server</a></li> *}}
       </ul>
 
       <div class="nav-section-title">安全与加速</div>
       <ul>
-        <li><a href="?c=ssl&amp;a=ssl" class="{{if $smarty.get.c=='ssl'}}active{{/if}}"><i data-lucide="lock"></i> SSL 证书</a></li>
-        <li><a href="?c=protection&amp;a=add" class="{{if $smarty.get.c=='protection'}}active{{/if}}"><i data-lucide="shield"></i> 防盗链</a></li>
-        <li><a href="?c=banip&amp;a=addFrom" class="{{if $smarty.get.c=='banip'}}active{{/if}}"><i data-lucide="ban"></i> IP 黑名单</a></li>
+        <li><a href="?c=ssl&amp;a=sslForm" class="{{if $smarty.get.c=='ssl'}}active{{/if}}"><i data-lucide="lock"></i> SSL 证书</a></li>
+        <li><a href="?c=protection&amp;a=addProtectionTableFrom" class="{{if $smarty.get.c=='protection'}}active{{/if}}"><i data-lucide="shield"></i> 防盗链</a></li>
+        <li><a href="?c=banip&amp;a=addTableFrom" class="{{if $smarty.get.c=='banip'}}active{{/if}}"><i data-lucide="ban"></i> IP 黑名单</a></li>
         <li><a href="?c=antisql&amp;a=antisqlfrom" class="{{if $smarty.get.c=='antisql'}}active{{/if}}"><i data-lucide="shield-alert"></i> SQL 注入防护</a></li>
         <li><a href="?c=antiupload&amp;a=antiuploadfrom" class="{{if $smarty.get.c=='antiupload'}}active{{/if}}"><i data-lucide="shield-check"></i> 上传保护</a></li>
       </ul>
@@ -157,23 +158,23 @@ document.addEventListener('DOMContentLoaded', function(){
       <ul>
         <li><a href="?c=cache&amp;a=cachefrom" class="{{if $smarty.get.c=='cache'}}active{{/if}}"><i data-lucide="zap"></i> 页面缓存</a></li>
         <li><a href="?c=cacheclean&amp;a=cachecleanfrom" class="{{if $smarty.get.c=='cacheclean'}}active{{/if}}"><i data-lucide="eraser"></i> 缓存清理</a></li>
-        <li><a href="?c=cdn&amp;a=addFrom" class="{{if $smarty.get.c=='cdn'}}active{{/if}}"><i data-lucide="map"></i> CDN 设置</a></li>
-        <li><a href="?c=gzip&amp;a=gzip" class="{{if $smarty.get.c=='gzip'}}active{{/if}}"><i data-lucide="minimize"></i> Gzip 压缩</a></li>
+        <li><a href="?c=cdn&amp;a=addTableFrom" class="{{if $smarty.get.c=='cdn'}}active{{/if}}"><i data-lucide="map"></i> CDN 设置</a></li>
+        {{* Gzip 压缩：本构建无对应控制器（?c=gzip 点击必崩），已从导航移除 *}}
       </ul>
 
       <div class="nav-section-title">重写与规则</div>
       <ul>
         <li><a href="?c=rewrite&amp;a=rewriteFrom" class="{{if $smarty.get.c=='rewrite'}}active{{/if}}"><i data-lucide="file-code"></i> URL 重写</a></li>
         <li><a href="?c=mime&amp;a=mimefrom" class="{{if $smarty.get.c=='mime'}}active{{/if}}"><i data-lucide="clipboard-list"></i> MIME 类型</a></li>
-        <li><a href="?c=response&amp;a=response" class="{{if $smarty.get.c=='response'}}active{{/if}}"><i data-lucide="arrow-up-from-line"></i> 响应头</a></li>
+        <li><a href="?c=response&amp;a=gzipFrom" class="{{if $smarty.get.c=='response'}}active{{/if}}"><i data-lucide="arrow-up-from-line"></i> 响应头</a></li>
       </ul>
 
       <div class="nav-section-title">工具</div>
       <ul>
         <li><a href="?c=cron&amp;a=index" class="{{if $smarty.get.c=='cron'}}active{{/if}}"><i data-lucide="clock"></i> 定时任务</a></li>
         <li><a href="?c=shell&amp;a=index" class="{{if $smarty.get.c=='shell'}}active{{/if}}"><i data-lucide="terminal"></i> 在线 Shell</a></li>
-        <li><a href="?c=subdir&amp;a=index" class="{{if $smarty.get.c=='subdir'}}active{{/if}}"><i data-lucide="folder-tree"></i> 子目录绑定</a></li>
-        <li><a href="?c=log&amp;a=index" class="{{if $smarty.get.c=='log'}}active{{/if}}"><i data-lucide="scroll-text"></i> 访问日志</a></li>
+        {{* 子目录绑定：本构建无对应控制器（?c=subdir 点击必崩），已从导航移除 *}}
+        {{* 访问日志：本构建无对应控制器（?c=log 点击必崩），已从导航移除 *}}
       </ul>
 
       <div class="nav-section-title">账号</div>

@@ -142,16 +142,16 @@ function testDnsdun()
               <label class="ep-checkbox-label"><input name="del_test_database" type='checkbox' value=1 {{if !$node.db_user&&!$node.db_passwd}}checked{{/if}}>删除test数据库</label>
             </div>
   </div>
-          {{if strcasecmp(substr( php_uname('s'),0,3),'win')==0}}
+          {{*
           <div class="form-group">
             <label>sqlserver数据库:</label>
     <div class="controls">
-              账号:<input name="sqlsrv_user" id='sqlsrv_user' value="{{$node.sqlsrv_user}}" style="width:100px;">
-              密码:<input name="sqlsrv_passwd" type="password" id='sqlsrv_passwd' value="{{$node.sqlsrv_passwd}}" autoComplete='off' style="width:100px;">
-              端口:<input name="sqlsrv_port" id='sqlsrv_port' value="{{if $node.sqlsrv_port}}{{$node.sqlsrv_port}}{{/if}}" autoComplete='off' style="width:60px;">
+              账号:<input name="sqlsrv_user" id='sqlsrv_user' value="" style="width:100px;">
+              密码:<input name="sqlsrv_passwd" type="password" id='sqlsrv_passwd' value="" autoComplete='off' style="width:100px;">
+              端口:<input name="sqlsrv_port" id='sqlsrv_port' value="" autoComplete='off' style="width:60px;">
             </div>
   </div>
-          {{/if}}
+          *}}
         </div>
 
         <div class="form-section">

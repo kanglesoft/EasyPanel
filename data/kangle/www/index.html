@@ -1,71 +1,185 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>服务器已就绪</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>默认站点 · Default Site</title>
 <style>
-  :root{
-    --c-primary: oklch(43.91% 0.322 284.15deg);
-    --c-primary-soft: oklch(43.91% 0.322 284.15deg / 0.10);
-    --c-bg: oklch(98.5% 0.003 284);
-    --c-card: #ffffff;
-    --c-text: oklch(25% 0.02 284);
-    --c-muted: oklch(55% 0.02 284);
-    --c-border: oklch(92% 0.01 284);
-    --shadow: 0 10px 30px -12px oklch(43.91% 0.322 284.15deg / 0.25);
+  :root {
+    --bg-1: #f1f5f9;
+    --bg-2: #e2e8f0;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --ink-2: #475569;
+    --ink-3: #64748b;
+    --accent: #4f46e5;
+    --accent-2: #6366f1;
+    --line: #e2e8f0;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --c-bg: oklch(20% 0.01 284);
-      --c-card: oklch(25% 0.012 284);
-      --c-text: oklch(92% 0.01 284);
-      --c-muted: oklch(68% 0.015 284);
-      --c-border: oklch(35% 0.015 284);
-      --shadow: 0 10px 30px -10px rgba(0,0,0,.5);
-    }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    min-height:100vh;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(1200px 600px at 50% -10%, var(--c-primary-soft), var(--c-bg) 60%);
-    color:var(--c-text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-    padding:24px;
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.28);
+    width: 100%;
+    max-width: 480px;
+    padding: 56px 40px 40px;
+    text-align: center;
+    overflow: hidden;
   }
-  .card{
-    background:var(--c-card);border:1px solid var(--c-border);border-radius:18px;
-    box-shadow:var(--shadow);padding:48px 44px;max-width:560px;text-align:center;
+  .card::before {
+    content: "";
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 260px;
+    height: 260px;
+    background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0) 70%);
+    pointer-events: none;
   }
-  .badge{display:inline-block;padding:5px 14px;border-radius:999px;background:var(--c-primary-soft);
-    color:var(--c-primary);font-size:13px;font-weight:600}
-  h1{font-size:26px;margin-top:16px;letter-spacing:.5px}
-  .desc{color:var(--c-muted);margin-top:12px;line-height:1.8;font-size:14px}
-  .links{margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .btn{padding:11px 22px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;transition:.12s}
-  .btn.primary{background:var(--c-primary);color:#fff}
-  .btn.ghost{border:1px solid var(--c-border);color:var(--c-text)}
-  .btn:hover{transform:translateY(-1px);filter:brightness(1.04)}
+  .card::after {
+    content: "";
+    position: absolute;
+    bottom: -100px;
+    left: -80px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at center, rgba(79, 70, 229, 0.12), rgba(79, 70, 229, 0) 70%);
+    pointer-events: none;
+  }
+  .glyph {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    margin: 0 auto 24px;
+  }
+  .glyph .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    opacity: 0.9;
+  }
+  .glyph .ring.inner {
+    inset: 18px;
+    border-color: var(--accent-2);
+    opacity: 0.5;
+  }
+  .glyph .dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .code {
+    position: relative;
+    font-size: clamp(4.5rem, 16vw, 7rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .name {
+    position: relative;
+    margin-top: 14px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .name .en {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .rule {
+    position: relative;
+    width: 44px;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+    margin: 22px auto;
+  }
+  .msg {
+    position: relative;
+    font-size: 1rem;
+    color: var(--ink-2);
+    margin-bottom: 32px;
+  }
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    border: none;
+    border-radius: 12px;
+    padding: 13px 26px;
+    cursor: pointer;
+    box-shadow: 0 10px 24px -10px rgba(79, 70, 229, 0.65);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -10px rgba(79, 70, 229, 0.75);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn:focus-visible { outline: 3px solid #c7d2fe; outline-offset: 3px; }
+  .btn svg { width: 18px; height: 18px; }
+  .note {
+    position: relative;
+    margin-top: 22px;
+    font-size: 0.8rem;
+    color: var(--ink-3);
+  }
+  @media (max-width: 480px) {
+    .card { padding: 44px 24px 32px; }
+    .glyph { width: 80px; height: 80px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+    .btn:hover { transform: none; }
+  }
 </style>
 </head>
 <body>
-  <div class="card">
-    <span class="badge">Easypanel · Kangle</span>
-    <h1>服务器已就绪</h1>
-    <div class="desc">
-      欢迎使用本服务器。默认站点根目录为 <code>www/</code>。<br>
-      如需管理面板，请访问对应的后台地址。
+  <main class="card">
+    <div class="glyph" aria-hidden="true">
+      <span class="ring"></span>
+      <span class="ring inner"></span>
+      <span class="dot"></span>
     </div>
-    <div class="links">
-      <a class="btn primary" href="/">站点首页</a>
-      <a class="btn ghost" id="ep" href="#">easypanel 后台</a>
-      <a class="btn ghost" id="ka" href="#">kangle 管理</a>
-    </div>
-  </div>
-  <script>
-    var h = location.hostname;
-    document.getElementById('ep').href = 'http://' + h + ':3312/';
-    document.getElementById('ka').href = 'http://' + h + ':3311/';
-  </script>
+    <h1 class="name">默认站点<span class="en">Default Site</span></h1>
+    <div class="rule" aria-hidden="true"></div>
+    <p class="msg">欢迎访问。该页面由 Web 服务托管；当访问的域名尚未绑定到具体站点时，会展示此默认页面。</p>
+    <p class="note">如有需要，请联系站点管理员</p>
+  </main>
 </body>
 </html>

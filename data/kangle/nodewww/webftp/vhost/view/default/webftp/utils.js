@@ -156,12 +156,16 @@
 	 */
 	function upload() 
 	{
-		var msg = '<div id="upload">';
-		msg += "<p><i>可以上传压缩包文件后解压，当前支持格式为<b>.7z</b>和<b>.zip</b></i></p>";
-		msg += '<form name="upform" enctype="multipart/form-data" action="?c=webftp&a=upsave" method="post">';
-		msg += '本地文件:<input name="myfile" size=50 type="file">&nbsp;&nbsp;<input style="width:100px" value="上传" type="Submit"><br><br>';
+		var msg = '<div id="upload" style="padding:4px 0;">';
+		msg += "<p style='margin-bottom:10px;color:#6c757d;'><i>可以上传压缩包文件后解压，当前支持格式为<b>.7z</b>和<b>.zip</b></i></p>";
+		// 未选择文件时拦截提交，避免后端返回“成功上传文件数:0”
+		msg += '<form name="upform" enctype="multipart/form-data" action="?c=webftp&a=upsave" method="post" onsubmit="if(!this.myfile.value){alert(\'请先选择要上传的文件\');return false;}return true;">';
+		msg += '<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">';
+		msg += '<label>本地文件：</label><input name="myfile" type="file" style="flex:1;">';
+		msg += '</div>';
+		msg += '<button type="submit" class="btn btn-primary" style="padding:6px 20px;">上传</button>';
 		msg += '</form></div>';
-		var dlog = art.dialog({id:'id22',content:'',title:'',lock:true});
+		var dlog = art.dialog({id:'id22',content:'',title:'上传文件',lock:true});
 		dlog.content(msg);
 	}
 	/**

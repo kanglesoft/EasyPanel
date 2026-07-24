@@ -28,8 +28,13 @@ RUN sed -i 's/^mirrorlist/#mirrorlist/; s|^#baseurl=http://mirror.centos.org|bas
 # kangle 及其内嵌 php(tpl_php) 扩展所需的运行时库（干净 centos:7 下 ldd 校验，仅需
 # 少量 CentOS 7 基础仓库包）。freetype/libjpeg/libpng/libtool-ltdl 由 php74.tar.gz 提供，
 # 此处不再重复安装，避免同名 soname 冲突。
+# 注意：CentOS 7 已 EOL，官方 base/vault 源在线，但 EPEL 需走阿里云镜像
+# （archives.fedoraproject.org 已归档且常损坏）。此处追加阿里云 EPEL 以便安装 lftp 等工具。
 RUN yum install -y --setopt=tsflags=nodocs \
         openssl sqlite memcached cronie tar which tzdata \
+    && yum install -y --setopt=tsflags=nodocs \
+        "https://mirrors.aliyun.com/epel/7/x86_64/Packages/e/epel-release-7-14.noarch.rpm" \
+    && yum install -y --setopt=tsflags=nodocs lftp \
     && yum clean all
 
 # vendoring 的第三方库（libmcrypt 2.5.8，标准库；来自本仓库 kangle/vendor/）。
@@ -45,7 +50,17 @@ RUN tar xzf /tmp/php74.tar.gz -C / \
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# 预编译的 pure-ftpd 服务（v1.0.52，CentOS 7，--without-capabilities 编译，
+# 避免容器内 cap_set_proc 失败导致 extauth 启动崩溃）。
+# 二进制从上游 kangle 镜像层提取并 vendoring 到本仓库 kangle/vendor/pure-ftpd/sbin/，
+# 与“webftp 文件管理”底层 FTP 服务强相关：webftp 通过容器内部 localhost:21 访问
+# pure-ftpd（extauth 后端对接 easypanel vhost 认证），FTP 服务缺失会导致 webftp 白屏。
+# entrypoint.sh 在启动 kangle 前负责拉起 pure-authd + pure-ftpd。
+COPY vendor/pure-ftpd/sbin/pure-ftpd /vhs/pure-ftpd/sbin/pure-ftpd
+COPY vendor/pure-ftpd/sbin/pure-authd /vhs/pure-ftpd/sbin/pure-authd
+RUN chmod 755 /vhs/pure-ftpd/sbin/pure-ftpd /vhs/pure-ftpd/sbin/pure-authd
+
 # kangle 程序文件由 compose bind 挂载到 /vhs/kangle，不在镜像内打包
-EXPOSE 80 3311 3312 3313
+EXPOSE 21 80 3311 3312 3313
 
 ENTRYPOINT ["/entrypoint.sh"]

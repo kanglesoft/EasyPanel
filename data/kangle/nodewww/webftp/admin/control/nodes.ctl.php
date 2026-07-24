@@ -69,11 +69,31 @@ class NodesControl extends Control
 	 */
 	public function ajaxCheckNode()
 	{
-		$node = $_REQUEST['node'];
-		$result = apicall('nodes', 'checkNode', array($_REQUEST['node']));
+		$node = isset($_REQUEST['node']) ? trim($_REQUEST['node']) : '';
+
+		// 缺少 node 参数时返回 JSON 错误，避免裸 500
+		if ($node === '') {
+			header('Content-Type: application/json; charset=utf-8');
+			exit(json_encode(array('code' => 400, 'msg' => '缺少 node 参数')));
+		}
+
+		// 防御性捕获检测过程中可能出现的异常（如节点配置缺失导致 WhmCall 未加载），
+		// 统一以 JSON 错误返回，避免裸 500
+		try {
+			$result = apicall('nodes', 'checkNode', array($node));
+		} catch (\Throwable $e) {
+			header('Content-Type: application/json; charset=utf-8');
+			exit(json_encode(array('code' => 500, 'msg' => '节点检测失败: ' . $e->getMessage())));
+		}
+
+		if (!is_array($result)) {
+			header('Content-Type: application/json; charset=utf-8');
+			exit(json_encode(array('code' => 500, 'msg' => '节点检测返回异常')));
+		}
+
 		header('Content-Type: text/xml; charset=utf-8');
 		$str = '<?xml version="1.0" encoding="utf-8"?>';
-		$str .= '<result node=\'' . $_REQUEST['node'] . '\' whm=\'';
+		$str .= '<result node=\'' . $node . '\' whm=\'';
 		$str .= $result['whm'];
 		$str .= '\' db=\'' . $result['db'] . '\' sqlsrv=\'' . $result['sqlsrv'] . '\'/>';
 		return $str;
@@ -84,10 +104,14 @@ class NodesControl extends Control
 	 */
 	public function editForm()
 	{
-		$name = $_REQUEST['name'];
-		$node = $GLOBALS['node_cfg'][$name];
+		$name = isset($_REQUEST['name']) ? trim($_REQUEST['name']) : '';
+		$node = (isset($GLOBALS['node_cfg'][$name]) && is_array($GLOBALS['node_cfg'][$name])) ? $GLOBALS['node_cfg'][$name] : array();
 
-		if (!is_array($node)) {
+		// 未提供有效节点名称时，给出友好提示并渲染默认表单，避免裸 500
+		if ($name === '') {
+			$this->assign('msg', '请选择要编辑的节点');
+		}
+		elseif (!is_array($node) || empty($node)) {
 			$this->assign('msg', '没有这个节点,请重开浏览器再试');
 		}
 
@@ -112,12 +136,16 @@ class NodesControl extends Control
 			$this->assign('msg', '更新成功,需要重新初始化服务器,<a href=?c=nodes&a=initForm&name=localhost><b class=red>点击进入</b></a>');
 		}
 
-		$whm = apicall('nodes', 'makeWhm', array($name));
-		$whmCall = new WhmCall('vhost.whm', 'list_dev');
-		$result = $whm->call($whmCall, 10);
+		// 仅当存在有效节点时才调用 whm 检测磁盘，避免未传/错误 name 时
+		// makeWhm 返回非对象，进而 new WhmCall 触发 "Class not found" 导致 500
+		if ($name !== '' && isset($GLOBALS['node_cfg'][$name]) && is_array($GLOBALS['node_cfg'][$name])) {
+			$whm = apicall('nodes', 'makeWhm', array($name));
+			$whmCall = new WhmCall('vhost.whm', 'list_dev');
+			$result = $whm->call($whmCall, 10);
 
-		if ($result) {
-			$this->assign('devs', $result->getAll('dev'));
+			if ($result) {
+				$this->assign('devs', $result->getAll('dev'));
+			}
 		}
 
 		$viewdir = dirname(__FILE__) . '/../../vhost/view/';

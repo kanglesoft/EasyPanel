@@ -57,7 +57,7 @@ if (webmit > 0) {
 				web_use_len = 100;
 			}
 			var webCls = web_use_len > 80 ? 'is-danger' : (web_use_len > 60 ? 'is-warning' : 'is-success');
-			jQuery("#webdd").html("网页空间：<span class='badge badge-info'>大小：" + webmit + "M / 已使用：" + web_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + webmit + "M   已使用：" + web_use_len.toFixed(2) + "%'><div class='progress-fill " + webCls + "' style='width:" + web_use_len.toFixed(2) + "%'></div></div>");
+			jQuery(".ep-quota-webdd").html("网页空间：<span class='badge badge-info'>大小：" + webmit + "M / 已使用：" + web_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + webmit + "M   已使用：" + web_use_len.toFixed(2) + "%'><div class='progress-fill " + webCls + "' style='width:" + web_use_len.toFixed(2) + "%'></div></div>");
 		}
 		if (db_use_len != null && db_use_len != 'undefined') {
 			if (db_use_len < 1) {
@@ -67,7 +67,7 @@ if (webmit > 0) {
 				db_use_len = 100;
 			}
 			var dbCls = db_use_len > 80 ? 'is-danger' : (db_use_len > 60 ? 'is-warning' : 'is-success');
-			jQuery("#db").html("数据空间：<span class='badge badge-info'>大小：" + dbmit + "M / 已使用：" + db_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + dbmit + "M   已使用：" + db_use_len.toFixed(2) + "%'><div class='progress-fill " + dbCls + "' style='width:" + db_use_len.toFixed(2) + "%'></div></div>");
+			jQuery(".ep-quota-db").html("数据空间：<span class='badge badge-info'>大小：" + dbmit + "M / 已使用：" + db_use_len.toFixed(2) + "%</span><div class='progress-bar' title='大小：" + dbmit + "M   已使用：" + db_use_len.toFixed(2) + "%'><div class='progress-fill " + dbCls + "' style='width:" + db_use_len.toFixed(2) + "%'></div></div>");
 		}
 	});
 }
@@ -163,7 +163,7 @@ if (webmit > 0) {
       <div class="stat-icon-box"><i data-lucide="hard-drive"></i></div>
       <div class="ep-stat-info">
         <div class="stat-label">网页空间</div>
-        <div class="stat-value" id="webdd"><span class="badge badge-info">计算中...</span></div>
+        <div class="stat-value ep-quota-webdd"><span class="badge badge-info">计算中...</span></div>
       </div>
     </div>
     {{if $quota.db_limit}}
@@ -171,7 +171,7 @@ if (webmit > 0) {
       <div class="stat-icon-box"><i data-lucide="database"></i></div>
       <div class="ep-stat-info">
         <div class="stat-label">数据空间</div>
-        <div class="stat-value" id="db"><span class="badge badge-info">计算中...</span></div>
+        <div class="stat-value ep-quota-db"><span class="badge badge-info">计算中...</span></div>
       </div>
     </div>
     {{/if}}
@@ -407,9 +407,9 @@ if (webmit > 0) {
             {{if $user.cdn==0}}
             <tr><td>ftp 账号</td><td>{{$user.name}}</td></tr>
             <tr><td>ftp 密码</td><td>和网站密码同步</td></tr>
-            <tr><td id="webdd">网页空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
+            <tr><td class="ep-quota-webdd">网页空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
             {{if $quota.db_limit}}
-            <tr><td id="db">数据空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
+            <tr><td class="ep-quota-db">数据空间：<span class="badge badge-info">计算中...</span></td><td></td></tr>
             {{if $user.db_type!='sqlsrv'}}
             <tr><td>数据库地址</td><td>{{$node.db_host}}</td></tr>
             <tr><td>数据库端口</td><td>{{$node.db_port}}</td></tr>

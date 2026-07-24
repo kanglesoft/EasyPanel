@@ -11,7 +11,7 @@ class CacheControl extends Control
 	{
 		parent::__construct();
 		load_lib('pub:access');
-		$this->access = new Access(getRole('vhost'), 'response');
+		$this->access = new Access(getRole('vhost'));
 	}
 
 	private function cacheGetChain(&$file, &$url, &$header)
@@ -20,21 +20,23 @@ class CacheControl extends Control
 		$result = $this->access->listChain(CACHE_TABLE, 1);
 		$id = 0;
 
-		foreach ($result->children() as $k => $chain) {
-			foreach ($chain->children() as $key => $ch) {
-				if (strstr($key, 'acl_')) {
-					$header[$id]['name'] = substr($key, 4);
-					$header[$id]['val'] = (string) $ch;
-					$header[$id]['id'] = $id;
+		if ($result) {
+			foreach ($result->children() as $k => $chain) {
+				foreach ($chain->children() as $key => $ch) {
+					if (strstr($key, 'acl_')) {
+						$header[$id]['name'] = substr($key, 4);
+						$header[$id]['val'] = (string) $ch;
+						$header[$id]['id'] = $id;
+					}
+
+					if (strstr($key, 'mark_')) {
+						$header[$id]['max_age'] = (string) $ch['max_age'];
+						$header[$id]['static'] = (string) $ch['static'];
+					}
 				}
 
-				if (strstr($key, 'mark_')) {
-					$header[$id]['max_age'] = (string) $ch['max_age'];
-					$header[$id]['static'] = (string) $ch['static'];
-				}
+				++$id;
 			}
-
-			++$id;
 		}
 	}
 
@@ -155,10 +157,12 @@ class CacheControl extends Control
 		$tables = $this->access->listTable();
 		$table_finded = false;
 
-		foreach ($tables as $table) {
-			if ($table == CACHE_TABLE) {
-				$table_finded = true;
-				break;
+		if ($tables && is_array($tables)) {
+			foreach ($tables as $table) {
+				if ($table == CACHE_TABLE) {
+					$table_finded = true;
+					break;
+				}
 			}
 		}
 

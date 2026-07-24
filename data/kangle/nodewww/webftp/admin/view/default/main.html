@@ -6,8 +6,10 @@
 	}
 	function outInfo(info) {
 		if (info['os'] == 'windows') {
+			/* Windows 内存信息展示分支已禁用（项目仅支持 Linux）：
 			var mem = "已用:" + parseInt(info['memUsed']) + " M 空闲:" + parseInt(info['memFree'])
 				+ " M 总共: " + parseInt(info['memTotal']) + " M";
+			*/
 		}else {
 			var mem = "已用:" + parseInt(info['memRealUsed']) + "M 使用率:" + parseInt(100*(info['memRealUsed']+info['memCached'])/info['memTotal']) + "%"  + ' (系统缓存使用:' + parseInt(info['memCached']) +  "M) "+"</br>" + "空闲:" + parseInt(info['memTotal']- info['memRealUsed']) + "M 总共:" + parseInt(info['memTotal']) +"M" ;
 		}
@@ -19,7 +21,9 @@
 		var memPct = 0;
 		if (memTotal > 0) {
 			if (info['os'] == 'windows') {
+				/* Windows 内存使用率算法已禁用（项目仅支持 Linux）：
 				memPct = Math.round(100 * parseInt(info['memUsed'] || 0) / memTotal);
+				*/
 			} else {
 				memPct = Math.round(100 * (parseInt(info['memRealUsed'] || 0) + parseInt(info['memCached'] || 0)) / memTotal);
 			}
@@ -196,9 +200,11 @@
 				if (db != 2) {
 					msg += " mysql:" + ((db == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>");
 				}
-				if (sqlsrv != 2) {
-					msg += " sql server:" + ((sqlsrv == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>");
-				}
+			/* SQL Server 状态徽标已禁用（项目仅支持 Linux，且此 if 无 else，注释不影响其余徽标）：
+			if (sqlsrv != 2) {
+				msg += " sql server:" + ((sqlsrv == 1) ? "<span class='badge badge-success'>正常</span>" : "<span class='badge badge-danger'>异常</span>");
+			}
+			*/
 				$('#' + node).html(msg);
 			},
 			error: function() {
