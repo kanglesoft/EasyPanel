@@ -18,7 +18,7 @@ class SessionControl extends Control
 	 */
 	public function loginForm()
 	{
-		if (daocall('setting', 'get', array('admin_login_img'))) {
+		if (daocall('setting', 'get', array('admin_login_img')) || !empty($_SESSION['login_force_captcha'])) {
 			$this->_tpl->assign('img', 1);
 		}
 
@@ -152,7 +152,15 @@ class SessionControl extends Control
 		global $default_db;
 		$setting = daocall('setting', 'getAll', array());
 
-		if ($setting['admin_login_img']) {
+		/* T05-H3：登录防暴破。连续失败 10 次且在 60s 窗口内则临时锁定。 */
+		if (!empty($_SESSION['login_fail']) && $_SESSION['login_fail'] >= 10 && (time() - (isset($_SESSION['login_fail_time']) ? $_SESSION['login_fail_time'] : 0)) < 60) {
+			$this->_tpl->assign('msg', '登录尝试过于频繁，请 60 秒后再试');
+			return $this->_tpl->display('login_error.html');
+		}
+
+		/* 验证码：开启 admin_login_img，或触发暴破防护时强制校验（避免验证码“裸奔”可被绕过）。 */
+		$need_captcha = !empty($setting['admin_login_img']) || !empty($_SESSION['login_force_captcha']);
+		if ($need_captcha) {
 			if (empty($_SESSION['admin_img_number']) || $_REQUEST['imgnumber'] != $_SESSION['admin_img_number']) {
 				$this->_tpl->assign('msg', '验证码错误');
 				return $this->_tpl->display('login_error.html');
@@ -164,6 +172,7 @@ class SessionControl extends Control
 
 		if (!$info) {
 			// 登录失败统一提示账号或密码错误，避免“kangle 通信失败”误导
+			$this->_noteLoginFail();
 			$this->_tpl->assign('msg', '用户名或密码错误');
 			return $this->_tpl->display('login_error.html');
 		}
@@ -243,7 +252,10 @@ class SessionControl extends Control
 			daocall('setting', 'add', array('EASYPANEL_VERSION', EASYPANEL_VERSION));
 		}
 
+		/* T05-H4：登录成功后立即轮换会话 ID，消除 Session Fixation。 */
+		session_regenerate_id(true);
 		registerRole('admin', $_REQUEST['username']);
+		unset($_SESSION['login_fail'], $_SESSION['login_force_captcha'], $_SESSION['login_fail_time']);
 		session_write_close();
 		header('Location: index.php');
 	}
@@ -254,6 +266,22 @@ class SessionControl extends Control
 		session_unset();
 		session_destroy();
 		return $this->loginForm();
+	}
+
+	private function _noteLoginFail()
+	{
+		if (empty($_SESSION['login_fail'])) {
+			$_SESSION['login_fail'] = 0;
+		}
+
+		$_SESSION['login_fail'] = (int) $_SESSION['login_fail'] + 1;
+		/* 滑动窗口：每次失败都刷新计时，使“10 次失败且 60s 内”始终指最近一次失败，
+		 * 避免锁定在首次失败后 60s 即永久失效。停止尝试 60s 后自动解锁，不会误锁正常用户。 */
+		$_SESSION['login_fail_time'] = time();
+		/* 连续失败 5 次后强制开启验证码，避免无验证码时被暴力破解。 */
+		if ($_SESSION['login_fail'] >= 5) {
+			$_SESSION['login_force_captcha'] = 1;
+		}
 	}
 
 	private function checkPassword($username, $passwd)

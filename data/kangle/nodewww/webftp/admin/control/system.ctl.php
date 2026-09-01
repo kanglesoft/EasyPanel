@@ -2,78 +2,17 @@
 needRole('admin');
 class SystemControl extends Control
 {
-	public function setPhpiniFrom()
-	{
-		return $this->_tpl->fetch('system/phpini.html');
-	}
-
 	/**
-	 * old
-	 * @deprecated
-	 * @return Ambigous <string, void, unknown>
+	 * 系统设置控制器
+	 *
+	 * 历史清理（B2 / B3，2026-08-30）：
+	 *   - setPhpiniFrom() 引用 system/phpini.html，但该模板从未存在，访问即抛模板异常（B2）。
+	 *     其本意（PHP ini 在线编辑）在容器内无安全价值，已移除。
+	 *   - editFileForm() / editFile() 早已 exit('not suppor')，且直接写宿主文件系统，
+	 *     属废弃死代码（B3），连同其唯一的消费模板 system/file.html 一并清理。
+	 *   - is_utf8() 仅被 editFile() 使用，随 editFile() 一同移除。
+	 *
+	 * 保留本文件以便将来按需补充真正可用的系统级设置动作；当前无对外 action。
 	 */
-	public function editFileForm()
-	{
-		exit('not suppor');
-		$file = $GLOBALS['safe_dir'] . '../ext/tpl_php74/php-templete.ini';
-		$fp = fopen($file, 'rb');
-
-		if (!$fp) {
-			$this->assign('msg', '不能打开文件:' . $file);
-			return $this->fetch('msg.html');
-		}
-
-		$str = fread($fp, filesize($file));
-		fclose($fp);
-		$charset = 'UTF-8';
-
-		if (!$this->is_utf8($str)) {
-			$str = mb_convert_encoding($str, 'UTF-8', 'GBK');
-			$charset = 'GBK';
-		}
-
-		$this->assign('file', $file);
-		$this->assign('charset', $charset);
-		$this->assign('content', $str);
-		return $this->fetch('system/file.html');
-	}
-
-	/**
-	 * old @deprecated
-	 * @return Ambigous <string, void, unknown>
-	 */
-	public function editFile()
-	{
-		exit('not suppor');
-		$file = $GLOBALS['safe_dir'] . '../ext/tpl_php74/php-templete.ini';
-		$charset = $_REQUEST['charset'];
-		$content = $_REQUEST['content'];
-
-		if (strcasecmp($charset, 'UTF-8') != 0) {
-			$content = mb_convert_encoding($content, $charset, 'UTF-8');
-		}
-
-		$fp = fopen($file, 'wb');
-
-		if (!$fp) {
-			$this->assign('msg', '不能写入文件:' . $file);
-			return $this->fetch('msg.html');
-		}
-
-		fwrite($fp, $content);
-		fclose($fp);
-		$this->assign('msg', '编辑成功');
-		return $this->fetch('msg.html');
-	}
-
-	public function is_utf8($liehuo_net)
-	{
-		if (preg_match('/^([' . chr(228) . '-' . chr(233) . ']{1}[' . chr(128) . '-' . chr(191) . ']{1}[' . chr(128) . '-' . chr(191) . ']{1}){1}/', $liehuo_net) == true || preg_match('/([' . chr(228) . '-' . chr(233) . ']{1}[' . chr(128) . '-' . chr(191) . ']{1}[' . chr(128) . '-' . chr(191) . (']' . '{1}){1}$/'), $liehuo_net) == true || preg_match('/([' . chr(228) . '-' . chr(233) . ']{1}[' . chr(128) . '-' . chr(191) . ']{1}[' . chr(128) . '-' . chr(191) . ']{1}){2,}/', $liehuo_net) == true) {
-			return true;
-		}
-
-		return false;
-	}
 }
-
 ?>

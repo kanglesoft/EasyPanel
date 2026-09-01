@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{{* CSRF token：由 Control::fetch() 统一 assign，csrf.js 读取后全局注入所有 POST（AD-4） *}}
+<meta name="csrf-token" content="{{$csrf_token|default:''}}">
 <title>{{$title|default:'EasyPanel 管理后台'}}</title>
 <style>{{$ep_theme_css}}</style>
 <script>
@@ -16,6 +18,13 @@
 })();
 </script>
 <script src="/style/jquery.js"></script>
+{{* 必须在 jQuery 之后、其它业务脚本之前：csrf.js 用 $.ajaxPrefilter 注册全局钩子，
+    晚于业务脚本加载会漏掉在页面内联脚本里立即发出的请求 *}}
+<script src="{{$STATIC}}common/csrf.js"></script>
+{{* 二次密码确认弹层（reauth.js）：宿主级操作（SSH 端口 / root 密码 / 容器停启）在
+    服务端被登记为强制二次确认，缺了它这些功能会一律 403。必须在业务脚本之前加载。
+    不依赖 jQuery，放在 csrf.js 之后即可。 *}}
+<script src="{{$STATIC}}common/reauth.js"></script>
 <script src="/style/jq.cookie.js"></script>
 <script src="/style/public.js"></script>
 <script src="/style/artdialog/artDialog.js"></script>
