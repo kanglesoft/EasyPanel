@@ -93,6 +93,7 @@ cd /opt/kangle-build
 ```
 .
 ├── install.sh              # 一键安装脚本
+├── upgrade.sh              # 数据安全升级脚本（备份 → 升级 → 健康检查 → 失败回滚）
 ├── uninstall.sh            # 卸载脚本
 ├── docker-compose.yml      # 主编排文件
 ├── docker-compose.override.yml   # add_php.sh 生成的 PHP 扩展编排
@@ -121,6 +122,41 @@ cd /opt/kangle-build
 - 重启 Docker Compose 使配置生效。
 
 之后可在 EasyPanel 后台“服务器设置”中为站点选择 PHP 8.2。
+
+## 升级
+
+从旧版本升级到新版本（数据不丢失）：
+
+```bash
+./upgrade.sh
+```
+
+脚本会依次完成以下操作：
+
+- 前置检查（git 仓库 / Docker / Compose 可用性）。
+- 停止容器并全量备份业务数据与本地配置到 `backups/upgrade-backup-<时间戳>.tar.gz`（先停机再备份，保证 MySQL 数据文件一致性；备份失败即中止升级）。
+- 本地未提交改动自动 stash，升级成功后尝试恢复。
+- `git pull --ff-only` 拉取新版本（拒绝分叉历史，绝不 force 覆盖本地提交）。
+- `docker compose up -d --build` 重建镜像与容器。
+- 健康检查（3311 / 3312 / 80 端口 + MySQL 连通），任一环节失败自动回滚到旧版本并重建容器。
+- 清理 Smarty 编译缓存，面板模板更新自动生效。
+
+常用参数：
+
+```bash
+./upgrade.sh --yes               # 非交互：自动 stash 本地改动并升级
+./upgrade.sh --no-backup         # 跳过升级前备份（不推荐）
+./upgrade.sh --no-pull           # 跳过 git pull，仅备份 + 重建（本地改码后使用）
+./upgrade.sh --skip-health-check # 跳过升级后健康检查（不推荐）
+```
+
+### 升级数据安全说明
+
+- 站点文件（`./data/homeftp/`）、MySQL 数据（`./data/mysql/`）、面板配置（`./data/kangle/`）、证书数据（`./data/acme/`）均为 bind 挂载，升级全程不删除、不移动；回滚也不影响数据。
+- `.env`、`node.cfg.php`、`docker-compose.override.yml` 均在 `.gitignore` 中，`git pull` 不会触碰；`upgrade.sh` 绝不重写 `.env`，管理员与数据库密码保持不变。
+- **日常升级请勿重跑 `install.sh`**——它会重新生成 `.env` 与随机密码，导致面板和数据库密码全部失效。升级请使用 `upgrade.sh`。
+- MySQL 跨大版本升级（如 8.0 → 8.4）涉及数据目录格式变更，需先 `mysqldump` 全量导出、再以新版本镜像初始化导入，不能仅重建容器。
+- 手动回滚：`git checkout <旧提交>` 后重跑 `docker compose up -d --build` 即可；升级失败时脚本会自动完成上述动作。
 
 ## 卸载
 
