@@ -508,8 +508,39 @@ cat > .env <<EOF
 KANGLE_ADMIN_PASSWORD="$KANGLE_PASS"
 # MySQL root（及 easypanel 专用库用户）密码
 MYSQL_ROOT_PASSWORD="$MYSQL_PASS"
+
+# ── 面板节点配置凭据（C3 / SEC-17）────────────────────────────
+# 由 webftp/config.php 调用 node_cfg_apply_env() 读取，优先级高于 node.cfg.php
+# 中的字面值。有了这一组变量，仓库内的 node.cfg.php 就可以只保留占位符，
+# 真实口令只存在于本文件（已被 .gitignore 排除、且权限 600）。
+EP_ADMIN_USER="admin"
+EP_ADMIN_PASS="$KANGLE_PASS"
+EP_DB_HOST="mysql"
+EP_DB_USER="root"
+EP_DB_PASS="$MYSQL_PASS"
+EP_WHM_PORT="3311"
 EOF
-ok ".env 已生成"
+# 凭据明文落盘，权限必须收紧到属主可读写（同目录的 node.cfg.php 同理）
+chmod 600 .env
+ok ".env 已生成（权限 600）"
+
+# ───────────────────────── 生成 node.cfg.php（C3 / SEC-13/15）────────────────────────
+# 为什么必须从模板生成：node.cfg.php 历史上带着真实口令被提交进过 git。
+# 现在它只作为「环境变量不可用时的兜底」存在，且在安装期用强随机口令填充，
+# 仓库里只保留不含口令的 .example 模板。
+if [[ -f data/kangle/etc/node.cfg.php.example ]]; then
+  if [[ ! -f data/kangle/etc/node.cfg.php ]]; then
+    cp data/kangle/etc/node.cfg.php.example data/kangle/etc/node.cfg.php
+    chmod 600 data/kangle/etc/node.cfg.php
+    ok "node.cfg.php 已由模板生成（权限 600）"
+  else
+    # 已存在则保留内容（可能已被初始化向导写入），只校正权限
+    chmod 600 data/kangle/etc/node.cfg.php 2>/dev/null || true
+    ok "node.cfg.php 已存在，仅校正权限为 600"
+  fi
+else
+  warn "未找到 data/kangle/etc/node.cfg.php.example 模板，跳过生成（面板将依赖 EP_* 环境变量）"
+fi
 
 # ───────────────────────── 构建并启动 ─────────────────────────
 if [[ "$FORCE_RECREATE" -eq 1 ]]; then
@@ -614,22 +645,45 @@ ensure_mysql_password
 
 # ───────────────────────── 初始化 easypanel ─────────────────────────
 log "初始化 / 登录 easypanel 以完成首次安装..."
-INIT_HTTP=$(curl -s -c /tmp/ep_install_cookie.txt -o /tmp/ep_install.html -w "%{http_code}" -m 20 \
+#
+# 判定口径（远端部署实测修正，勿改回）：
+#   admin/control/session.ctl.php::login() 成功时执行 `header('Location: index.php')`
+#   —— 返回 **302**；失败时渲染 login_error.html —— 返回 **200**。
+# 原实现以 `INIT_HTTP == "200"` 作为成功判据，与实际语义完全相反，导致每次安装
+# 都误报「easypanel 初始化未完成」，掩盖真实状态。
+#
+# 连带修正两个缺陷：
+#   ① curl 的 `-c` cookie jar 不会持久化会话 cookie（无 expires 字段），原实现
+#      第二次请求 `-b` 实际未携带任何凭据，所谓「后台首页 HTTP=200」其实是
+#      未登录的登录页 —— 属假阳性，即使登录失败也会「通过」。
+#   ② 仅凭「后台首页 200」无法区分登录态，因为登录页本身也返回 200。
+#
+# 改为：在同一 curl 内 -c/-b 双向传递 cookie 并 -L 跟随重定向，
+#      以「最终页同时满足：HTTP 200 + 含 csrf-token + 不含登录失败文案」
+#      作为登录成功的判据。
+INIT_HTTP=$(curl -s -L -c /tmp/ep_install_cookie.txt -b /tmp/ep_install_cookie.txt \
+  -o /tmp/ep_install.html -w "%{http_code}" -m 30 \
   -X POST "http://localhost:3312/admin/index.php?c=session&a=login" \
   --data-urlencode "username=admin" \
   --data-urlencode "passwd=$KANGLE_PASS" 2>/dev/null || echo 000)
-# 校验登录是否真实成功（而非仅看 install.lock 文件是否存在）：
-#  1) 登录接口应返回 200；2) 用登录 cookie 访问后台首页应返回 200（非停留在登录页）；3) install.lock 应存在。
-if [[ "$INIT_HTTP" == "200" ]] && docker exec kangle test -f /vhs/kangle/nodewww/webftp/framework/install.lock 2>/dev/null; then
-  DASH_HTTP=$(curl -s -b /tmp/ep_install_cookie.txt -o /dev/null -w "%{http_code}" -m 20 "http://localhost:3312/" 2>/dev/null || echo 000)
-  if [[ "$DASH_HTTP" == "200" ]]; then
-    ok "easypanel 已安装并登录成功（登录接口 HTTP=$INIT_HTTP，后台首页 HTTP=$DASH_HTTP，install.lock 存在）"
-  else
-    warn "easypanel 安装标记存在且登录接口返回 $INIT_HTTP，但后台首页访问返回 $DASH_HTTP（请用生成的密码手动登录确认）。"
-  fi
+
+# 登录成功标记：落地页是后台（带 CSRF token），且不含任何登录失败文案
+EP_LOGGED_IN=0
+if [[ "$INIT_HTTP" == "200" ]] \
+   && grep -q 'name="csrf-token"' /tmp/ep_install.html 2>/dev/null \
+   && ! grep -qE '用户名或密码错误|验证码错误|登录尝试过于频繁' /tmp/ep_install.html 2>/dev/null; then
+  EP_LOGGED_IN=1
+fi
+
+LOCK_EXISTS=$(docker exec kangle test -f /vhs/kangle/nodewww/webftp/framework/install.lock 2>/dev/null && echo 存在 || echo 不存在)
+
+if [[ "$EP_LOGGED_IN" -eq 1 ]]; then
+  ok "easypanel 登录成功（最终 HTTP=$INIT_HTTP，已取得后台会话与 CSRF token，install.lock=$LOCK_EXISTS）"
 else
-  LOCK_EXISTS=$(docker exec kangle test -f /vhs/kangle/nodewww/webftp/framework/install.lock 2>/dev/null && echo 存在 || echo 不存在)
-  warn "easypanel 初始化未完成：登录接口 HTTP=$INIT_HTTP，install.lock=$LOCK_EXISTS。可登录后台继续完成初始化向导。"
+  warn "easypanel 登录未成功：最终 HTTP=$INIT_HTTP，install.lock=$LOCK_EXISTS。可登录后台继续完成初始化向导。"
+  FAIL_REASON=$(grep -oE '用户名或密码错误|验证码错误|登录尝试过于频繁' /tmp/ep_install.html 2>/dev/null | head -1)
+  [[ -n "$FAIL_REASON" ]] && warn "  失败原因: $FAIL_REASON"
+  warn "  请用生成的密码手动登录 http://<服务器IP>:3312/admin/ 确认（响应体已存 /tmp/ep_install.html）。"
 fi
 
 # ───────────────────────── 强制持久化强口令（防止 kangle 重载/重启回退为弱口令）─────────────────────────
@@ -640,8 +694,12 @@ if docker exec kangle test -f /vhs/kangle/etc/config.xml 2>/dev/null; then
   log "强制将强口令持久化到磁盘（config.xml / node.cfg.php）..."
   docker exec kangle sed -i -E "s#(<admin [^>]*password=')[^']*(')#\1$KANGLE_PASS\2#" /vhs/kangle/etc/config.xml 2>/dev/null || true
   if docker exec kangle test -f /vhs/kangle/etc/node.cfg.php 2>/dev/null; then
-    docker exec kangle sed -i -E "s#('passwd\"=>\")[^\"]*(\")#\1$KANGLE_PASS\2#g" /vhs/kangle/etc/node.cfg.php 2>/dev/null || true
-    docker exec kangle sed -i -E "s#('db_passwd\"=>\")[^\"]*(\")#\1$MYSQL_PASS\2#g" /vhs/kangle/etc/node.cfg.php 2>/dev/null || true
+    # 正则同时兼容两种历史写法，缺一都会让口令回写静默失效：
+    #   旧（有空格、单引号）：'passwd'    => 'xxx'      ← .example 模板格式
+    #   旧（无空格、双引号）：'passwd"=>"xxx"           ← 早期 node.cfg.php 格式
+    # 口令由 genpass() 生成，仅含 [A-Za-z0-9]，不会破坏 sed 的替换表达式。
+    docker exec kangle sed -i -E "s#('passwd'[[:space:]]*=>[[:space:]]*[\"'])[^\"']*([\"'])#\1$KANGLE_PASS\2#g" /vhs/kangle/etc/node.cfg.php 2>/dev/null || true
+    docker exec kangle sed -i -E "s#('db_passwd'[[:space:]]*=>[[:space:]]*[\"'])[^\"']*([\"'])#\1$MYSQL_PASS\2#g" /vhs/kangle/etc/node.cfg.php 2>/dev/null || true
   fi
   # SIGHUP 软重载（磁盘已是强口令，安全；不会回退为弱口令）
   if docker exec kangle sh -c 'kill -HUP "$(pgrep -o kangle)"' 2>/dev/null; then
@@ -651,8 +709,11 @@ if docker exec kangle test -f /vhs/kangle/etc/config.xml 2>/dev/null; then
     warn "kangle SIGHUP 失败（可忽略，容器下次重启会自动生效）"
   fi
   # 验证：强口令应可登录 WHM，默认弱口令 'kangle' 应被拒绝
-  enc_pass="$(urlencode "$KANGLE_PASS")"
-  CODE=$(curl -s -o /dev/null -m5 -w "%{http_code}" "http://admin:${enc_pass}@localhost:3311/" 2>/dev/null || echo 000)
+  #
+  # H8 / HARD-18：凭据绝不拼进 URL。URL 里的 user:pass 会被 shell history、
+  # curl 错误输出、服务端访问日志与 Referer 记录下来，等于把口令写进明文日志。
+  # 改用 curl --user（Basic Auth 请求头），与下方弱口令探测写法保持一致。
+  CODE=$(curl -s -o /dev/null -m5 -w "%{http_code}" --user "admin:${KANGLE_PASS}" http://localhost:3311/ 2>/dev/null || echo 000)
   BAD=$(curl -s -o /dev/null -m5 -w "%{http_code}" -u "admin:kangle" http://localhost:3311/ 2>/dev/null || echo 000)
   if [ "$CODE" = "200" ] && [ "$BAD" != "200" ]; then
     ok "验证通过：强口令生效，弱口令 'kangle' 已被拒绝"
@@ -664,14 +725,67 @@ else
 fi
 
 # ───────────────────────── 集成 acme.sh（SSL 底层工具）─────────────────────────
-log "安装 acme.sh 到 kangle 容器（用于 SSL 证书申请 / 续期）..."
+#
+# H7 / HARD-15：固定版本 + sha256 校验后再执行。
+#
+# 原写法是 `curl -sL https://get.acme.sh | sh`——把远程内容直接喂给 shell。
+# 上游仓库、CDN 或传输链路任一环被污染，都会以容器 root 身份执行任意代码，
+# 且没有任何留痕。改为：下载固定 tag 的源码包 → 校验 sha256 → 通过才执行安装脚本。
+#
+# 版本与校验值 [Verified 2026-08-30，双来源交叉一致]：
+#   版本      acme.sh 3.1.4（2026-07-17 发布，当前最新稳定版）
+#   tarball   https://codeload.github.com/acmesh-official/acme.sh/tar.gz/3.1.4
+#   sha256    e5f8e187bbf5251e0cd8891f2622daab9850366bd17bea9f92c2fe2ee091fd32（439109 字节）
+#   交叉验证  FreeBSD ports security/acme.sh 的 distinfo 记录值与之逐字符一致
+#
+# ⚠️ 升级提示：变更 ACME_VERSION 时必须同步更新 ACME_SHA256，
+#    否则安装会因校验失败而中止（这是有意设计的 fail-closed 行为）。
+ACME_VERSION="3.1.4"
+ACME_SHA256="e5f8e187bbf5251e0cd8891f2622daab9850366bd17bea9f92c2fe2ee091fd32"
+ACME_URL="https://codeload.github.com/acmesh-official/acme.sh/tar.gz/${ACME_VERSION}"
+
+log "安装 acme.sh $ACME_VERSION 到 kangle 容器（用于 SSL 证书申请 / 续期）..."
 if docker exec kangle sh -c 'command -v acme.sh >/dev/null 2>&1' 2>/dev/null; then
   ok "acme.sh 已存在，跳过安装"
 else
   # acme.sh 主目录挂载在 ./data/acme（持久化）；官方安装器写入 /root/.acme.sh
-  docker exec kangle sh -c 'curl -sL https://get.acme.sh | sh' >/dev/null 2>&1 \
-    && ok "acme.sh 安装完成" \
-    || warn "acme.sh 安装失败（需容器可访问外网）。可稍后手动在容器内执行: curl -sL https://get.acme.sh | sh"
+  docker exec -i kangle sh -s -- "$ACME_VERSION" "$ACME_SHA256" "$ACME_URL" <<'ACME_INSTALL_EOF' \
+    && ok "acme.sh $ACME_VERSION 安装完成（sha256 校验通过）" \
+    || warn "acme.sh 安装失败（需容器可访问外网，或 sha256 校验未通过）。请检查上方错误信息后再重试。"
+set -e
+v="$1"; want="$2"; url="$3"
+tmp="/tmp/acme-${v}.tar.gz"
+work="/tmp/acme-src-$$"
+
+# 校验工具缺失时不静默放行——没有校验的“固定版本”只剩版本号固定，形同虚设
+if ! command -v sha256sum >/dev/null 2>&1; then
+  echo "容器内缺少 sha256sum，无法完成校验，已中止安装" >&2
+  exit 1
+fi
+
+echo "[acme] 下载 $url"
+curl -fsSL -o "$tmp" "$url"
+
+got="$(sha256sum "$tmp" | cut -d' ' -f1)"
+if [ "$got" != "$want" ]; then
+  echo "[acme] sha256 校验失败，已中止安装（绝不执行未校验的远程代码）" >&2
+  echo "[acme]   期望: $want" >&2
+  echo "[acme]   实际: $got" >&2
+  rm -f "$tmp"
+  exit 1
+fi
+echo "[acme] sha256 校验通过: $got"
+
+mkdir -p "$work"
+tar xzf "$tmp" -C "$work"
+cd "$work/acme.sh-${v}"
+
+# --home 指向持久化挂载点 ./data/acme；--nocron 是因为续期任务由本脚本随后统一注册
+./acme.sh --install --home /root/.acme.sh --nocron >/dev/null 2>&1
+
+rm -rf "$work" "$tmp"
+echo "[acme] acme.sh ${v} 安装完成"
+ACME_INSTALL_EOF
 fi
 # 注册自动续期（容器内 crond 已在运行）
 docker exec kangle sh -c '
@@ -681,7 +795,10 @@ docker exec kangle sh -c '
     echo "[install] acme.sh 续期任务已注册"
   fi
 ' 2>/dev/null || true
-AV=$($DC exec -T kangle /root/.acme.sh/acme.sh --version 2>/dev/null | head -1 || true)
+# acme.sh 3.x 的 `--version` 输出首行是仓库 URL（https://github.com/acmesh-official/acme.sh），
+# 版本号在随后的行（形如 `v3.1.4`）。原实现取 `head -1` 会把 URL 当版本号打印，
+# 摘要里出现「acme.sh: https://github.com/...」这种无信息量的输出。改为按版本号模式提取。
+AV=$($DC exec -T kangle /root/.acme.sh/acme.sh --version 2>/dev/null | grep -oE '^v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
 [[ -n "$AV" ]] && ok "acme.sh: $AV"
 
 # ───────────────────────── 安装额外 PHP 版本 ─────────────────────────

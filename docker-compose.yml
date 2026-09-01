@@ -37,6 +37,34 @@ services:
       - ./data/homeftp:/home/ftp:rw
       - ./data/acme:/root/.acme.sh:rw
       - /etc/localtime:/etc/localtime:ro
+      # 挂载宿主 docker.sock（只读）：供面板经 Docker API 管理容器、并以一次性特权
+      # 方式触达宿主命名空间。
+      #
+      # 为什么必须是 :ro（C1 / SEC-01~02）：
+      #   持有 docker.sock 即等价宿主 root——拿到它就能 `docker run --privileged -v /:/host`
+      #   把宿主全盘挂载进去读写。因此这里的 :ro **不是**「堵死提权路径」，而是堵住
+      #   「替换/劫持 socket 文件本身」这一条额外的攻击面：不加 :ro 时，容器可以删除
+      #   宿主 /var/run/docker.sock 并替换成自己监听的假 socket，从而中间人劫持宿主上
+      #   其它所有进程的 Docker API 调用。
+      #
+      # 为什么 :ro 不影响既有功能（T3 风险已评估）：
+      #   :ro 约束的是 socket 这个**文件节点**的写权限（unlink/rename/chmod），
+      #   不约束通过已建立连接在该 socket 上收发的**数据**。docker ps / run / inspect /
+      #   exec 等全部 API 调用走的都是数据通道，故容器管理与 nsenter 宿主操作均不受影响。
+      #   ⚠️ 该结论需在远端隔离环境实测确认（deb 系与 RHEL 系各一台）。
+      #
+      # ⚠️ SELinux 变量：在 RHEL 系 enforcing 环境下，容器可能因缺少标签而无权连接
+      #   该 socket。若实测报 permission denied，需追加 `:z` 后缀（而非改回读写）。
+      #   处置方式固定为「加 :z」，不允许以放弃 :ro 的方式绕过。
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # 标记为基础设施工具容器，宿主容器管理功能将自动隐藏此类容器，防止误操作。
+    labels:
+      - "com.kangle.role=infra"
+    # 说明：kangle 容器保持常规权限，仅挂载宿主 docker.sock（只读）。容器管理与宿主级
+    # 操作（SSH 端口 / root 密码 / 服务启停）均经 docker.sock 调宿主 Docker 守护进程完成：
+    # 宿主操作通过一次性特权子容器（busybox + nsenter）进入宿主命名空间执行，避免让
+    # kangle 常驻特权或共享宿主 PID 命名空间，从而不影响容器内原有功能。
+    # 注意：持有 docker.sock 即约等于宿主 root，务必配合后台管理员鉴权与审计。
     # 密码仅来自 .env（由 install.sh 生成强口令），不再设置静默弱口令兜底，
     # 防止 .env 变量缺失时容器自动回落到默认弱口令 'kangle'。
     env_file: .env
@@ -54,7 +82,11 @@ services:
     # "Plugin 'mysql_native_password' is not loaded"。
     command: ["mysqld", "--mysql-native-password=ON"]
     ports:
-      - "3306:3306"
+      # H1 / SEC-20：只监听回环地址。改为 0.0.0.0 会把 MySQL 直接暴露到公网，
+      # 配合弱口令或 MySQL 8.4 的认证插件差异，等于把整个面板数据库敞开。
+      # 与文件头「数据库仅在 kangle_net 内部可达；如需外部访问请在 install.sh 中显式开放」
+      # 的既有约定一致——对外访问走 install.sh 显式开端口，而不是默认全开。
+      - "127.0.0.1:3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
     networks:
@@ -65,6 +97,10 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+    # 标记为基础设施工具容器，宿主容器管理功能将自动隐藏，防止误操作。
+    labels:
+      - "com.kangle.role=infra"
 
 networks:
   kangle_net:

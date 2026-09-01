@@ -78,6 +78,9 @@ if ! grep -q "^  $PHP_KEY:" "$OVERRIDE"; then
         PHP_VERSION: "$VERSION"
     container_name: $PHP_KEY
     restart: unless-stopped
+    # 标记基础设施容器，宿主容器管理功能自动隐藏，避免误操作
+    labels:
+      - "com.kangle.role=infra"
     # 仅 kangle_net 内部可达，不暴露宿主机端口
     volumes:
       - ./data/kangle:/vhs/kangle:rw

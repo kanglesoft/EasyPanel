@@ -47,6 +47,51 @@ RUN tar xzf /tmp/php74.tar.gz -C / \
     && ldconfig \
     && rm -f /tmp/php74.tar.gz
 
+# 停用 PHP memcached 扩展（远端部署实测修复）。
+#
+# 现象：容器内**每次**调用 php74（含每个 HTTP 请求）都向 stderr 输出
+#   PHP Warning: PHP Startup: Unable to load dynamic library 'memcached.so'
+#     (… undefined symbol: memcached_destroy_sasl_auth_data)
+#
+# 根因：memcached.so 来自 Remi 仓库（编译时链接较新的 libmemcached），而镜像里实际
+#   生效的是 php74.tar.gz 中 vendoring 的旧版 libmemcached，符号缺失 → 加载失败。
+#
+# 影响面核实（确认无功能损失后才停用，而非简单屏蔽告警）：
+#   ① 面板代码全量检索 `new Memcached` / `Memcache(` —— **0 处命中**，无代码依赖；
+#   ② session.save_handler=files（非 memcached），登录会话不依赖它；
+#   ③ 容器内 memcached 服务仍作为独立进程保留，仅 PHP 侧扩展不再加载。
+#
+# 处置：注释掉 50-memcached.ini 的 extension 行（保留 .so 文件），
+#   便于将来补齐版本匹配的 libmemcached 时一行改回。最后 grep 做 fail-closed 断言，
+#   防止 sed 未命中时构建静默通过。
+RUN sed -i 's|^extension=memcached\.so|;extension=memcached.so ; 已停用：vendored libmemcached ABI 不匹配，且面板代码无依赖（见 Dockerfile 注释）|' \
+        /etc/opt/remi/php74/php.d/50-memcached.ini \
+    && grep -q '^;extension=memcached.so' /etc/opt/remi/php74/php.d/50-memcached.ini
+
+# Docker CLI（静态二进制，仅客户端、不含 daemon）：用于面板内容器管理，并经宿主
+# docker.sock 与宿主 Docker 守护进程通信；宿主级操作（SSH 端口 / root 密码 / 服务启停）
+# 通过一次性特权子容器（busybox + nsenter）进入宿主命名空间执行，故本镜像无需 nsenter。
+#
+# 供应链加固（与 install.sh 的 acme.sh 同类问题）：
+#   这个二进制以 root 身份安装进镜像，若下载内容被替换，等同于在镜像里预置后门。
+#   Docker 官方**不提供**该 tarball 的 .sha256 文件（实测
+#   .../docker-27.3.1.tgz.sha256 返回 404），因此下面的校验值是从官方源实测下载后
+#   计算得到——它能防住 CDN 缓存投毒、传输篡改与中间人替换，但不构成对上游本身的
+#   背书（上游信任由 HTTPS + download.docker.com 官方域名承担）。
+#
+#     版本   : 27.3.1
+#     字节数 : 75324256
+#     sha256 : 9b4f6fe406e50f9085ee474c451e2bb5adb119a03591f467922d3b4e2ddf31d3
+#
+#   ⚠️ 升级 Docker CLI 版本时必须同步重算 sha256，否则构建会在此处中断。
+#      这是有意的 fail-closed：宁可构建失败，也不要静默装入未校验的二进制。
+#      若确因上游重新打包导致哈希变化，请先人工核验新包来源再更新本值。
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz -o /tmp/docker.tgz \
+    && echo '9b4f6fe406e50f9085ee474c451e2bb5adb119a03591f467922d3b4e2ddf31d3  /tmp/docker.tgz' | sha256sum -c - \
+    && tar xzf /tmp/docker.tgz -C /tmp \
+    && install -m 0755 /tmp/docker/docker /usr/bin/docker \
+    && rm -rf /tmp/docker /tmp/docker.tgz
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
