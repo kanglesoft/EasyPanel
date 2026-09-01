@@ -193,7 +193,9 @@ class Process
 			$stderr_ds = array("pipe", "w");
 		}
 		$descriptorspec = array($stdin_ds, $stdout_ds, $stderr_ds);
-		$rs = proc_open($command, $descriptorspec, $pipes);
+		/* T05-M7：与 winrun() 统一启用 bypass_shell（Windows 下阻止 cmd.exe 二次解析，
+		 * 防止参数注入；Unix 下该选项为 no-op，但保持两分支行为一致）。 */
+		$rs = proc_open($command, $descriptorspec, $pipes, null, null, array("bypass_shell" => true));
 		if ($vh) {
 			change_to_super();
 		}
