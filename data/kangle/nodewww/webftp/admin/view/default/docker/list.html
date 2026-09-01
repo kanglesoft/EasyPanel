@@ -1,0 +1,78 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>容器管理</h3></div>
+    <div class="ep-card-body">
+      <div id="msg" class="ep-alert ep-alert-danger" style="display:none;"></div>
+      <div class="ep-flex ep-gap-2 ep-mb-4" style="align-items:center;">
+        <button id="refreshBtn" class="btn btn-sm">刷新</button>
+        <span style="font-size:12px;color:var(--color-font-secondary);">仅展示业务容器；基础设施容器（kangle / mysql / php-fpm 等）已自动隐藏，避免误操作。</span>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" id="ctable">
+          <thead>
+            <tr><th>名称</th><th>镜像</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+          {{if $docker.success}}
+          {{foreach item=c from=$docker.list}}
+            <tr data-id="{{$c.id}}">
+              <td>{{$c.name}}</td>
+              <td>{{$c.image}}</td>
+              <td>{{$c.status}}</td>
+              <td>{{$c.created}}</td>
+              <td>
+                {{if $c.state == 'running'}}
+                  <button class="btn btn-sm btn-warning act-stop" data-id="{{$c.id}}" data-name="{{$c.name}}">停止</button>
+                  <button class="btn btn-sm act-restart" data-id="{{$c.id}}" data-name="{{$c.name}}">重启</button>
+                {{else}}
+                  <button class="btn btn-sm btn-success act-start" data-id="{{$c.id}}" data-name="{{$c.name}}">启动</button>
+                {{/if}}
+              </td>
+            </tr>
+          {{/foreach}}
+          {{else}}
+            <tr><td colspan="5" style="color:var(--color-danger);">{{$docker.msg|default:'获取容器列表失败'}}</td></tr>
+          {{/if}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+$(function(){
+  function showMsg(t, ok){
+    $('#msg').removeClass('ep-alert-danger ep-alert-success').addClass(ok?'ep-alert-success':'ep-alert-danger').text(t).show();
+  }
+  var VERB = {start:'启动', stop:'停止', restart:'重启'};
+  $(document).on('click','.act-start,.act-stop,.act-restart', function(){
+    var id=$(this).data('id'), name=$(this).data('name');
+    var op = $(this).hasClass('act-start') ? 'start' : ($(this).hasClass('act-stop') ? 'stop' : 'restart');
+    var verb = VERB[op] || op;
+    if(!confirm(verb+'容器 “'+name+'” ？')) return;
+    var btn=$(this); btn.prop('disabled',true);
+
+    function done(r){
+      if(r && r.success){ showMsg(r.msg, true); setTimeout(function(){location.reload();}, 800); }
+      else { showMsg((r&&r.msg)||'操作失败', false); btn.prop('disabled',false); }
+    }
+    function fail(){ showMsg('请求失败', false); btn.prop('disabled',false); }
+
+    // start 在服务端登记为 CSRF_REAUTH_NONE（不中断业务，无需二次确认）；
+    // stop / restart 为 STRICT，缺 reauth_pass 会被 403，故必须走 epReauthPost。
+    if(op === 'start'){
+      $.post('?c=docker&a=start', {id:id}, done, 'json').fail(fail);
+    } else {
+      epReauthPost({
+        title:'安全确认 · '+verb+'容器',
+        message:'即将'+verb+'容器 “'+name+'”（'+id+'）。该操作经宿主 Docker 守护进程执行，'
+              + (op==='stop' ? '会导致容器内业务立即中断。' : '会短暂中断容器内业务。')
+              + '请输入面板管理员密码以确认。'
+      }, '?c=docker&a='+op, {id:id}, done, fail);
+    }
+  });
+  $('#refreshBtn').on('click', function(){ location.reload(); });
+});
+</script>
+{{include file='common/foot.html'}}

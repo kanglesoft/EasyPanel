@@ -68,6 +68,7 @@
             <chain  action='deny' >
                 <acl_listen_ports  split='|'>3312</acl_listen_ports>
                 <acl_url revers='1'  nc='1'><![CDATA[:3312/vhost/[\s\S]*c=webftp&a=]]></acl_url>
+                <acl_url revers='1'  nc='1'><![CDATA[:3312/admin/[\s\S]*c=filemanager&a=]]></acl_url>
                 <acl_url revers='1'  nc='1'><![CDATA[:3312/admin/[\s\S]*c=migrate&a=]]></acl_url>
                 <acl_url revers='1'  nc='1'><![CDATA[:3312/api/[\s\S]*a=migrate]]></acl_url>
                 <acl_url revers='1'  nc='1'><![CDATA[:3312/api/[\s\S]*=sync]]></acl_url>

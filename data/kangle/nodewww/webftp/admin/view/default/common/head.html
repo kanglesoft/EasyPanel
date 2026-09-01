@@ -171,6 +171,13 @@ document.addEventListener('DOMContentLoaded', function(){
         <li><a href="?c=security&amp;a=addFrom" class="{{if $smarty.get.c=='security'}}active{{/if}}"><i data-lucide="shield"></i>安全设置</a></li>
       </ul>
 
+      <div class="nav-section-title">主机运维</div>
+      <ul>
+        <li><a href="?c=docker&amp;a=pageList" class="{{if $smarty.get.c=='docker'}}active{{/if}}"><i data-lucide="box"></i>容器管理</a></li>
+        <li><a href="?c=host&amp;a=index" class="{{if $smarty.get.c=='host'}}active{{/if}}"><i data-lucide="shield-alert"></i>主机安全</a></li>
+        <li><a href="?c=filemanager&amp;a=index" class="{{if $smarty.get.c=='filemanager'}}active{{/if}}"><i data-lucide="folder"></i>文件管理</a></li>
+      </ul>
+
       <div class="nav-section-title">账号管理</div>
       <ul>
         <li><a href="?c=session&amp;a=changePasswordForm" class="{{if $smarty.get.c=='session' && $smarty.get.a=='changePasswordForm'}}active{{/if}}"><i data-lucide="key"></i>修改帐号信息</a></li>

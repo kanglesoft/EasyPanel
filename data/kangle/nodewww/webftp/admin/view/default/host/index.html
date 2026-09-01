@@ -1,0 +1,108 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card" style="margin-bottom:16px;">
+    <div class="ep-card-header"><h3>SSH 服务（宿主机）</h3></div>
+    <div class="ep-card-body">
+      <div id="msg" class="ep-alert" style="display:none;"></div>
+      <form id="sshForm" class="ep-form">
+        <div class="form-group">
+          <label>当前 SSH 端口</label>
+          <div>{{$ssh_port|default:'读取中 / 不可用'}}</div>
+        </div>
+        <div class="form-group">
+          <label>服务状态</label>
+          <div>{{if $ssh_running}}运行中{{else}}已停止{{/if}}</div>
+        </div>
+        <div class="form-group">
+          <label>修改 SSH 端口</label>
+          <div class="controls">
+            <input type="number" id="sshPort" min="1" max="65535" value="{{$ssh_port|default:22}}" style="width:160px;">
+            <button type="button" class="btn btn-sm" id="setPortBtn">应用修改</button>
+          </div>
+          <span style="font-size:12px;color:var(--color-font-secondary);">修改后自动重启 sshd 并放行防火墙；请同步在云安全组放行新端口，避免被锁。</span>
+        </div>
+        <div class="form-group">
+          <label>一键开关</label>
+          <div class="controls">
+            <label class="ep-switch {{if $ssh_running}}is-on{{else}}is-off{{/if}}">
+              <input type="checkbox" id="sshToggle" {{if $ssh_running}}checked{{/if}}>
+              <span class="ep-switch-track"></span>
+            </label>
+            <span style="font-size:12px;color:var(--color-font-secondary);">关闭 SSH 会断开所有远程连接，仅在你有其他登录方式时操作。</span>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>宿主机 root 密码</h3></div>
+    <div class="ep-card-body">
+      <form id="pwForm" class="ep-form">
+        <div class="form-group">
+          <label>新密码</label>
+          <div class="controls"><input type="password" id="rootPass" style="width:240px;"></div>
+        </div>
+        <div class="form-group">
+          <label>确认新密码</label>
+          <div class="controls"><input type="password" id="rootPass2" style="width:240px;"></div>
+        </div>
+        <div class="controls">
+          <button type="button" class="btn" id="setPwBtn">修改 root 密码</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+$(function(){
+  function showMsg(t, ok){
+    $('#msg').removeClass('ep-alert-danger ep-alert-success').addClass(ok?'ep-alert-success':'ep-alert-danger').text(t).show();
+  }
+  $('#setPortBtn').on('click', function(){
+    var p=parseInt($('#sshPort').val(),10);
+    if(!p||p<1||p>65535){ showMsg('端口需在 1-65535', false); return; }
+    if(!confirm('确认将宿主机 SSH 端口修改为 '+p+' ？修改后需使用新端口连接。')) return;
+    var b=$(this); b.prop('disabled',true);
+    // 服务端把该动作登记为强制二次密码确认（csrf_enforce_level 的 host.setSshPort），
+    // 缺少 reauth_pass 会被直接 403，因此必须经 epReauthPost 发送。
+    epReauthPost({
+      title:'安全确认 · 修改 SSH 端口',
+      message:'将把宿主机 SSH 端口改为 '+p+'，并重启 sshd。若新端口未在云安全组放行，你将无法再远程登录。请输入面板管理员密码以确认。'
+    }, '?c=host&a=setSshPort', {port:p}, function(r){
+      showMsg((r&&r.msg)||'操作完成', !!(r&&r.success)); b.prop('disabled',false);
+    }, function(){ showMsg('请求失败', false); b.prop('disabled',false); });
+  });
+  $('#sshToggle').on('change', function(){
+    var on=$(this).is(':checked');
+    if(on && !confirm('确认开启 SSH 服务？')){ $(this).prop('checked',false); $('.ep-switch').removeClass('is-on').addClass('is-off'); return; }
+    if(!on && !confirm('确认关闭 SSH 服务？关闭后将断开远程连接，可能导致无法登录！')){ $(this).prop('checked',true); $('.ep-switch').removeClass('is-off').addClass('is-on'); return; }
+    epReauthPost({
+      title:'安全确认 · '+(on?'开启':'关闭')+' SSH',
+      message: on
+        ? '将启动宿主机 SSH 服务。请输入面板管理员密码以确认。'
+        : '将停止宿主机 SSH 服务——所有远程连接会立即断开。若面板同时故障，你将彻底无法登录。请输入面板管理员密码以确认。'
+    }, '?c=host&a=toggleSsh', {enabled:on?1:0}, function(r){
+      showMsg((r&&r.msg)||'操作完成', !!(r&&r.success));
+      if(r&&r.success){ $('.ep-switch').toggleClass('is-on', on).toggleClass('is-off', !on); }
+    }, function(){ showMsg('请求失败', false); });
+  });
+  $('#setPwBtn').on('click', function(){
+    var p1=$('#rootPass').val(), p2=$('#rootPass2').val();
+    if(p1.length<6){ showMsg('密码至少 6 位', false); return; }
+    if(p1!==p2){ showMsg('两次输入不一致', false); return; }
+    if(!confirm('确认修改宿主机 root 密码？')) return;
+    var b=$(this); b.prop('disabled',true);
+    // 注意：这里提交的 password 是「宿主机 root 的新密码」，
+    // 而弹层里输入的是「面板管理员密码」——两者不同，弹层文案必须说清楚。
+    epReauthPost({
+      title:'安全确认 · 修改宿主机 root 密码',
+      message:'该操作会直接改写宿主机 /etc/shadow 中的 root 凭据。请输入【面板管理员密码】以确认（不是刚填的新 root 密码）。'
+    }, '?c=host&a=changeRootPassword', {password:p1}, function(r){
+      showMsg((r&&r.msg)||'操作完成', !!(r&&r.success)); b.prop('disabled',false);
+      if(r&&r.success){ $('#rootPass').val(''); $('#rootPass2').val(''); }
+    }, function(){ showMsg('请求失败', false); b.prop('disabled',false); });
+  });
+});
+</script>
+{{include file='common/foot.html'}}
