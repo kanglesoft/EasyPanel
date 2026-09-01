@@ -1,0 +1,49 @@
+<?php
+// node.cfg.php.example —— easypanel 节点（localhost）配置【模板】
+//
+// ⚠️ 本文件是模板，可以安全地纳入版本控制：**不得写入任何真实口令**。
+//    真实凭据一律通过环境变量注入（见下方「凭据优先级」），或由 install.sh
+//    在安装期用强随机值生成本文件的副本 node.cfg.php。
+//
+// 使用方式（由 install.sh 执行，或手工初始化）：
+//     cp node.cfg.php.example node.cfg.php && chmod 600 node.cfg.php
+//
+// 凭据优先级（C3 / AD-6，由 webftp/config.php 中的 node_cfg_apply_env() 实现）：
+//     环境变量  >  node.cfg.php 中的值  >  本模板的占位值
+//
+// 可用的环境变量：
+//     EP_ADMIN_USER   面板管理员账号   → node_cfg.localhost.user
+//     EP_ADMIN_PASS   面板管理员口令   → node_cfg.localhost.passwd
+//     EP_DB_HOST      数据库主机       → node_cfg.localhost.db_host
+//     EP_DB_USER      数据库账号       → node_cfg.localhost.db_user
+//     EP_DB_PASS      数据库口令       → node_cfg.localhost.db_passwd
+//     EP_WHM_PORT     kangle WHM 端口  → node_cfg.localhost.port
+//
+// 说明：
+//     docker-compose.yml 通过 `env_file: .env` 把上述变量注入容器，
+//     因此正常部署路径下只需要维护 .env（已被 .gitignore 忽略），
+//     不需要把任何口令写进本文件。
+//
+// 字段注释：
+//     host/port  kangle WHM 监听地址；kangle 与 easypanel 同容器时走 localhost:3311
+//     db_type    固定 mysql
+//     db_host    数据库主机名；容器网络内用 compose 服务名 "mysql"
+//     win        是否 Windows 宿主（0 = Linux）
+//     type       节点类型，固定 kangle
+//
+$GLOBALS['node_cfg']['localhost'] = array(
+	'name'      => 'localhost',
+	'host'      => 'localhost',
+	'port'      => '3311',
+	'user'      => 'admin',
+	'passwd'    => 'CHANGE_ME_EP_ADMIN_PASS',
+	'db_type'   => 'mysql',
+	'db_host'   => 'mysql',
+	'db_user'   => 'root',
+	'db_passwd' => 'CHANGE_ME_EP_DB_PASS',
+	'win'       => '0',
+	'dev'       => '',
+	'type'      => 'kangle',
+);
+
+?>
