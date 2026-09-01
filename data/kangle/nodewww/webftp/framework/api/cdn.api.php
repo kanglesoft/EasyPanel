@@ -31,7 +31,9 @@ class CdnAPI extends API
 		$nodes = daocall('manynode', 'get');
 
 		if (count($nodes) <= 0) {
-			return false;
+			// 5.1.2：未配置辅节点属正常跳过，不应与「同步失败」混淆。
+			// 返回结构化结果，调用方据此展示「未启用多节点」而非无反馈。
+			return array('success' => true, 'skipped' => true, 'reason' => '未配置辅节点');
 		}
 
 		$vhost = $vhostname ? $vhostname : getRole('vhost');
@@ -175,7 +177,9 @@ class CdnAPI extends API
 		$nodes = $nodes ? $nodes : daocall('manynode', 'get', array());
 
 		if (count($nodes) <= 0) {
-			return false;
+			// 5.1.2：未配置辅节点属正常跳过，不应与「同步失败」混淆。
+			// 返回结构化结果，调用方据此展示「未启用多节点」而非无反馈。
+			return array('success' => true, 'skipped' => true, 'reason' => '未配置辅节点');
 		}
 
 		foreach ($nodes as $node) {
@@ -599,7 +603,9 @@ class CdnAPI extends API
 		$nodes = daocall('manynode', 'get');
 
 		if (count($nodes) <= 0) {
-			return false;
+			// 5.1.2：未配置辅节点属正常跳过，不应与「同步失败」混淆。
+			// 返回结构化结果，调用方据此展示「未启用多节点」而非无反馈。
+			return array('success' => true, 'skipped' => true, 'reason' => '未配置辅节点');
 		}
 
 		$a = 'sync_cdn_domain';
@@ -634,7 +640,9 @@ class CdnAPI extends API
 		$nodes = daocall('manynode', 'get');
 
 		if (count($nodes) <= 0) {
-			return false;
+			// 5.1.2：未配置辅节点属正常跳过，不应与「同步失败」混淆。
+			// 返回结构化结果，调用方据此展示「未启用多节点」而非无反馈。
+			return array('success' => true, 'skipped' => true, 'reason' => '未配置辅节点');
 		}
 
 		$vhost = getRole('vhost');

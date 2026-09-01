@@ -6,6 +6,9 @@
       <h3>多节点CDN设置</h3>
       <div class="actions">
         <a href='?c=manynode&a=addFrom' class="btn btn-sm"><i data-lucide="plus"></i> + 增加辅节点</a>
+        <form action="?c=manynode&a=toggle" method="post" style="display:inline;margin-left:8px;" onsubmit="return confirm('确认停用多节点？将移除全部辅节点，此操作不可撤销。');">
+          <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="power"></i> 停用多节点</button>
+        </form>
       </div>
     </div>
     <div class="ep-card-body">
@@ -42,7 +45,9 @@
             <tr>
               <td>
                 <div class="btn-group">
-                  <a href="javascript:if(confirm('确定删除?')){location='?c=manynode&a=del&name={{$row.name}}';}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <form action="?c=manynode&a=del" method="post" style="display:inline;" onsubmit="return confirm('确定删除辅节点 「{{$row.name}}」？此操作不可撤销。');">
+                    <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</button>
+                  </form>
                   <a href="?c=manynode&a=addFrom&name={{$row.name}}" class="btn btn-sm"><i data-lucide="edit"></i> 修改</a>
                   <a href="?c=manynode&a=sync&name={{$row.name}}" class="btn btn-sm"><i data-lucide="refresh-cw"></i> 同步</a>
                 </div>

@@ -38,7 +38,61 @@ class SettingControl extends Control
 		$this->assign('env', $info);
 		$this->assign('val', $setting_cfg);
 		$this->assign('sub', $sub);
+
+		// B1：系统资源卡片依赖的三个磁盘变量此前从未被 assign，
+		// 导致进度条永远空白。这里以站点家目录（文件管理的根锚点）为口径计算。
+		list($disk_pct, $disk_used, $disk_total) = $this->diskInfo('/home/ftp');
+		$this->assign('disk_pct', $disk_pct);
+		$this->assign('disk_used', $disk_used);
+		$this->assign('disk_total', $disk_total);
+
 		return $this->fetch('setting/show.html');
+	}
+
+	/**
+	 * 计算指定挂载点的磁盘占用（B1）
+	 *
+	 * 取不到时返回 0 / '-'，保证模板不会因为除零或空值而报错。
+	 *
+	 * @param string $path
+	 * @return array [pct(int), used(string), total(string)]
+	 */
+	private function diskInfo($path)
+	{
+		$total = @disk_total_space($path);
+		$free = @disk_free_space($path);
+
+		if (!is_float($total) && !is_int($total) && !is_string($total)) {
+			$total = 0;
+		}
+		$total = floatval($total);
+		$free = floatval($free);
+
+		if ($total <= 0) {
+			return array(0, '-', '-');
+		}
+
+		$used = max(0, $total - $free);
+		$pct = intval(round($used / $total * 100));
+
+		return array($pct, $this->humanSize($used), $this->humanSize($total));
+	}
+
+	/**
+	 * 人类可读的文件大小（与 filemanager.api.php 同口径）
+	 */
+	private function humanSize($bytes)
+	{
+		$bytes = floatval($bytes);
+		$units = array('B', 'KB', 'MB', 'GB', 'TB');
+		$i = 0;
+
+		while ($bytes >= 1024 && $i < count($units) - 1) {
+			$bytes /= 1024;
+			++$i;
+		}
+
+		return ($i === 0 ? intval($bytes) : number_format($bytes, 1)) . ' ' . $units[$i];
 	}
 
 	public function add()

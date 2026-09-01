@@ -102,7 +102,10 @@ class ManynodeControl extends control
 	public function add()
 	{
 		if (!daocall('setting', 'get', array('local_cdn_name'))) {
-			exit('请先增加主节点名称');
+			// 5.1.2 #1：原为硬 exit，无引导，用户会卡在「请先增加主节点名称」。
+			// 改为渲染主节点名称设置页并提示，使其能继续完成配置。
+			$this->_tpl->assign('msg', '请先设置主节点名称，再添加辅节点。');
+			return $this->_tpl->fetch('manynode/addlocal.html');
 		}
 
 		$name = trim($_REQUEST['name']);
@@ -195,6 +198,30 @@ class ManynodeControl extends control
 		$this->_tpl->assign('page_count', $page_count);
 		$this->_tpl->assign('list', $list);
 		return $this->_tpl->display('manynode/pagelist.html');
+	}
+
+	/**
+	 * 停用多节点（5.1.2 #3）
+	 *
+	 * 停用 = 移除全部辅节点（节点数回到 0，CDN 同步按 cdn.api 的 skipped 分支自动跳过）。
+	 * 重新启用只需再次添加辅节点即可，不破坏「主节点名称」等基础配置。
+	 * 前端「停用多节点」按钮需先确认，避免误清空全部节点。
+	 */
+	public function toggle()
+	{
+		$nodes = daocall($this->daoname, 'get', array());
+
+		if (!empty($nodes)) {
+			foreach ($nodes as $node) {
+				daocall($this->daoname, 'del', array($node['name']));
+			}
+			$this->_tpl->assign('msg', '已停用多节点：' . count($nodes) . ' 个辅节点已移除。');
+		}
+		else {
+			$this->_tpl->assign('msg', '当前没有辅节点，多节点已处于停用状态。');
+		}
+
+		return $this->pageList();
 	}
 }
 
