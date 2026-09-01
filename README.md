@@ -131,15 +131,14 @@ cd /opt/kangle-build
 ./upgrade.sh
 ```
 
-脚本会依次完成以下操作：
+脚本会按以下安全阶段依次完成（任何失败路径都会自动恢复，服务不会停在半路）：
 
-- 前置检查（git 仓库 / Docker / Compose 可用性）。
-- 停止容器并全量备份业务数据与本地配置到 `backups/upgrade-backup-<时间戳>.tar.gz`（先停机再备份，保证 MySQL 数据文件一致性；备份失败即中止升级）。
-- 本地未提交改动自动 stash，升级成功后尝试恢复。
-- `git pull --ff-only` 拉取新版本（拒绝分叉历史，绝不 force 覆盖本地提交）。
-- `docker compose up -d --build` 重建镜像与容器。
-- 健康检查（3311 / 3312 / 80 端口 + MySQL 连通），任一环节失败自动回滚到旧版本并重建容器。
-- 清理 Smarty 编译缓存，面板模板更新自动生效。
+- 前置检查（git 仓库状态 / Docker / Compose / `.env` 存在性），拒绝 detached HEAD 与进行中的 merge / rebase。
+- **阶段一（不停机）**：本地未提交改动自动 stash；显式 `git fetch` + `git merge --ff-only` 拉取新版本（不依赖上游跟踪配置，兼容旧部署）。拉取失败直接退出，容器从未停止、服务不受影响。若 `upgrade.sh` 自身被更新，会自动切换到新脚本重新执行。
+- **阶段二（停机窗口）**：停止容器后离线全量备份业务数据与本地配置到 `backups/upgrade-backup-<时间戳>.tar.gz`（先停机再备份，保证 MySQL 数据文件一致性；**备份失败即自动恢复到升级前状态**）。
+- **阶段三（重建与验证）**：`docker compose up -d --build` 重建镜像与容器；健康检查（3311 / 3312 / 80 端口 + MySQL 连通）。
+- **阶段四（收尾）**：恢复 stash、清理 Smarty 编译缓存、输出摘要。
+- 任一环节失败自动回滚到升级前提交并重建容器，数据卷自始至终未被改动。
 
 常用参数：
 
@@ -153,7 +152,8 @@ cd /opt/kangle-build
 ### 升级数据安全说明
 
 - 站点文件（`./data/homeftp/`）、MySQL 数据（`./data/mysql/`）、面板配置（`./data/kangle/`）、证书数据（`./data/acme/`）均为 bind 挂载，升级全程不删除、不移动；回滚也不影响数据。
-- `.env`、`node.cfg.php`、`docker-compose.override.yml` 均在 `.gitignore` 中，`git pull` 不会触碰；`upgrade.sh` 绝不重写 `.env`，管理员与数据库密码保持不变。
+- `.env`、`node.cfg.php`、`docker-compose.override.yml` 均在 `.gitignore` 中，拉取代码不会触碰；`upgrade.sh` 绝不重写 `.env`，管理员与数据库密码保持不变。
+- **兼容旧部署**：不依赖 `.env.example` / `docker-compose.override.yml` / 上游跟踪配置是否存在，可从任意历史版本直接升级；旧版 `.env` 缺少新变量时只提示不判失败。若仓库中尚无 `upgrade.sh`（很旧的部署），先手动 `git pull` 一次即可使用。
 - **日常升级请勿重跑 `install.sh`**——它会重新生成 `.env` 与随机密码，导致面板和数据库密码全部失效。升级请使用 `upgrade.sh`。
 - MySQL 跨大版本升级（如 8.0 → 8.4）涉及数据目录格式变更，需先 `mysqldump` 全量导出、再以新版本镜像初始化导入，不能仅重建容器。
 - 手动回滚：`git checkout <旧提交>` 后重跑 `docker compose up -d --build` 即可；升级失败时脚本会自动完成上述动作。
