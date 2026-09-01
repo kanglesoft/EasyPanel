@@ -298,7 +298,8 @@ class BackupAPI extends API
 
 		$filename = $this->getFilename($vh['name'] . '.nb');
 		chdir($fdir);
-		$savefilename = $this->filesavedir . $vh['name'] . '.web.7z';
+		/* T05-M6：vhost 名参与拼命令，转义后作为单个 7z 参数，防止命令注入。 */
+		$savefilename = escapeshellarg($this->filesavedir . $vh['name'] . '.web.7z');
 		$cmd = $this->get7zcmd();
 		$cmd .= $savefilename;
 
@@ -1190,10 +1191,12 @@ class BackupAPI extends API
 				$cmd = $this->getMsqldumpCmd();
 			}
 
-			$cmd .= ' ' . $databasename . ' |';
+			/* T05-M6：库名作为 mysqldump 参数，转义防注入。 */
+			$cmd .= ' ' . escapeshellarg($databasename) . ' |';
 			$cmd .= $this->get7zcmd();
 			$cmd .= $this->filesavedir . '/' . $filename;
-			$cmd .= ' -si' . $databasename . '.sql';
+			/* 7z -si 流名同样转义，避免库名含空格时参数被 shell 拆分。 */
+			$cmd .= ' -si' . escapeshellarg($databasename . '.sql');
 			exec($cmd, $msg, $status);
 			if ($status != 0 && $status != 0 - 1) {
 				print_r($msg);

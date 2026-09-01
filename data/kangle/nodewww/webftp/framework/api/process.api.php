@@ -28,6 +28,19 @@ class ProcessApi extends API
 			return false;
 		}
 
+		/* T05-H6：shell_call 白名单。daemon() 经 framework/shell.php 派发到
+		 * shell.api.php 的同名函数，必须限制在已知函数集合内，拒绝任意调用。 */
+		static $shell_whitelist = array(
+			'cdn_sync', 'changeEtcPermissions', 'check_db_run', 'check_db_used',
+			'list_cdn_vh', 'sync_expire', 'check_flow', 'sync_flow',
+			'sync_host_flow', 'sync_localhost_flow', 'sync_all_vhost',
+			'restore', 'backup', 'cron_add', 'whmshell', 'query', 'terminate'
+		);
+		if (!in_array($shell_call, $shell_whitelist, true)) {
+			trigger_error('shell_call not allowed: ' . $shell_call);
+			return false;
+		}
+
 		$call = 'daemon';
 
 		if ($stdin) {

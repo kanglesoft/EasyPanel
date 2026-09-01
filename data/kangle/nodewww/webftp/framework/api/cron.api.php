@@ -208,6 +208,11 @@ class CronAPI extends API
 
 	private function unixadd($name, $vh, $cron)
 	{
+		/* T05-M4：cron 行文注入防护。$step 必须为纯数字；$cmd 禁止换行，
+		 * 否则攻击者可写入额外 cron 行以 root 执行任意命令。 */
+		$cron['step'] = preg_replace('/[^0-9]/', '', (string) $cron['step']);
+		$cron['cmd'] = str_replace(array("\r", "\n"), '', $cron['cmd']);
+
 		$cron_dir = '/etc/cron.d/';
 
 		if (!file_exists($cron_dir)) {

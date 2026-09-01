@@ -285,7 +285,8 @@ class RestoreAPI extends API
 
 		$zcmd = $this->get7zCmd();
 		$zzcmd = $zcmd;
-		$zzcmd .= $wget_file . ' -o' . $this->backup_dir . ' -aoa';
+		/* T05-M6：备份文件名与目录参与拼命令，转义防注入。 */
+		$zzcmd .= escapeshellarg($wget_file) . ' -o' . escapeshellarg($this->backup_dir) . ' -aoa';
 		$this->outCmd("restore mysqlinc cmd=\n");
 		$this->outCmd($zzcmd);
 		$this->outCmd("\n");
@@ -330,7 +331,8 @@ class RestoreAPI extends API
 				continue;
 			}
 
-			$acmd = $logcmd . ' ' . $this->backup_dir . $f . ' | ';
+			/* T05-M6：binlog 列表项来自备份文件，转义后作为单个参数。 */
+			$acmd = $logcmd . ' ' . escapeshellarg($this->backup_dir . $f) . ' | ';
 			$bcmd = $acmd . $mcmd;
 			exec($bcmd, $out, $status);
 			$this->outCmd("restore mysqlinc cmd=\n");
@@ -733,8 +735,9 @@ class RestoreAPI extends API
 			$cmd .= ' -p' . $this->setting['backup_passwd'] . ' ';
 		}
 
-		$cmd .= $wget_file;
-		$cmd .= ' -o' . $this->kangle_etc_dir;
+		/* T05-M6：备份文件名与 kangle 配置目录参与拼命令，转义防注入。 */
+		$cmd .= escapeshellarg($wget_file);
+		$cmd .= ' -o' . escapeshellarg($this->kangle_etc_dir);
 		$cmd .= ' -aoa';
 
 		if ($this->os == 'win') {
@@ -808,9 +811,10 @@ class RestoreAPI extends API
 				continue;
 			}
 
+			/* T05-M6：备份文件路径、doc_root、vhost 名均来自 DB，转义防注入。 */
 			$cmd = $this->get7zCmd();
-			$cmd .= ' ' . $file;
-			$cmd .= ' -o' . $vh['doc_root'] . ' ' . $vh['name'] . '.txt';
+			$cmd .= ' ' . escapeshellarg($file);
+			$cmd .= ' -o' . escapeshellarg($vh['doc_root']) . ' ' . escapeshellarg($vh['name'] . '.txt');
 			$cmd .= ' -aoa';
 			exec($cmd, $out, $status);
 			$this->outCmd("restoreweb cmd=\n");
