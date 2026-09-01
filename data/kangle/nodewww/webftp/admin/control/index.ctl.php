@@ -37,8 +37,9 @@ class IndexControl extends Control
 	{
 		$php_ini = urlencode($GLOBALS['safe_dir'] . '../ext/tpl_php74/php-templete.ini');
 
-		$dbadmin_url = 'http://' . $_SERVER['SERVER_NAME'] . ':3313/';
-		if(is_https()) $dbadmin_url = 'https://' . $_SERVER['SERVER_NAME'] . ':4413/';
+		/* 管理面板入口带 pma_admin=1，强制 phpMyAdmin 走自带登录页（详见 index.php 注释） */
+		$dbadmin_url = 'http://' . $_SERVER['SERVER_NAME'] . ':3313/?pma_admin=1';
+		if(is_https()) $dbadmin_url = 'https://' . $_SERVER['SERVER_NAME'] . ':4413/?pma_admin=1';
 		$this->_tpl->assign('dbadmin_url', $dbadmin_url);
 
 		if (strncasecmp(PHP_OS, 'WIN', 3) == 0) {

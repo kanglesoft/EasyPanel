@@ -162,9 +162,19 @@ class IndexControl extends Control
 			$_SESSION['kangle_info']['kangle_version'] = (string) $info->get('version');
 			$_SESSION['kangle_info']['kangle_type'] = (string) $info->get('type');
 			if (0 < $user['db_quota'] && $user['db_type'] != 'sqlsrv') {
-				$dbadmin_url = 'http://' . $_SERVER['SERVER_NAME'] . ':3313/?db=' . $user['db_name'];
-			if(is_https()) $dbadmin_url = 'https://' . $_SERVER['SERVER_NAME'] . ':4413/?db=' . $user['db_name'];
-				$this->_tpl->assign('dbadmin_url', $dbadmin_url);
+				/*
+				 * 统一走面板内的 SSO 入口（?c=index&a=dbadmin），不再直连 :3313。
+				 *
+				 * 原实现直接给出 http://host:3313/?db=xxx，跳过了 dbadmin() 里的
+				 * 「授权 PMA 专用账号 + 签发 pma_sso_token」两步。结果是：只有在
+				 * 用户此前恰好点过一次 SSO 入口、cookie 尚未过期的情况下才免密；
+				 * 首次点击或 token 过期后会掉到 phpMyAdmin 自带登录页，而空间用户
+				 * 并不知道 PMA 专用账号的密码，等于入口失效。
+				 *
+				 * 改为相对地址后，端口/协议(4413)与令牌签发全部由 dbadmin() 统一
+				 * 决定，避免此处再维护一份 http/https 分支。
+				 */
+				$this->_tpl->assign('dbadmin_url', '?c=index&a=dbadmin');
 			}
 
 			$_SESSION['user'][$vhost] = $user;
