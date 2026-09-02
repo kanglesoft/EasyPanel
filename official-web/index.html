@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EasyPanel Heavy · 现代化虚拟主机控制面板</title>
-  <meta name="description" content="EasyPanel Heavy 是基于 Docker 的现代化虚拟主机控制面板，一行命令完成部署，支持多 PHP 版本、自动 SSL 与数据持久化。" />
+  <meta name="description" content="EasyPanel Heavy 是基于 Docker 的现代化虚拟主机控制面板，一行命令完成部署，支持多 PHP 版本、自动 SSL 与数据持久化，并内置安全加固。" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
@@ -35,9 +35,11 @@
       <nav class="nav-links" id="navLinks">
         <a href="#features">特性</a>
         <a href="#install">安装</a>
+        <a href="#maintain">卸载升级</a>
         <a href="#systems">支持系统</a>
         <a href="#params">参数</a>
         <a href="#advantages">优势</a>
+        <a href="#changelog">更新日志</a>
         <a class="nav-github" href="https://github.com/kanglesoft/EasyPanel" target="_blank" rel="noopener">GitHub</a>
       </nav>
     </div>
@@ -51,6 +53,7 @@
           <span class="badge">Docker</span>
           <span class="badge">多 PHP</span>
           <span class="badge">自动 SSL</span>
+          <span class="badge">安全加固</span>
         </div>
         <h1 class="hero-title">EasyPanel Heavy<br />开箱即用的虚拟主机控制面板</h1>
         <p class="hero-sub">把虚拟主机控制面板装进容器，一行命令搞定。</p>
@@ -102,6 +105,47 @@
         <p class="install-note">需 <strong>root</strong> 权限 · 建议使用<strong>干净</strong>的 Linux 服务器 · 推荐配置 <strong>2 核 4G</strong> 以上。</p>
       </div>
     </section>
+    <!-- ============ 卸载与升级 ============ -->
+    <section class="install" id="maintain">
+      <div class="section-head">
+        <h2 class="section-title">卸载与升级</h2>
+        <p class="section-desc">提供干净的卸载脚本与一键升级脚本，业务数据均保存在 ./data，操作安全可控。</p>
+      </div>
+
+      <div class="install-card">
+        <h3 class="maintain-sub">卸载（uninstall.sh）</h3>
+        <p class="hint">停止并移除容器、清理自定义网络与本地构建镜像；卸载前默认备份 <code>./data</code> 下全部业务数据。<code>--delete-data</code> 才真正删除持久化数据，外部基础镜像默认保留。</p>
+        <div class="code-block">
+          <div class="code-head">
+            <span class="code-lang">bash</span>
+            <button class="copy-btn" data-copy="uninstall-script" type="button">复制</button>
+          </div>
+          <pre class="code-body"><code id="uninstall-script">./uninstall.sh                      # 交互式：备份 / 询问是否删数据
+./uninstall.sh --yes                # 非交互（仍须 --delete-data 才删数据）
+./uninstall.sh --delete-data        # 真正删除 ./data 下所有持久化数据
+./uninstall.sh --no-backup          # 跳过卸载前备份
+./uninstall.sh --purge-images       # 同时删除外部基础镜像
+./uninstall.sh --keep-images        # 连本地构建镜像也保留
+./uninstall.sh --purge-docker       # 同时卸载 Docker Engine（高危）</code></pre>
+        </div>
+
+        <h3 class="maintain-sub">升级（upgrade.sh）</h3>
+        <p class="hint">数据安全升级（不停机拉取 → 停机备份 → 重建 → 健康检查）：自动 stash 本地未提交改动、fetch + ff-only 合并上拉新版本；停机后先全量备份业务数据再重建容器；端口 3311 / 3312 / 80 与 MySQL 连通健康检查，任一环节失败自动回滚到升级前提交；<code>./data</code> 全程 bind 挂载不受影响，<code>.env</code> 密码保持不变。</p>
+        <div class="code-block">
+          <div class="code-head">
+            <span class="code-lang">bash</span>
+            <button class="copy-btn" data-copy="upgrade-script" type="button">复制</button>
+          </div>
+          <pre class="code-body"><code id="upgrade-script">./upgrade.sh                          # 交互式升级（本地有未提交改动时询问处理方式）
+./upgrade.sh --yes                    # 非交互：自动 stash 本地改动并升级
+./upgrade.sh --no-backup              # 跳过升级前备份（不推荐）
+./upgrade.sh --no-pull                # 跳过代码拉取，仅备份 + 重建（本地改码后使用）
+./upgrade.sh --skip-health-check      # 跳过升级后健康检查（不推荐）
+./upgrade.sh --help                   # 查看帮助（-h 亦可）</code></pre>
+        </div>
+      </div>
+    </section>
+
 
     <!-- ============ 特性卡片 ============ -->
     <section class="features" id="features">
@@ -156,7 +200,7 @@
             </svg>
           </div>
           <h3 class="feature-title">SSL 支持</h3>
-          <p class="feature-desc">集成 acme.sh，可在容器内申请并自动续期 Let's Encrypt 证书，HTTPS 开箱即用。</p>
+          <p class="feature-desc">集成 acme.sh，可在容器内申请并自动续期 Let's Encrypt 证书，HTTPS 开箱即用；证书签发后自动部署到虚拟主机并登记，形成「申请—部署」闭环，续期任务默认注册到容器 crontab。</p>
         </article>
 
         <article class="feature-card">
@@ -182,6 +226,31 @@
           <h3 class="feature-title">交互 / 无人值守</h3>
           <p class="feature-desc">可交互设置密码，也支持 <code>--auto</code> 全自动模式，适配自动化批量部署。</p>
         </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 8.5a3 3 0 0 0-3-3 4 4 0 0 0-7.5-1.5A4 4 0 0 0 3 8.5"></path>
+              <rect x="3" y="8.5" width="18" height="11" rx="2"></rect>
+              <path d="M7 12.5v3M12 12.5v3M17 12.5v3"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Docker 容器管理</h3>
+          <p class="feature-desc">在面板内直接查看容器列表，并对容器执行启动、停止、重启操作，便于在现场快速处置服务状态，无需频繁登录宿主机。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"></path>
+              <path d="M14 3v5h5"></path>
+              <path d="M9 13h6M9 17h4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">专业 HTTP 错误页</h3>
+          <p class="feature-desc">重设计全套 14 个 HTTP 状态码错误页，并对默认站点首页去品牌化、移除第三方外链，访问体验更干净、更可控。</p>
+        </article>
+
       </div>
     </section>
 
@@ -266,20 +335,9 @@
             </svg>
           </div>
           <h3 class="feature-title">大量细小 BUG 修复</h3>
-          <p class="feature-desc">在 upstream 基础上修复众多体验与稳定性问题，更稳更顺手。</p>
+          <p class="feature-desc">修复十余处后台/用户面板 HTTP 500（缓存管理、系统设置、节点编辑、域名记录、产品列表等），并修正虚拟主机管理按钮无响应、左侧菜单误链、SSL 菜单误指向等交互问题，同时清理前端模板残留标签与 UI 回归。</p>
         </article>
-
-        <article class="feature-card">
-          <div class="feature-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 6c-2-1.5-5-1.5-7 0v12c2-1.5 5-1.5 7 0 2-1.5 5-1.5 7 0V6c-2-1.5-5-1.5-7 0Z"></path>
-              <path d="M12 6v12"></path>
-            </svg>
-          </div>
-          <h3 class="feature-title">完全开源可学习</h3>
-          <p class="feature-desc">脚本与配置以 MIT 开源，欢迎学习、讨论与共建。</p>
-        </article>
-      </div>
+</div>
     </section>
 
     <!-- ============ 支持系统 ============ -->
@@ -328,6 +386,18 @@
           <span class="sys-badge">Rocky Linux 9</span>
           <span class="sys-badge">Rocky Linux 8</span>
         </div>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"></path>
+              <path d="M12 9v4"></path><path d="M12 16h.01"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">内置安全加固</h3>
+          <p class="feature-desc">引入全局 CSRF 令牌与敏感操作重新认证机制，并修复开放重定向、登录失败锁定窗口与备份流名等已知安全缺陷；安装期一并强化登录校验、软件源与参数转义等处理。</p>
+        </article>
+
       </div>
     </section>
 
@@ -375,13 +445,55 @@
         </table>
       </div>
     </section>
+
+    <!-- ============ 更新日志 ============ -->
+    <section class="changelog-section" id="changelog">
+      <div class="section-head">
+        <h2 class="section-title">更新日志</h2>
+        <p class="section-desc">以下变更均来自本项目主分支的真实提交记录。</p>
+      </div>
+
+      <div class="changelog">
+        <div class="changelog-group">
+          <p class="changelog-period">2026-08 / 09 · 安全复审与收口</p>
+          <ul class="changelog-list">
+            <li><strong>安全复审</strong>：修正 3 处安全缺陷——开放重定向（M3）、登录失败锁定窗口（H3）、备份流名处理（M6）。</li>
+            <li>完成安全加固任务，清理体验相关死代码，并新增 <strong>Docker 容器管理</strong> 能力，可在面板内查看容器并启停重启。</li>
+          </ul>
+        </div>
+
+        <div class="changelog-group">
+          <p class="changelog-period">2026-07-25 · 错误页与品牌清理</p>
+          <ul class="changelog-list">
+            <li>彻底重设计全套 <strong>14 个 HTTP 状态码错误页</strong>，并对默认站点首页去品牌化、移除第三方外链。</li>
+          </ul>
+        </div>
+
+        <div class="changelog-group">
+          <p class="changelog-period">2026-07-24 · SSL 与交互修复</p>
+          <ul class="changelog-list">
+            <li><strong>SSL</strong>：修复 acme.sh ECC 证书文件名、HTTP-01 webroot 路径，证书签发后自动部署并登记，形成签发闭环。</li>
+            <li>修复虚拟主机管理按钮无响应、左侧菜单误链、SSL 菜单误指向等交互问题。</li>
+          </ul>
+        </div>
+
+        <div class="changelog-group">
+          <p class="changelog-period">2026-07-23 · 安装与稳定性</p>
+          <ul class="changelog-list">
+            <li>修复安装脚本（密码注入、local 关键字、网络名称固定为 kangle_net、卸载清理同步）。</li>
+            <li>修复十余处后台/用户面板 HTTP 500 与死链导航，清理前端残留的 Smarty 标签。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ============ 页脚 ============ -->
   <footer class="footer">
     <div class="footer-inner">
       <div class="footer-brand">EasyPanel Heavy</div>
-      <p class="footer-license">EasyPanel Heavy 新增脚本与配置遵循 <strong>MIT 开源</strong> 发布。</p>
+      <p class="footer-license">本项目<strong>自开发的新增脚本与配置（install.sh、uninstall.sh、upgrade.sh、add_php.sh 及配套配置）均遵循 MIT 许可证开源</strong>；底层 Kangle / EasyPanel 等组件版权归各自原作者，遵循其原有许可证。</p>
       <p class="footer-disclaimer">免责声明：EasyPanel Heavy 基于开源组件构建，底层组件版权归各自原作者所有。</p>
       <p class="footer-thanks">特别鸣谢：本项目参考 <a href="https://github.com/funnycups/kangle" target="_blank" rel="noopener">funnycups/kangle</a>。</p>
       <p class="footer-notice">声明：本项目并非 Kangle / EasyPanel 官方产品，仅供学习、讨论与互相交流使用；如涉及侵权，请联系后下架。</p>

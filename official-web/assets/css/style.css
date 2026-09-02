@@ -500,6 +500,15 @@ main { display: block; }
   color: var(--bs-text-secondary);
 }
 
+.maintain-sub {
+  margin: 26px 2px 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--bs-foreground);
+}
+
+.maintain-sub:first-of-type { margin-top: 4px; }
+
 .install-note strong { color: var(--bs-foreground); }
 
 /* ============ 特性卡片 ============ */
@@ -773,4 +782,98 @@ main { display: block; }
   .params-table tbody td:first-child { width: auto; white-space: normal; }
 
   .table-wrap { overflow-x: auto; }
+}
+
+/* ============ 深度列表（安全/修复） ============ */
+.doc-list {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 28px;
+}
+
+.doc-item {
+  background: var(--bs-card);
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--bs-shadow-sm);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.doc-item:hover {
+  transform: translateY(-3px);
+  border-color: var(--bs-accent);
+  box-shadow: var(--bs-shadow-md);
+}
+
+.doc-item h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--bs-foreground);
+}
+
+.doc-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--bs-text-secondary);
+  line-height: 1.6;
+}
+
+.doc-item code {
+  font-size: 0.85em;
+  background: var(--bs-accent-soft);
+  color: var(--bs-accent);
+}
+
+/* ============ 更新日志 ============ */
+.changelog-section { padding: 70px 24px; }
+
+.changelog {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.changelog-group {
+  background: var(--bs-card);
+  border: 1px solid var(--bs-border);
+  border-left: 4px solid var(--bs-accent);
+  border-radius: var(--bs-radius-md);
+  padding: 20px 26px;
+  box-shadow: var(--bs-shadow-sm);
+}
+
+.changelog-period {
+  margin: 0 0 12px;
+  font-family: var(--bs-font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--bs-accent);
+}
+
+.changelog-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--bs-text-secondary);
+}
+
+.changelog-list li {
+  margin: 0 0 8px;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.changelog-list li:last-child { margin-bottom: 0; }
+
+.changelog-list strong { color: var(--bs-foreground); }
+
+/* ============ 新增组件响应式 ============ */
+@media (max-width: 720px) {
+  .doc-list { grid-template-columns: 1fr; }
 }
