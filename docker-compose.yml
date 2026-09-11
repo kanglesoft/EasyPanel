@@ -20,7 +20,12 @@
 
 services:
   kangle:
-    build: ./kangle
+    build:
+      context: ./kangle
+      args:
+        # 镜像站基址：决定容器内 yum 源指向哪个站（见 kangle/Dockerfile）。
+        # 由 install.sh 探测后写入 .env；未设置时回落 Dockerfile 内置默认值。
+        MIRROR_BASE: ${MIRROR_BASE:-https://mirrors.aliyun.com}
     container_name: kangle
     restart: unless-stopped
     depends_on:

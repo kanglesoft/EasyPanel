@@ -6,20 +6,33 @@
 #   1) 检测 Linux 发行版并自动安装 Docker Engine + Compose 插件（如未安装）。
 #   2) 设置密码 —— kangle / easypanel 后台管理员（两者共用同一 kangle WHM 凭证）、
 #      MySQL root。任意一项留空则自动生成 16 位随机强密码。
-#   3) 生成 .env（KANGLE_ADMIN_PASSWORD / MYSQL_ROOT_PASSWORD）。
+#   3) 生成 .env（KANGLE_ADMIN_PASSWORD / MYSQL_ROOT_PASSWORD / MIRROR_BASE / KANGLE_MODE）。
 #   4) 构建并启动 docker compose 编排（kangle + mysql + 可选 phpX.X-fpm）。
 #   5) 首次启动自动初始化 easypanel（写入 node 配置 + 建库 + install.lock）。
 #   6) 可选启用 TCP BBR（提升网络吞吐，内核 >= 4.9 时可用）。
 #   7) 集成 acme.sh（SSL 证书申请 / 自动续期底层工具）并注册容器内固定续期任务。
 #   8) 安装时可选择额外 PHP-FPM 版本（PHP 7.4 已内置在主容器，无需额外安装）。
 #
+# v3 新增能力（详见 v3功能更新日志.md）：
+#   A) EOL 老系统换源（mirror.sh）：检测到系统已 EOL 时自动切到可用归档源；
+#      非 EOL 系统也可用 --mirror=... 主动换镜像站（国内用户提速）。
+#   B) DNS 修改与锁定（dns.sh）：**默认不改**；仅当显式指定 --dns-set 时才修改，
+#      且"改必加锁"（chattr +i 或守护进程看护），防止被 dhclient / NetworkManager 还原。
+#   C) CDN-only 安装模式（--mode=cdn）：只装面板与 CDN 能力，不装 MySQL / php-fpm / phpMyAdmin。
+#      面板自身数据层是 sqlite（vhs.db），故不装数据库不影响面板与 CDN 功能。
+#   D) Docker registry 镜像加速：多站三步探测（/v2/ → 取该站自身 token → 拉真实 manifest）
+#      后择优写入 daemon.json，避免只探 /v2/ 的"假可达"站点。
+#
 # 支持的发行版（仅 deb 系 + rhel 系；不支持 Alpine / openSUSE）：
 #   deb:  Debian 11/12/13、Ubuntu 20.04/22.04/24.04/26.04 LTS（及衍生 deb 系）
 #   rhel: CentOS Stream 9/10、RHEL 8/9/10、AlmaLinux 8/9/10、Rocky 8/9/10、
 #         Oracle Linux 8/9/10、Amazon Linux 2023、Fedora
-#   低于门槛的版本（如 Debian ≤10、Ubuntu ≤18.04、CentOS 6/7/8、CentOS Stream 8、
-#   RHEL 7 等）已 EOL，安装脚本会告警但仍可继续；不在清单的发行版若已预装 Docker
-#   也可直接运行（否则会提示手动安装 Docker 后重跑）。
+#   低于门槛的版本（如 Debian ≤10、Ubuntu ≤18.04、CentOS 7/8、CentOS Stream 8 等）已 EOL：
+#   仅告警，并由 mirror.sh 自动换到可用归档源后继续安装。
+#   极少数系统（CentOS 6、Debian ≤8、Ubuntu <16.04 等）Docker CE 官方已无对应仓库，
+#   命中 UNSUPPORTED 档会**明确说明原因后终止**，不卡在半路让用户猜
+#   （确需继续可用 --allow-unsupported 强制，风险自负）。
+#   不在清单的发行版若已预装 Docker 也可直接运行（否则会提示手动安装 Docker 后重跑）。
 #
 # 用法：
 #   ./install.sh                              # 交互式（逐项询问，可留空随机）
@@ -28,6 +41,12 @@
 #   ./install.sh --php-versions=8.2,8.5       # 非交互安装额外 PHP 版本
 #   ./install.sh --enable-bbr                 # 非交互启用 BBR
 #   ./install.sh --force-recreate             # 先 down 再 up（干净重建，bind 数据卷不受影响）
+#   ./install.sh --mode=cdn                   # CDN-only：只装面板 + CDN，不装网站环境
+#   ./install.sh --mirror=alibaba             # 镜像站：auto/keep/official/alibaba/tencent/huawei/tuna/ustc/volces
+#   ./install.sh --dns-set=alidns             # 修改并锁定 DNS：alidns/dnspod/cloudflare/google/114/mixed/custom
+#   ./install.sh --dns-set=custom --dns-servers=1.1.1.1,9.9.9.9
+#   ./install.sh --no-registry-mirror         # 不配置 Docker 镜像加速
+#   ./install.sh --allow-unsupported          # 允许在 UNSUPPORTED 系统上强制继续
 #   注：也可经官网一键命令 bash <(curl -fsSL https://raw.githubusercontent.com/kanglesoft/EasyPanel/main/install.sh) 直接执行，脚本会自动克隆本仓库后再安装。
 #
 set -euo pipefail
@@ -65,6 +84,26 @@ fi
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
+# ───────────────────────── 日志工具 ─────────────────────────
+# 注意：必须定义在 phpMyAdmin vendor 自检之前 —— 自检里用到了 warn / die，
+#       若顺序颠倒，缺失组件时会以 "warn: command not found" 中断，掩盖真实原因。
+log()  { echo -e "\033[1;36m[install]\033[0m $*" >&2; }
+ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*" >&2; }
+warn() { echo -e "\033[1;33m[warn]\033[0m $*" >&2; }
+die()  { echo -e "\033[1;31m[error]\033[0m $*" >&2; exit 1; }
+
+# ───────────────────────── 共享函数库 ─────────────────────────
+# 提供 daemon.json 安全合并、docker 重启单次化、安装模式识别等原语。
+# 缺失时降级：mirror.sh / dns.sh 为可选能力，库不在则跳过相关步骤而非中断安装。
+COMMON_SH="$PROJECT_DIR/lib/common.sh"
+HAVE_COMMON=0
+if [[ -f "$COMMON_SH" ]]; then
+  # shellcheck source=lib/common.sh
+  . "$COMMON_SH" && HAVE_COMMON=1
+else
+  warn "未找到 lib/common.sh，将跳过换源 / DNS / registry 加速（可选能力）"
+fi
+
 # ───────────────────────── phpMyAdmin vendor 自检 ─────────────────────────
 # fix(phpmyadmin): Composer vendor 内含若干名为 "cache" 的源码目录
 # (phpmyadmin/motranslator/src/Cache、psr/cache、symfony/cache、twig/twig/src/Cache)。
@@ -97,12 +136,6 @@ _verify_phpmyadmin_vendor() {
 }
 _verify_phpmyadmin_vendor
 
-# ───────────────────────── 日志工具 ─────────────────────────
-log()  { echo -e "\033[1;36m[install]\033[0m $*"; }
-ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[warn]\033[0m $*"; }
-die()  { echo -e "\033[1;31m[error]\033[0m $*" >&2; exit 1; }
-
 genpass() {
   LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true
 }
@@ -122,6 +155,15 @@ KANGLE_PASS=""
 MYSQL_PASS=""
 EASYPANEL_PASS=""
 PHP_VERSIONS=""   # 逗号分隔，如 8.2,8.5
+
+# ── v3 新增参数 ──
+INSTALL_MODE=""      # full | cdn；留空 = 交互式询问（默认 full）
+MIRROR_OPT="auto"    # 传给 mirror.sh：auto|keep|official|alibaba|tencent|huawei|tuna|ustc|volces
+DNS_SET=""           # 留空 = **不修改 DNS**（默认行为，遵循"默认不修改"原则）
+DNS_SERVERS=""       # --dns-set=custom 时的自定义 DNS，逗号分隔
+NO_REGISTRY=0        # 1 = 不配置 Docker registry 镜像加速
+ALLOW_UNSUPPORTED=0  # 1 = 允许在 UNSUPPORTED 系统上强制继续
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto) AUTO=1 ;;
@@ -131,11 +173,29 @@ while [[ $# -gt 0 ]]; do
     --mysql-pass=*)  MYSQL_PASS="${1#*=}" ;;
     --easypanel-pass=*) EASYPANEL_PASS="${1#*=}" ;;
     --php-versions=*) PHP_VERSIONS="${1#*=}" ;;
-    -h|--help) sed -n '3,31p' "$0"; exit 0 ;;
+    --mode=*) INSTALL_MODE="${1#*=}" ;;
+    --mirror=*) MIRROR_OPT="${1#*=}" ;;
+    --dns-set=*) DNS_SET="${1#*=}" ;;
+    --dns-servers=*) DNS_SERVERS="${1#*=}" ;;
+    --no-registry-mirror) NO_REGISTRY=1 ;;
+    --allow-unsupported) ALLOW_UNSUPPORTED=1 ;;
+    -h|--help) sed -n '3,50p' "$0"; exit 0 ;;
     *) warn "未知参数: $1" ;;
   esac
   shift
 done
+
+# --mode 取值校验（越早失败越好，避免装到一半才发现模式非法）
+case "$INSTALL_MODE" in
+  ""|full|cdn) ;;
+    *) die "--mode 只支持 full（全量：面板 + 网站环境）或 cdn（仅 CDN，不装网站环境），当前值: $INSTALL_MODE" ;;
+esac
+
+# 非交互判定：用于决定子脚本是否自动确认（避免无 TTY 时卡在 read 上）
+NONINTERACTIVE=0
+if [[ "$AUTO" -eq 1 || ! -t 0 ]]; then
+  NONINTERACTIVE=1
+fi
 
 # ───────────────────────── 权限检查 ─────────────────────────
 if [[ "$EUID" -ne 0 ]]; then
@@ -193,10 +253,14 @@ detect_pkg_manager() {
 
 check_version_gate() {
   # 设置版本门禁标志：
-  #   DEPRECATED=1 表示系统已 EOL（仍允许安装，仅告警）
-  #   UNTESTED=1   表示超出本项目测试矩阵上限（软警告，不阻断）
+  #   DEPRECATED=1   系统已 EOL（仍允许安装，仅告警；源由 mirror.sh 自动切换到归档）
+  #   UNTESTED=1     超出本项目测试矩阵上限（软警告，不阻断）
+  #   UNSUPPORTED=1  Docker CE 官方已无对应仓库 —— 装上源也没用，命中即终止
+  #                  （除非显式 --allow-unsupported）。依据见 v3更新方案.md §2.8。
   DEPRECATED=0
   UNTESTED=0
+  UNSUPPORTED=0
+  UNSUPPORTED_REASON=""
 
   if [[ "$FAMILY" == "deb" ]]; then
     # Ubuntu 及 ubuntu 衍生按 Ubuntu 规则（VERSION_ID >= 20.04）
@@ -211,7 +275,11 @@ check_version_gate() {
       minor="$(echo "${OS_VERSION:-}" | cut -d. -f2)"
       major="${major:-0}"; minor="${minor:-0}"
       ver=$(( major * 100 + minor ))
-      if (( ver < 2004 )); then
+      if (( ver < 1604 )); then
+        # Docker CE 官方 apt 仓库最早支持 xenial(16.04)，更老的版本没有任何可用源
+        UNSUPPORTED=1
+        UNSUPPORTED_REASON="Ubuntu ${OS_VERSION}：Docker CE 官方 apt 仓库最早支持 16.04，本版本无可用源"
+      elif (( ver < 2004 )); then
         DEPRECATED=1
       elif (( ver > 2604 )); then
         UNTESTED=1
@@ -220,7 +288,11 @@ check_version_gate() {
       # Debian 及衍生（含 linuxmint / raspbian / kali 等）要求 major >= 11
       local major="${OS_MAJOR:-0}"
       major="${major:-0}"
-      if (( major < 11 )); then
+      if (( major < 9 )); then
+        # stretch(9) 是 Docker CE 官方支持的最早 Debian 版本
+        UNSUPPORTED=1
+        UNSUPPORTED_REASON="Debian ${major}：Docker CE 官方 apt 仓库最早支持 Debian 9(stretch)，本版本无可用源"
+      elif (( major < 11 )); then
         DEPRECATED=1
       elif (( major > 13 )); then
         UNTESTED=1
@@ -230,11 +302,26 @@ check_version_gate() {
     local major="${OS_MAJOR:-0}"
     major="${major:-0}"
     if [[ "$OS_ID" == "centos" || "$OS_ID" == "centos-linux" ]]; then
-      # CentOS Linux（非 Stream）已整体 EOL
-      DEPRECATED=1
+      if (( major <= 6 )); then
+        # 实测：download.docker.com/linux/centos/6 返回 404 —— 换源也装不了 Docker
+        UNSUPPORTED=1
+        UNSUPPORTED_REASON="CentOS Linux ${OS_VERSION}：Docker CE 官方无 centos/6 仓库（实测 404），无法自动安装 Docker"
+      else
+        # CentOS Linux（非 Stream）已整体 EOL
+        DEPRECATED=1
+      fi
     elif [[ "$OS_ID" == "centos-stream" || "$OS_ID" == "centos_stream" ]] && (( major <= 8 )); then
       # CentOS Stream 8 EOL；Stream 9/10 受支持
       DEPRECATED=1
+    elif [[ "$OS_ID" == "alinux" || "$OS_ID" == "alinux3" ]]; then
+      # 阿里云 Linux（如 AL3 的 VERSION_ID=3，不代表 RHEL major）：RHEL 8 / CentOS 8 二进制兼容，
+      # Docker CE 经 centos/8 仓库可正常安装（见 mirror.sh::derive_docker_repo）。不做 UNSUPPORTED/DEPRECATED
+      # 判定，视为完整支持；同时避免被下方 major<=6 的 UNSUPPORTED 分支误伤。
+      :
+    elif (( major <= 6 )) && [[ "$OS_ID" != "ol" && "$OS_ID" != "oracle" && "$OS_ID" != "amzn" && "$OS_ID" != "alinux" && "$OS_ID" != "alinux3" ]]; then
+      # RHEL 6 及更老：Docker CE 无对应仓库（Oracle Linux 6 / 阿里云 Linux 官方源仍可用，故排除）
+      UNSUPPORTED=1
+      UNSUPPORTED_REASON="${OS_NAME} ${OS_VERSION}：Docker CE 官方无对应仓库，无法自动安装 Docker"
     elif (( major < 8 )); then
       DEPRECATED=1
     elif (( major > 10 )) && [[ "$OS_ID" != "fedora" && "$OS_ID" != "amzn" ]]; then
@@ -272,6 +359,18 @@ else
   if [[ "$UNTESTED" -eq 1 ]]; then
     warn "当前版本超出本项目测试矩阵，如遇问题请反馈"
   fi
+  if [[ "$UNSUPPORTED" -eq 1 ]]; then
+    # 明确终止，不要卡在半路让用户猜（v3更新方案.md §2.8）
+    echo -e "\033[1;31m[UNSUPPORTED]\033[0m $UNSUPPORTED_REASON"
+    if [[ "$ALLOW_UNSUPPORTED" -eq 1 ]]; then
+      warn "--allow-unsupported 已指定，强制继续（Docker 安装大概率失败，风险自负）"
+    elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+      warn "检测到本机已有可用的 Docker + Compose，跳过 Docker 安装并继续"
+      SKIP_DOCKER_INSTALL=1
+    else
+      die "无法继续安装。可选方案：\n    1) 升级到受支持的发行版（推荐）；\n    2) 手动安装 Docker Engine + Compose 插件后重跑本脚本；\n    3) 确需继续，追加 --allow-unsupported（不保证成功）。"
+    fi
+  fi
 fi
 
 # ───────────────────────── Docker 安装 ─────────────────────────
@@ -302,22 +401,49 @@ install_docker_rhel() {
   local pkg_manager="dnf"
   command -v dnf >/dev/null 2>&1 || pkg_manager="yum"
 
-  # Docker 官方 repo 按发行族选择：Fedora 使用 fedora repo，其余 RHEL 系沿用 centos repo，
-  # 避免 Fedora 直接使用 centos repo 引发依赖冲突（中风险项修复）。
-  local docker_repo_url
-  if [[ "$OS_ID" == "fedora" ]]; then
-    docker_repo_url="https://download.docker.com/linux/fedora/docker-ce.repo"
-  else
-    docker_repo_url="https://download.docker.com/linux/centos/docker-ce.repo"
+  # Docker 官方 repo 必须按发行版推导（实测 2026-09，见 v3更新方案.md §2.5）：
+  #   centos/{7,8,9,10} = 200
+  #   centos/6          = 404   → 已归入 UNSUPPORTED
+  #   centos/2023       = 404   → Amazon Linux 2023 的 $releasever 就是 2023，必然失败
+  #   centos/{39,40,41} = 404   → Fedora 必须走 fedora repo
+  #   rhel/7            = 404   → RHEL 7 必须映射到 centos/7
+  # 原实现"Fedora 用 fedora、其余一律 centos"仍会让 AL2023 与 RHEL 7 装不上。
+  #
+  # 推导值由 mirror.sh 写入 $STATE_DIR/mirror.env（DOCKER_REPO / DOCKER_RELEASEVER）；
+  # 缺失（如 --mirror 未跑）时回退到按 OS_ID 的静态判断，保证行为不劣化。
+  local repo="${DOCKER_REPO:-}" rel="${DOCKER_RELEASEVER:-}"
+  if [[ -z "$repo" ]]; then
+    if [[ "$OS_ID" == "fedora" ]]; then repo="fedora"; else repo="centos"; fi
   fi
+  [[ -z "$rel" ]] && rel="${OS_MAJOR:-7}"
+  # AL2023：官方无 amzn2023 路径。方案文档给的三级回退第一级是 Amazon 官方 docker 包，
+  # 但它不含 docker-compose-plugin（本项目必需），故直接落到第二级 centos/9（实测 200）。
+  if [[ "$repo" == "amzn2023" ]]; then
+    repo="centos"; rel="9"
+  fi
+
+  local docker_repo_url="https://download.docker.com/linux/${repo}/docker-ce.repo"
+  log "Docker 官方仓库: ${repo} (releasever=${rel})"
 
   if [[ "$pkg_manager" == "yum" ]]; then
     yum install -y yum-utils
     yum-config-manager --add-repo "$docker_repo_url"
-    yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   else
     $pkg_manager -y install dnf-plugins-core
     $pkg_manager config-manager --add-repo "$docker_repo_url"
+  fi
+
+  # 关键修正：repo 文件里的 $releasever 会展开成**本机**的版本号，而上面选的仓库目录
+  # 可能与之不同（AL2023: 2023→9，Fedora 走 centos 时同理）。不改写就会 404。
+  # 用 [$] 而非 $ —— 前者是正则字符类，不会被 shell 当变量展开。
+  local repofile="/etc/yum.repos.d/docker-ce.repo"
+  if [[ -f "$repofile" ]]; then
+    sed -i "s/[\$]releasever/${rel}/g" "$repofile" 2>/dev/null || true
+  fi
+
+  if [[ "$pkg_manager" == "yum" ]]; then
+    yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  else
     $pkg_manager install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   fi
 }
@@ -357,7 +483,66 @@ ensure_docker() {
   ok "Docker 安装完成并已启动"
 }
 
+# ───────────────────────── v3：换源 / DNS / registry 加速 ─────────────────────────
+# 顺序要点：
+#   1) 换源必须在 ensure_docker **之前** —— Docker 的安装依赖可用的 apt/yum 源；
+#   2) DNS 与 registry 加速只写 daemon.json 并"打标记"，不各自重启；
+#   3) 统一在 ensure_docker **之后**重启一次（单次重启原则，避免反复中断容器）。
+DOCKER_REPO=""
+DOCKER_RELEASEVER=""
+MIRROR_BASE=""
+
+run_mirror_step() {
+  if [[ "$HAVE_COMMON" -ne 1 ]]; then
+    warn "跳过换源（缺少 lib/common.sh）"
+    return 0
+  fi
+  if [[ ! -x "$PROJECT_DIR/mirror.sh" ]]; then
+    warn "未找到可执行的 mirror.sh，跳过换源"
+    return 0
+  fi
+  local args=(--mirror="$MIRROR_OPT" --no-restart)
+  [[ "$NONINTERACTIVE" -eq 1 ]] && args+=(--yes)
+  [[ "$NO_REGISTRY" -eq 1 ]] && args+=(--no-registry-mirror)
+  log "检测系统源状态并按需换源（mirror: $MIRROR_OPT）..."
+  # 换源是"尽力而为"：非 EOL 系统本就无需换源，失败不应阻断安装。
+  "$PROJECT_DIR/mirror.sh" "${args[@]}" || warn "mirror.sh 未完全成功，已忽略并继续安装"
+  if [[ -f "${STATE_DIR:-/var/lib/kangle-net}/mirror.env" ]]; then
+    # shellcheck source=/dev/null
+    . "${STATE_DIR:-/var/lib/kangle-net}/mirror.env"
+  fi
+}
+
+run_dns_step() {
+  if [[ -z "$DNS_SET" ]]; then
+    log "未指定 --dns-set：保持系统 DNS 不变（v3 默认行为）"
+    return 0
+  fi
+  if [[ "$HAVE_COMMON" -ne 1 ]]; then
+    warn "缺少 lib/common.sh，跳过 DNS 设置"
+    return 0
+  fi
+  if [[ ! -x "$PROJECT_DIR/dns.sh" ]]; then
+    warn "未找到可执行的 dns.sh，跳过 DNS 设置"
+    return 0
+  fi
+  local args=(--set="$DNS_SET" --no-restart)
+  [[ -n "$DNS_SERVERS" ]] && args+=(--servers="$DNS_SERVERS")
+  [[ "$NONINTERACTIVE" -eq 1 ]] && args+=(--yes)
+  log "设置并锁定 DNS（预设: $DNS_SET）..."
+  "$PROJECT_DIR/dns.sh" "${args[@]}" || warn "dns.sh 未完全成功，已忽略并继续安装"
+}
+
+run_mirror_step
+run_dns_step
+
 ensure_docker
+
+# 统一消费一次 docker 重启标记：让 DNS / registry-mirrors 真正生效。
+# 放在 ensure_docker 之后，确保 docker 已存在、可重启。
+if [[ "$HAVE_COMMON" -eq 1 ]]; then
+  consume_restart_docker || true
+fi
 
 if docker compose version >/dev/null 2>&1; then
   DC="docker compose"
@@ -489,11 +674,52 @@ if [[ -n "$PHP_VERSIONS" ]]; then
   done
 fi
 
+# ───────────────────────── 安装模式解析（v3 新增）─────────────────────────
+#   full：全量 —— 面板 + 网站环境（MySQL / 站点 PHP / phpMyAdmin）
+#   cdn ：仅 CDN —— 保留面板与 CDN 全部能力，不装 MySQL / php-fpm / phpMyAdmin
+#         可行性：easypanel 自身数据层是 sqlite，不装 MySQL 不影响面板与 CDN 功能。
+resolve_mode() {
+  local m="$INSTALL_MODE"
+  if [[ -z "$m" ]]; then
+    if [[ "$AUTO" -eq 1 ]]; then
+      m="full"
+    else
+      echo
+      log "安装模式"
+      echo "  - full：全量（面板 + 网站环境：MySQL / 站点 PHP / phpMyAdmin）"
+      echo "  - cdn ：仅 CDN（保留面板与 CDN 功能，不装网站环境；适合纯 CDN 用户）"
+      echo "    说明：面板自身数据层是 sqlite，不装 MySQL 不影响面板与 CDN。"
+      read -r -p "请选择安装模式 [full]: " m
+      m="${m:-full}"
+    fi
+  fi
+  case "$m" in
+    full|cdn) ;;
+    *) warn "未知模式 '$m'，回落为 full"; m="full" ;;
+  esac
+  # cdn 模式与额外 PHP 互斥：额外 php 属于"网站环境"，不应安装
+  if [[ "$m" == "cdn" && ${#EXTRA_PHP[@]} -gt 0 ]]; then
+    warn "CDN-only 模式不需要网站环境，已忽略额外 PHP 版本: $(IFS=,; echo "${EXTRA_PHP[*]}")"
+    EXTRA_PHP=()
+  fi
+  INSTALL_MODE="$m"
+  # 持久化模式标记（供 upgrade.sh / uninstall.sh / add_php.sh 识别，决定用哪个编排文件）
+  if [[ "$HAVE_COMMON" -eq 1 ]]; then
+    mode_write "$m" 2>/dev/null || warn "无法写入 .install_mode（不影响本次安装）"
+  fi
+}
+resolve_mode
+
 # ───────────────────────── 前置检查 ─────────────────────────
 [[ "$(docker info --format '{{.ServerVersion}}' 2>/dev/null)" ]] || die "docker 守护进程未运行。"
 
 # 确保数据目录存在（bind 挂载点）
-mkdir -p data/kangle data/mysql data/homeftp data/acme
+# CDN-only 模式不安装 MySQL：不创建 data/mysql，避免空目录被卸载脚本误判为"有数据"。
+if [[ "$INSTALL_MODE" == "cdn" ]]; then
+  mkdir -p data/kangle data/homeftp data/acme
+else
+  mkdir -p data/kangle data/mysql data/homeftp data/acme
+fi
 
 # ───────────────────────── 启用 BBR（如选择）────────────────────────
 if [[ "$ENABLE_BBR" -eq 1 ]]; then
@@ -519,6 +745,12 @@ EP_DB_HOST="mysql"
 EP_DB_USER="root"
 EP_DB_PASS="$MYSQL_PASS"
 EP_WHM_PORT="3311"
+
+# ── v3 新增变量 ──
+# 安装模式：full（含网站环境）/ cdn（仅 CDN，不装 MySQL / php-fpm / phpMyAdmin）
+KANGLE_MODE="$INSTALL_MODE"
+# 容器构建与 kangle/Dockerfile 的 yum 源基址（由 mirror.sh 探测得出；缺省回落阿里云）
+MIRROR_BASE="$MIRROR_BASE"
 EOF
 # 凭据明文落盘，权限必须收紧到属主可读写（同目录的 node.cfg.php 同理）
 chmod 600 .env
@@ -542,14 +774,24 @@ else
   warn "未找到 data/kangle/etc/node.cfg.php.example 模板，跳过生成（面板将依赖 EP_* 环境变量）"
 fi
 
-# ───────────────────────── 构建并启动 ─────────────────────────
+# ───────────────────────── 安装编排选型（v3 模式感知）─────────────────────────
+# cdn 模式使用不含 mysql 的独立主文件 docker-compose.cdn.yml：
+# compose 对 depends_on 等 map 字段是**合并**语义，无法用 override 删掉主文件里
+# kangle 对 mysql 的 depends_on，故必须整体换主文件。
+MAIN_COMPOSE="docker-compose.yml"
+if [[ "$HAVE_COMMON" -eq 1 ]] && declare -F mode_compose_file >/dev/null 2>&1; then
+  MAIN_COMPOSE="$(mode_compose_file)"
+fi
+[[ -f "$MAIN_COMPOSE" ]] || MAIN_COMPOSE="docker-compose.yml"
+COMPOSE_ARGS=(-f "$MAIN_COMPOSE")
+
 if [[ "$FORCE_RECREATE" -eq 1 ]]; then
   log "清理旧容器 / 网络（bind 数据卷不受影响）..."
-  $DC down --remove-orphans >/dev/null 2>&1 || true
+  $DC "${COMPOSE_ARGS[@]}" down --remove-orphans >/dev/null 2>&1 || true
 fi
 
-log "构建并启动服务（kangle + mysql）..."
-$DC up -d --build
+log "构建并启动服务（模式: $INSTALL_MODE；编排: $MAIN_COMPOSE）..."
+$DC "${COMPOSE_ARGS[@]}" up -d --build
 
 # ───────────────────────── 等待端口就绪 ─────────────────────────
 wait_port() {
@@ -641,7 +883,11 @@ SQL
   done
   warn "MySQL 密码重置后仍无法连接（请手动检查 ./data/mysql）"
 }
-ensure_mysql_password
+if [[ "$INSTALL_MODE" == "cdn" ]]; then
+  log "CDN-only 模式：未安装 MySQL 容器，跳过 MySQL 密码幂等处理"
+else
+  ensure_mysql_password
+fi
 
 # ───────────────────────── 初始化 easypanel ─────────────────────────
 log "初始化 / 登录 easypanel 以完成首次安装..."
@@ -802,7 +1048,11 @@ AV=$($DC exec -T kangle /root/.acme.sh/acme.sh --version 2>/dev/null | grep -oE 
 [[ -n "$AV" ]] && ok "acme.sh: $AV"
 
 # ───────────────────────── 安装额外 PHP 版本 ─────────────────────────
-for v in "${EXTRA_PHP[@]}"; do
+# 注意：CentOS 7 / RHEL 7 自带 bash 4.2，在 `set -u` 下对**空数组**做 "${arr[@]}"
+# 展开会触发 "unbound variable" 并使脚本异常退出（bash 4.4+ 才修正该行为）。
+# 实测：未装额外 PHP 时 EXTRA_PHP=() 为空，原写法会让 install.sh 在完成摘要
+# 打印之前崩溃，用户拿不到生成的密码。改用兼容写法：数组为空时展开为空。
+for v in ${EXTRA_PHP[@]+"${EXTRA_PHP[@]}"}; do
   log "安装额外 PHP $v ..."
   if [[ -x ./add_php.sh ]]; then
     ./add_php.sh "$v" || warn "PHP $v 安装失败"
@@ -816,20 +1066,31 @@ echo
 echo "=================================================================="
 echo -e "  \033[1;32m安装完成\033[0m"
 echo "=================================================================="
+echo -e "  安装模式: \033[1;32m$INSTALL_MODE\033[0m $( [[ "$INSTALL_MODE" == "cdn" ]] && echo "（仅 CDN，不装网站环境）" || echo "（全量：面板 + 网站环境）" )"
+echo "  编排文件: $MAIN_COMPOSE"
 echo -e "  面板管理员 (kangle 3311 / easypanel 3312): \033[1;33m$KANGLE_PASS\033[0m"
-echo -e "  MySQL root 密码:                          \033[1;33m$MYSQL_PASS\033[0m"
+if [[ "$INSTALL_MODE" != "cdn" ]]; then
+  echo -e "  MySQL root 密码:                          \033[1;33m$MYSQL_PASS\033[0m"
+fi
 echo
 echo "  访问地址："
 echo "    kangle 管理:  http://<服务器IP>:3311/   (admin / 上述密码)"
-echo "    easypanel 后台: http://<服务器IP>:3312/  (admin / 上述密码)"
-echo "    phpMyAdmin:    http://<服务器IP>:3313/   (BasicAuth: 同 MySQL root)"
+echo "    easypanel 后台: http://<服务器IP>:3312/admin/  (admin / 上述密码，用户中心为 :3312/vhost/)"
+if [[ "$INSTALL_MODE" != "cdn" ]]; then
+  echo "    phpMyAdmin:    http://<服务器IP>:3313/   (BasicAuth: 同 MySQL root)"
+fi
 echo
 echo "  已安装组件："
-echo "    - kangle + easypanel（内置 PHP 7.4）"
+echo "    - kangle + easypanel（内置 PHP 7.4，含 CDN 反向代理与缓存）"
+if [[ "$INSTALL_MODE" != "cdn" ]]; then
+  echo "    - MySQL 8（mysql_native_password）"
+  echo "    - phpMyAdmin（3313）"
+fi
 [[ ${#EXTRA_PHP[@]} -gt 0 ]] && echo "    - 额外 PHP 版本: $(IFS=,; echo "${EXTRA_PHP[*]}")"
 [[ ${#EXTRA_PHP[@]} -eq 0 ]] && echo "    - 未安装额外 PHP 版本"
 [[ "$ENABLE_BBR" -eq 1 ]] && echo "    - TCP BBR 已启用" || echo "    - TCP BBR 未启用"
 echo "    - acme.sh 已集成（用于 SSL 证书）"
+[[ -n "$MIRROR_BASE" ]] && echo "    - 容器构建镜像站: $MIRROR_BASE"
 echo
 echo -e "  \033[1;31m请妥善保管以上密码（尤其是随机生成时，仅此一处可见）。\033[0m"
 echo "=================================================================="

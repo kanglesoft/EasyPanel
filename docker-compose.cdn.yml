@@ -1,0 +1,66 @@
+# docker-compose.cdn.yml
+# CDN-only（仅 CDN / 不装网站环境）模式的**主编排文件**。
+#
+# 为什么是独立的主文件，而不是 docker-compose.override.yml 覆盖片：
+#   compose 对 map 类型字段（depends_on / volumes / ports）的语义是**合并**而非替换，
+#   因此无法通过 override 文件“删掉” docker-compose.yml 里 kangle 对 mysql 的
+#   depends_on: service_healthy。只要该字段还在，CDN 模式下就会因等不到 mysql
+#   健康状态而启动失败。唯一干净的做法是提供一个不含 mysql 的独立主文件。
+#
+# 用法（与全量模式二选一，不可同时加载）：
+#   全量：docker compose -f docker-compose.yml up -d
+#   CDN ：docker compose -f docker-compose.cdn.yml up -d
+#
+# ───────────────── 本模式保留 / 不安装 的组件边界 ─────────────────
+# 保留（面板与 CDN 能力全部在线）：
+#   kangle 主服务（80/443 反代 + 缓存，CDN 的本体就是这个反向代理）
+#   easypanel 后台 3312 / WHM 3311 / hostcdn 管理界面 / CDN 主从同步 / CDN 节点管理
+#   面板运行所需的 php74-cgi（注意：这是**面板自身**的运行时，不是站点 PHP）
+#   pure-ftpd + webftp（文件管理）、acme.sh 证书、memcached、crond
+# 不安装（网站环境）：
+#   MySQL 容器、额外 phpXX-fpm 容器、phpMyAdmin（3313）
+#
+# 可行性依据（静态代码核实）：easypanel 自身数据层是 sqlite
+#   （webftp/config.php: $GLOBALS['node_db']='sqlite'；db_cfg['default']='sqlite:.../vhs.db'），
+#   FTP 认证同样查 sqlite；framework/lib/mysqlDbProduct.lib.php 的 connect() 有 try/catch，
+#   无库时降级而非致命。故移除 MySQL 不影响面板与 CDN 功能。
+#
+# 端口差异：不暴露 3313（phpMyAdmin 未安装）。
+
+services:
+  kangle:
+    build:
+      context: ./kangle
+      args:
+        # 与 docker-compose.yml 保持一致：镜像站基址，由 install.sh 写入 .env。
+        MIRROR_BASE: ${MIRROR_BASE:-https://mirrors.aliyun.com}
+    container_name: kangle
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"     # HTTPS
+      - "3311:3311"   # kangle 管理
+      - "3312:3312"   # easypanel 后台
+    volumes:
+      - ./data/kangle:/vhs/kangle:rw
+      - ./data/homeftp:/home/ftp:rw
+      - ./data/acme:/root/.acme.sh:rw
+      - /etc/localtime:/etc/localtime:ro
+      # 宿主 docker.sock（只读）：理由与全量模式一致，见 docker-compose.yml 中详细注释。
+      # 简而言之：:ro 堵住“替换 socket 文件本身”的攻击面，且不约束 socket 上的数据通道，
+      # 故容器管理与 nsenter 宿主操作均不受影响。
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "com.kangle.role=infra"
+    # CDN_ONLY=1 会传给 entrypoint.sh，用于跳过 MySQL 就绪等待。
+    # 这里用显式 environment 而非依赖 .env，确保该标志永不丢失。
+    environment:
+      - CDN_ONLY=1
+    env_file: .env
+    networks:
+      - kangle_net
+
+networks:
+  kangle_net:
+    name: kangle_net
+    driver: bridge

@@ -25,9 +25,9 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
-log()  { echo -e "\033[1;36m[uninstall]\033[0m $*"; }
-ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[warn]\033[0m $*"; }
+log()  { echo -e "\033[1;36m[uninstall]\033[0m $*" >&2; }
+ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*" >&2; }
+warn() { echo -e "\033[1;33m[warn]\033[0m $*" >&2; }
 die()  { echo -e "\033[1;31m[error]\033[0m $*" >&2; exit 1; }
 
 YES=0
@@ -65,6 +65,22 @@ elif command -v docker-compose >/dev/null 2>&1; then
   DC="docker-compose"
 fi
 
+# ── 安装模式识别（与 upgrade.sh 同一套逻辑：决定用哪个主编排文件）──
+if [[ -f lib/common.sh ]]; then
+  # shellcheck source=lib/common.sh
+  . lib/common.sh
+fi
+INSTALL_MODE="full"
+MAIN_COMPOSE="docker-compose.yml"
+if declare -F mode_detect >/dev/null 2>&1; then
+  INSTALL_MODE="$(mode_detect)"
+  MAIN_COMPOSE="$(mode_compose_file)"
+fi
+COMPOSE_ARGS=(-f "$MAIN_COMPOSE")
+if [[ -f docker-compose.override.yml ]]; then
+  COMPOSE_ARGS+=(-f docker-compose.override.yml)
+fi
+
 # 需要备份/关注的数据路径
 DATA_PATHS=(
   "data/kangle"
@@ -86,8 +102,14 @@ if [[ "$DO_BACKUP" -eq 1 ]]; then
     mkdir -p "$BK_DIR"
     TS="$(date '+%Y%m%d-%H%M%S')"
     BK_FILE="$BK_DIR/uninstall-backup-$TS.tar.gz"
+    # 只打包实际存在的目录：CDN-only 模式没有 data/mysql，
+    # 直接 tar 一个不存在的路径会让 tar 非零退出，被误判成"备份失败"。
+    EXISTING_PATHS=()
+    for d in "${DATA_PATHS[@]}"; do
+      [[ -d "$d" ]] && EXISTING_PATHS+=("$d")
+    done
     log "卸载前备份业务数据 -> $BK_FILE"
-    tar -czf "$BK_FILE" "${DATA_PATHS[@]}" 2>/dev/null \
+    tar -czf "$BK_FILE" "${EXISTING_PATHS[@]}" 2>/dev/null \
       && ok "备份完成: $BK_FILE" \
       || warn "备份失败，请手动检查 ./data"
   else
@@ -100,10 +122,15 @@ fi
 # ───────────────────────── 2) 停止并移除容器 / 网络 ─────────────────────────
 if [[ -n "$DC" ]]; then
   log "停止并移除容器、网络（保留 bind 数据卷）..."
-  $DC -f docker-compose.yml -f docker-compose.override.yml down --remove-orphans >/dev/null 2>&1 \
+  $DC "${COMPOSE_ARGS[@]}" down --remove-orphans >/dev/null 2>&1 \
     || $DC down --remove-orphans >/dev/null 2>&1 \
     || true
-  ok "容器与项目网络已移除"
+  # 兜底：若模式标记与实际部署不符（例如手动换过编排文件），对另一份编排也执行一次 down，
+  # 避免残留容器占着 80/443 端口导致重装失败。
+  if [[ "$MAIN_COMPOSE" != "docker-compose.yml" ]]; then
+    $DC -f docker-compose.yml down --remove-orphans >/dev/null 2>&1 || true
+  fi
+  ok "容器与项目网络已移除（模式: $INSTALL_MODE）"
 
   # 清理可能残留的旧网络名（项目前缀）
   docker network ls --format '{{.Name}}' | grep -E 'kangle.*kangle_net|easypanel.*kangle_net' | while read -r net; do
@@ -114,7 +141,10 @@ if [[ -n "$DC" ]]; then
   if [[ "$KEEP_IMAGES" -eq 0 ]]; then
     log "删除由本项目本地构建的镜像（kangle / mysql / phpXX）..."
     # --rmi local 仅删除 compose 本地构建的镜像，不影响外部拉取的 mysql:8 / php:* 基础镜像
-    $DC -f docker-compose.yml -f docker-compose.override.yml down --rmi local >/dev/null 2>&1 || true
+    $DC "${COMPOSE_ARGS[@]}" down --rmi local >/dev/null 2>&1 || true
+    if [[ "$MAIN_COMPOSE" != "docker-compose.yml" ]]; then
+      $DC -f docker-compose.yml down --rmi local >/dev/null 2>&1 || true
+    fi
     # 兜底：显式按项目前缀清除本地构建镜像（不受 compose 状态 / override 缺失影响）
     docker images --format '{{.Repository}}:{{.Tag}}' \
       | grep -E "^kangle-easypanel-" \
@@ -142,9 +172,9 @@ if [[ "$DELETE_DATA" -eq 1 ]]; then
     for d in "${DATA_PATHS[@]}"; do
       rm -rf "$d"
     done
-    # 同时清理 add_php.sh 生成的 override 与扩展配置
-    rm -f docker-compose.override.yml
-    ok "数据卷与 override 已删除"
+    # 同时清理 add_php.sh 生成的 override 与扩展配置，以及 v3 新增的安装模式标记
+    rm -f docker-compose.override.yml .install_mode
+    ok "数据卷、override 与安装模式标记已删除"
   else
     warn "已取消删除数据卷，数据保留在 ./data"
   fi
@@ -190,9 +220,11 @@ if [[ "$DELETE_DATA" -ne 1 ]]; then
   echo "       $(pwd)/data/homeftp/"
   echo "       （每个站点对应 data/homeftp/<vhost>/wwwroot/ 下的文件）"
   echo
-  echo "    2) MySQL 数据库文件："
-  echo "       $(pwd)/data/mysql/"
-  echo
+  if [[ -d data/mysql ]]; then
+    echo "    2) MySQL 数据库文件："
+    echo "       $(pwd)/data/mysql/"
+    echo
+  fi
   echo "    3) kangle / EasyPanel 配置与扩展："
   echo "       $(pwd)/data/kangle/"
   echo "       （含站点配置、SSL 证书、ext 扩展模板等）"

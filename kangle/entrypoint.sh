@@ -119,6 +119,13 @@ wait_for_mysql()
 	local php="$PHP_BIN"
 	[ -z "$php" ] && php="$(command -v php74 2>/dev/null || command -v php 2>/dev/null || true)"
 
+	# CDN-only 模式：未安装网站环境（无 MySQL 容器），连库等待无意义，直接跳过。
+	# 面板自身的数据层是 sqlite（vhs.db），不依赖 MySQL，故不影响面板与 CDN 功能。
+	if [ "${CDN_ONLY:-0}" = "1" ]; then
+		echo "[entrypoint] CDN_ONLY=1：未安装网站环境，跳过 MySQL 就绪等待"
+		return 0
+	fi
+
 	if [ -z "$php" ]; then
 		echo "[entrypoint] WARN: 未找到 PHP 运行时，跳过 MySQL 就绪等待"
 		return 0

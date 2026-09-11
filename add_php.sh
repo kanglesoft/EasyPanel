@@ -24,6 +24,19 @@ EXT_DIR="$PROJECT_DIR/data/kangle/ext"
 OVERRIDE="$PROJECT_DIR/docker-compose.override.yml"
 PHP_FPM_DIR="$PROJECT_DIR/php-fpm"
 
+# CDN-only 模式禁止接入额外 PHP：
+#   该模式不安装网站环境（无 MySQL、无站点目录用途），额外 php-fpm 属于网站环境的一部分。
+#   放行会导致容器白跑、且 override 文件在 upgrade.sh 中被 cdn 模式忽略，产生"配置了却不生效"的错觉。
+if [[ -f "$PROJECT_DIR/lib/common.sh" ]]; then
+  # shellcheck source=lib/common.sh
+  . "$PROJECT_DIR/lib/common.sh"
+  if declare -F mode_detect >/dev/null 2>&1 && [[ "$(cd "$PROJECT_DIR" && mode_detect)" == "cdn" ]]; then
+    echo "错误: 当前为 CDN-only 安装模式（未安装网站环境），无法接入额外 PHP。"
+    echo "      如需 MySQL 与站点 PHP，请重新运行 install.sh 并选择「全量模式」。"
+    exit 1
+  fi
+fi
+
 # docker compose 命令适配（v2 插件优先，回退 v1）
 if docker compose version >/dev/null 2>&1; then
   DC="docker compose"

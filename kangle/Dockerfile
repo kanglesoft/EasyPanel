@@ -22,19 +22,49 @@
 
 FROM centos:7
 
-# CentOS 7 已 EOL，官方镜像源已下线，改走 vault 归档源。
-RUN sed -i 's/^mirrorlist/#mirrorlist/; s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
+# ── 镜像站基址（构建期可覆盖，与项目根 mirror.sh 的选站结果保持一致）──────────────
+#   覆盖方式：docker compose build --build-arg MIRROR_BASE=https://mirrors.cloud.tencent.com kangle
+#   默认值阿里云：实测（2026-09）其 centos-vault/7.9.2009 各子仓库均返回 200。
+ARG MIRROR_BASE=https://mirrors.aliyun.com
+# CentOS 7 的最后一个发布版本。注意 centos:7 内 $releasever 恒为 "7"，而归档源
+# **不存在 /7/ 这一级目录**，必须落到具体版本号。
+ARG CENTOS_VAULT_VER=7.9.2009
+
+# CentOS 7 已 EOL，官方 mirrorlist 与 mirror.centos.org 均已下线，必须改走归档源。
+#
+# ⚠️ 实测结论（2026-09-08，三条均为构建失败的直接根因）：
+#   ① vault.centos.org 走 **http** 会被 CloudFront 按地区封禁，返回 403
+#      "block access from your country"；同一路径换 **https** 即返回 200。
+#      原实现用的正是 http —— 国内机器构建镜像必然失败。
+#   ② 归档源**没有 /7/** 这一级，只有 /7.9.2009/ 等版本化目录（/7/ 实测 404）。
+#   ③ 各家镜像站的 centos-vault 同样只有版本化目录，故需把 URL 里的 $releasever
+#      整体替换为具体版本号，而不是沿用变量。
+#
+# baseurl 写成两个空格分隔的地址：yum 按 failovermethod=priority 顺序尝试，
+# 首选所选镜像站，镜像站不可用时自动回退官方归档源（https），避免单站故障卡死构建。
+# 说明：sed 中用 [$]releasever 而非 $releasever —— 前者是正则字符类，不会被 shell
+# 当成变量展开，可安全地把字面量 "$releasever" 匹配出来。
+RUN sed -i \
+      -e "s|^mirrorlist=|#mirrorlist=|" \
+      -e "s|^#baseurl=http://mirror\.centos\.org/centos/[$]releasever|baseurl=${MIRROR_BASE}/centos-vault/${CENTOS_VAULT_VER}|" \
+      /etc/yum.repos.d/CentOS-Base.repo \
+    && sed -i "s|^baseurl=${MIRROR_BASE}/centos-vault/${CENTOS_VAULT_VER}/\([^ ]*\)|baseurl=${MIRROR_BASE}/centos-vault/${CENTOS_VAULT_VER}/\1 https://vault.centos.org/${CENTOS_VAULT_VER}/\1|" \
+      /etc/yum.repos.d/CentOS-Base.repo \
+    && grep -q '^baseurl=' /etc/yum.repos.d/CentOS-Base.repo \
+    && yum clean all
 
 # kangle 及其内嵌 php(tpl_php) 扩展所需的运行时库（干净 centos:7 下 ldd 校验，仅需
 # 少量 CentOS 7 基础仓库包）。freetype/libjpeg/libpng/libtool-ltdl 由 php74.tar.gz 提供，
 # 此处不再重复安装，避免同名 soname 冲突。
-# 注意：CentOS 7 已 EOL，官方 base/vault 源在线，但 EPEL 需走阿里云镜像
-# （archives.fedoraproject.org 已归档且常损坏）。此处追加阿里云 EPEL 以便安装 lftp 等工具。
+#
+# EPEL 步骤已移除（实测 2026-09-08）：
+#   原实现先装 epel-release rpm 再装 lftp，注释称 lftp 来自 EPEL。实测 EPEL 7 的
+#   primary.sqlite（13791 个包）中**不存在** lftp；而 CentOS 7.9 base 仓库中
+#   lftp-4.4.8-12.el7_8.1 存在。下面 8 个包全部命中 base，EPEL 并非必需。
+#   移除收益：① 不再依赖与镜像站强绑定的固定版本 rpm URL（换站即 404）；
+#            ② 少引入一个 gpgcheck=0 的第三方源，镜像更小、供应链攻击面更窄。
 RUN yum install -y --setopt=tsflags=nodocs \
-        openssl sqlite memcached cronie tar which tzdata \
-    && yum install -y --setopt=tsflags=nodocs \
-        "https://mirrors.aliyun.com/epel/7/x86_64/Packages/e/epel-release-7-14.noarch.rpm" \
-    && yum install -y --setopt=tsflags=nodocs lftp \
+        openssl sqlite memcached cronie tar which tzdata lftp \
     && yum clean all
 
 # vendoring 的第三方库（libmcrypt 2.5.8，标准库；来自本仓库 kangle/vendor/）。

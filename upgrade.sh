@@ -38,9 +38,9 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
-log()  { echo -e "\033[1;36m[upgrade]\033[0m $*"; }
-ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[warn]\033[0m $*"; }
+log()  { echo -e "\033[1;36m[upgrade]\033[0m $*" >&2; }
+ok()   { echo -e "\033[1;32m[ ok ]\033[0m $*" >&2; }
+warn() { echo -e "\033[1;33m[warn]\033[0m $*" >&2; }
 die()  { echo -e "\033[1;31m[error]\033[0m $*" >&2; exit 1; }
 
 # ───────────────────────── 参数解析 ─────────────────────────
@@ -112,10 +112,30 @@ BASE_SHORT="$(git rev-parse --short "$BASE_HEAD")"
 OLD_SHORT="$(git rev-parse --short HEAD)"
 TS="$(date '+%Y%m%d-%H%M%S')"
 
+# ── 安装模式识别：按模式选择主编排文件 ──
+# cdn 模式使用不含 mysql 的独立主文件 docker-compose.cdn.yml。
+# 为什么不能靠 override 覆盖：compose 对 map 字段（depends_on / volumes / ports）
+# 是**合并**语义，无法用 override "删掉" 主文件里 kangle 对 mysql 的 depends_on，
+# 因此必须整体换主文件。
+if [[ -f lib/common.sh ]]; then
+  # shellcheck source=lib/common.sh
+  . lib/common.sh            # 提供 mode_detect / mode_compose_file（日志函数已定义，不会被覆盖）
+fi
+INSTALL_MODE="full"
+MAIN_COMPOSE="docker-compose.yml"
+if declare -F mode_detect >/dev/null 2>&1; then
+  INSTALL_MODE="$(mode_detect)"
+  MAIN_COMPOSE="$(mode_compose_file)"
+fi
+[[ -f "$MAIN_COMPOSE" ]] || die "未找到编排文件 $MAIN_COMPOSE（模式: $INSTALL_MODE），请检查仓库完整性。"
+
+COMPOSE_FILES=(-f "$MAIN_COMPOSE")
 # add_php.sh 生成的 PHP 扩展编排一并纳入（与 uninstall.sh 的处理一致；旧部署无此文件时自动跳过）
-COMPOSE_FILES=(-f docker-compose.yml)
-if [[ -f docker-compose.override.yml ]]; then
+# cdn 模式无网站环境：即便残留 override 也不加载，否则会意外拉起 php-fpm 容器。
+if [[ -f docker-compose.override.yml && "$INSTALL_MODE" != "cdn" ]]; then
   COMPOSE_FILES+=(-f docker-compose.override.yml)
+elif [[ -f docker-compose.override.yml ]]; then
+  warn "CDN-only 模式：检测到 docker-compose.override.yml（额外 PHP 容器），本次不加载。"
 fi
 
 # 恢复函数：回退到升级前提交并重建容器（数据卷全程 bind 挂载，不受影响）
@@ -280,11 +300,13 @@ if [[ "$DO_HEALTH" -eq 1 ]]; then
       HEALTH_OK=0
     fi
   done
+  # CDN-only 模式未安装 MySQL 容器，连通检查不适用（面板数据层为 sqlite，无需数据库）
+  if [[ "$INSTALL_MODE" == "cdn" ]]; then
+    log "CDN-only 模式：未安装网站环境，跳过 MySQL 连通检查"
   # 兼容旧版本部署：.env 缺 MYSQL_ROOT_PASSWORD 时降级为跳过，不判失败、不触发回滚
-  MYSQL_PASS="$(read_env_var MYSQL_ROOT_PASSWORD || true)"
-  if [[ -z "$MYSQL_PASS" ]]; then
+  elif [[ -z "$(read_env_var MYSQL_ROOT_PASSWORD || true)" ]]; then
     warn "未在 .env 中找到 MYSQL_ROOT_PASSWORD（旧版本部署），跳过 MySQL 连通检查"
-  elif docker exec mysql8 mysql -uroot -p"$MYSQL_PASS" -e "SELECT 1" >/dev/null 2>&1; then
+  elif docker exec mysql8 mysql -uroot -p"$(read_env_var MYSQL_ROOT_PASSWORD)" -e "SELECT 1" >/dev/null 2>&1; then
     ok "MySQL 连接正常"
   else
     warn "MySQL 连接失败（mysql8 容器状态或 .env 密码异常）"
@@ -332,6 +354,8 @@ fi
 if [[ -n "$BK_FILE" ]]; then
   echo "  备份: $BK_FILE"
 fi
+echo "  安装模式: $INSTALL_MODE $( [[ "$INSTALL_MODE" == "cdn" ]] && echo '（仅 CDN，无网站环境）' || echo '（全量：面板 + 网站环境）' )"
+echo "  编排文件: $MAIN_COMPOSE"
 echo "  数据: ./data 全程未改动（bind 挂载），.env 密码保持不变"
 echo
 echo "  面板访问："
