@@ -18,6 +18,33 @@ chmod 777 /vhs/kangle/nodewww/tmp /vhs/kangle/sessions 2>/dev/null || true
 chown -R root:root /vhs/kangle 2>/dev/null || true
 chmod -R u+w /vhs/kangle 2>/dev/null || true
 
+# ── /vhs/kangle/bin MySQL 客户端与 wget 软链自愈（备份空壳缺陷修复的一部分）──
+# data/kangle/bin/{mysqldump,mysql,mysqlbinlog,wget} 是指向 /usr/bin/… 的绝对软链
+# （backup/restore/cron API 以 kangle_bin_dir 拼路径调用它们），真实二进制由镜像层
+# 提供：MySQL 8.4.7 community client RPM（Dockerfile）+ yum wget。
+# 历史镜像未装 mysql 客户端 → 软链悬空 → mysqldump 127 被管道吞 → .sql.7z 全为空壳。
+# 此处每次启动按镜像实际存在性重建缺失/悬空的链接（ln 幂等），镜像缺二进制时仅告警，
+# 不阻断启动（备份属尽力而为功能）。老部署若 bin/ 目录被手工放过真实文件则不动。
+for _bin in mysqldump mysql mysqlbinlog wget; do
+    _link="/vhs/kangle/bin/${_bin}"
+    _target="/usr/bin/${_bin}"
+    if [ -e "$_link" ] && [ ! -L "$_link" ]; then
+        continue  # 已是真实文件（老镜像遗留），尊重现状不覆盖
+    fi
+    if [ -x "$_target" ]; then
+        if [ ! -x "$_link" ]; then
+            rm -f "$_link" 2>/dev/null || true
+            if ln -s "$_target" "$_link" 2>/dev/null; then
+                echo "[entrypoint] repaired /vhs/kangle/bin/${_bin} -> ${_target}"
+            else
+                echo "[entrypoint] WARN: cannot repair /vhs/kangle/bin/${_bin} (read-only bind mount?)"
+            fi
+        fi
+    elif [ -L "$_link" ]; then
+        echo "[entrypoint] WARN: ${_target} missing in image, /vhs/kangle/bin/${_bin} is dangling"
+    fi
+done
+
 # 确保 vhs.db 使用 easypanel 完整表结构。
 # kangle 内置的 vhs_sqlite 在发现空库时会创建极简的 vhost/vhost_info 表，
 # 缺少 certificate/sync_seq 等 easypanel 必需字段，导致后台 SSL、同步等功能异常。

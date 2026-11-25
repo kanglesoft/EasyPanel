@@ -442,7 +442,14 @@ class BackupAPI extends API
 			$this->databases[] = $row[0];
 		}
 
-		$selectresult = $pdo->query('show master logs');
+		/* MySQL 8.4 兼容：见 queryCompat() 注释（SHOW MASTER LOGS 已移除）*/
+		$selectresult = $this->queryCompat($pdo, 'show binary logs', 'show master logs');
+
+		if (!$selectresult) {
+			$this->showMsg("mysql: show binary/master logs failed (log_bin off?)\n");
+			return false;
+		}
+
 		$binfile = $selectresult->fetchAll();
 
 		if (count($binfile) <= 0) {
@@ -455,7 +462,14 @@ class BackupAPI extends API
 		}
 
 		$pdo->query('flush logs');
-		$selectlog = $pdo->query('show master logs');
+		/* MySQL 8.4 兼容：show binary logs 优先，回退 show master logs（5.7/8.0）。 */
+		$selectlog = $this->queryCompat($pdo, 'show binary logs', 'show master logs');
+
+		if (!$selectlog) {
+			$this->showMsg("mysql: show binary logs after flush failed\n");
+			return false;
+		}
+
 		$binfile = $selectlog->fetchAll();
 
 		foreach ($binfile as $row) {
@@ -513,7 +527,15 @@ class BackupAPI extends API
 	private function backupMysqlInc($pdo)
 	{
 		$pdo->query('flush logs');
-		$result = $pdo->query('SHOW master LOGS');
+		/* MySQL 8.4 兼容：SHOW MASTER LOGS 已被移除（实测 8.4.13 报 1064），
+		 * 先试 SHOW BINARY LOGS，失败回退旧写法，保持 5.7/8.0 可用。 */
+		$result = $this->queryCompat($pdo, 'SHOW BINARY LOGS', 'SHOW MASTER LOGS');
+
+		if (!$result) {
+			$this->showMsg("mysqlInc: show binary/master logs failed\n");
+			return false;
+		}
+
 		$log_ret = $result->fetchAll();
 		$count = count($log_ret);
 
@@ -523,24 +545,57 @@ class BackupAPI extends API
 		}
 
 		$log_list = array();
-		$file_list = array();
 		$i = 0;
 
 		while ($i < $count - 1) {
 			$log_list[] = $log_ret[$i]['Log_name'];
-			$file_list[] = $log_ret[$i]['Log_name'];
 			++$i;
 		}
 
-		$file_list[] = MYSQL_LIST_FILE;
-		$this->writeListFile($log_list, $this->mysql_data_dir . '/' . MYSQL_LIST_FILE);
-		$this->writeListFile($file_list, $this->mysql_data_dir . '/mysql.nb.txt');
 		$max_log_file = $log_ret[$count - 1]['Log_name'];
+
+		/* T-84：原实现把 backupmysql.txt / mysql.nb.txt 写进 datadir 并 chdir 到
+		 * datadir 跑 7z。拆分容器部署里 datadir（/var/lib/mysql）对 kangle 只读
+		 * 挂载（compose ./data/mysql:/var/lib/mysql:ro，安全考虑不给 web 容器
+		 * 写 MySQL 数据文件的权限），写清单必然失败；且 writeListFile 的
+		 * “按目录前缀裁剪”逻辑对 Log_name 这种裸文件名会把整行裁成空串，
+		 * 清单实际是无效的。改为：把待归档 binlog 复制进 filesavedir 暂存，
+		 * 清单文件直接写裸文件名（7z 归档布局与 restore.api.php restoreMysqlInc
+		 * 期望的 平铺 binlog.NNNNNN + backupmysql.txt 完全一致），归档后清掉暂存，
+		 * 仅保留 mysql.sql.7z。 */
+		if (!is_dir($this->filesavedir) && !@mkdir($this->filesavedir, 0700, true)) {
+			$this->showMsg('backupMysqlInc: mkdir ' . $this->filesavedir . " failed\n");
+			return false;
+		}
+
+		foreach ($log_list as $binname) {
+			if (!@copy($this->mysql_data_dir . $binname, $this->filesavedir . $binname)) {
+				$this->showMsg('backupMysqlInc: copy binlog ' . $binname . ' failed (datadir not mounted?)' . "\n");
+				return false;
+			}
+		}
+
+		if (!$this->writeFlatListFile($log_list, $this->filesavedir . MYSQL_LIST_FILE)) {
+			return false;
+		}
+
+		$nb_list = $log_list;
+		$nb_list[] = MYSQL_LIST_FILE;
+
+		if (!$this->writeFlatListFile($nb_list, $this->filesavedir . 'mysql.nb.txt')) {
+			return false;
+		}
+
 		$filename = 'mysql.sql.7z';
 		$cmd = $this->get7zcmd();
 		$cmd .= $this->filesavedir . $filename;
 		$cmd .= ' @mysql.nb.txt';
-		chdir($this->mysql_data_dir);
+
+		if (!chdir($this->filesavedir)) {
+			$this->showMsg('backupMysqlInc: chdir ' . $this->filesavedir . " failed\n");
+			return false;
+		}
+
 		$this->showMsg("backupmysqlinc cmd=\n");
 		$this->showCmd($cmd);
 		$this->showMsg("\n");
@@ -550,10 +605,37 @@ class BackupAPI extends API
 			return false;
 		}
 
-		unlink($this->mysql_data_dir . '/' . MYSQL_LIST_FILE);
-		unlink($this->mysql_data_dir . '/mysql.nb.txt');
+		foreach ($log_list as $binname) {
+			@unlink($this->filesavedir . $binname);
+		}
+
+		@unlink($this->filesavedir . MYSQL_LIST_FILE);
+		@unlink($this->filesavedir . 'mysql.nb.txt');
 		$this->purgeMysqlLogs($pdo, $max_log_file);
 		return $this->filesavedir . $filename;
+	}
+
+	/**
+	 * 按行原样写出清单文件（不做路径前缀裁剪），供 backupMysqlInc 暂存清单使用。
+	 * @param array  $lines
+	 * @param string $filename
+	 * @return boolean
+	 */
+	private function writeFlatListFile($lines, $filename)
+	{
+		$fp = fopen($filename, 'wt');
+
+		if (!$fp) {
+			$this->showMsg('open ' . $filename . " to write failed\n");
+			return false;
+		}
+
+		foreach ($lines as $line) {
+			fwrite($fp, $line . "\n");
+		}
+
+		fclose($fp);
+		return true;
 	}
 
 	/**
@@ -622,21 +704,54 @@ class BackupAPI extends API
 	}
 
 	/**
+	 * MySQL 8.4 语句兼容：执行 $sql_primary，失败回退 $sql_fallback。
+	 *
+	 * 根因（远端 MySQL 8.4.13 取证）：`SHOW MASTER LOGS` / `PURGE MASTER LOGS`
+	 * 在 8.4 已彻底移除（直接 1064 语法错误），旧代码里 `$pdo->query(...)->fetchAll()`
+	 * 对 false 返回值调用 fetchAll() 即 Fatal —— 增量备份路径全灭。
+	 * 新式写法 `SHOW BINARY LOGS` / `PURGE BINARY LOGS` 自 MySQL 5.x 起就与
+	 * master 版同义并存，因此“新式优先 + 旧式回退”对 5.7/8.0/8.4 全覆盖。
+	 *
+	 * 注意：本框架的备份 PDO 未设置 ERRMODE_EXCEPTION（默认 SILENT），
+	 * query() 失败返回 false；try/catch 仅为防御未来全局改动。
+	 * @param  PDO    $pdo
+	 * @param  string $sql_primary  现代写法（优先）
+	 * @param  string $sql_fallback 旧版写法（回退）
+	 * @return PDOStatement|false
+	 */
+	private function queryCompat($pdo, $sql_primary, $sql_fallback)
+	{
+		try {
+			$result = $pdo->query($sql_primary);
+
+			if ($result !== false) {
+				return $result;
+			}
+		}
+		catch (Throwable $e) {
+			/* 主语句异常时同样回退旧语句 */
+		}
+
+		return $pdo->query($sql_fallback);
+	}
+
+	/**
 	 * 更新mysql的binlog，如果已备份，则通知mysql重新生成一份新的binlog文件
 	 * @param unknown_type $pdo
 	 * @param unknown_type $max_log_file
 	 * @return boolean
 	 */
-	/* T-BRI：$max_log_file 改为可选 —— backupMysqlFull 第 611 行一直按单参调用
-	 * （purgeMysqlLogs($pdo)），而本函数签名要求两参，PHP 7.4 下直接
+	/* T-BRI：$max_log_file 改为可选 —— backupMysqlFull 一直按单参调用
+	 * （purgeMysqlLogs($pdo)），而函数签名原要求两参，PHP 7.4 下直接
 	 * ArgumentCountError 致命（远端实测 RC=255，日志见 purgeMysqlLogs ...
 	 * exactly 2 expected）。函数体首行 `if (!$max_log_file)` 本就处理空值
-	 * 分支（flush logs → SHOW master LOGS → 取最新），补默认值即恢复设计语义。 */
+	 * 分支（flush logs → 列 binlog → 取最新），补默认值即恢复设计语义。 */
 	private function purgeMysqlLogs($pdo, $max_log_file = null)
 	{
 		if (!$max_log_file) {
 			$pdo->query('flush logs');
-			$result = $pdo->query('SHOW master LOGS');
+			/* MySQL 8.4：SHOW MASTER LOGS 已移除 → 新式优先、旧式回退 */
+			$result = $this->queryCompat($pdo, 'SHOW BINARY LOGS', 'SHOW MASTER LOGS');
 
 			if (!$result) {
 				$this->showMsg("bin-log not start\n");
@@ -656,8 +771,11 @@ class BackupAPI extends API
 			$max_log_file = end($log_names);
 		}
 
-		$purge_sql = 'PURGE master LOGS TO \'' . $max_log_file . '\'';
-		return $pdo->query($purge_sql);
+		/* MySQL 8.4 同样移除了 PURGE MASTER LOGS（远端实测 1064），
+		 * 统一走 queryCompat 的新式优先 + 旧式回退。 */
+		$purge_sql = 'PURGE BINARY LOGS TO \'' . $max_log_file . '\'';
+		$purge_old = 'PURGE master LOGS TO \'' . $max_log_file . '\'';
+		return (bool)$this->queryCompat($pdo, $purge_sql, $purge_old);
 	}
 
 	/**

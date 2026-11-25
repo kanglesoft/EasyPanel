@@ -63,9 +63,67 @@ RUN sed -i \
 #   lftp-4.4.8-12.el7_8.1 存在。下面 8 个包全部命中 base，EPEL 并非必需。
 #   移除收益：① 不再依赖与镜像站强绑定的固定版本 rpm URL（换站即 404）；
 #            ② 少引入一个 gpgcheck=0 的第三方源，镜像更小、供应链攻击面更窄。
+# wget：data/kangle/bin/wget 是指向 /usr/bin/wget 的软链（面板 cron 调用），
+# centos:7 基础镜像不预装 wget，与下面 mysqldump 同属“bin/ 软链悬空”缺陷。
 RUN yum install -y --setopt=tsflags=nodocs \
-        openssl sqlite memcached cronie tar which tzdata lftp \
+        openssl sqlite memcached cronie tar which tzdata lftp wget \
     && yum clean all
+
+# ── MySQL 客户端工具（mysqldump / mysql / mysqlbinlog）── 缺陷修复：备份空壳根因 ──
+#
+# 现象：data/kangle/bin/{mysqldump,mysql} 是指向 /usr/bin/mysqldump、/usr/bin/mysql 的
+#   软链（随 compose bind 挂载进 /vhs/kangle/bin，供 backup.api.php / restore.api.php
+#   以 kangle_bin_dir 拼接调用），但镜像里 /usr/bin 下没有任何 mysql 客户端
+#   （远端取证：find / -name mysqldump -type f 于 kangle 容器内 0 命中）→ 软链悬空。
+#   面板 exec(".../bin/mysqldump ... | 7z a ...") 时 mysqldump 退出 127 且被管道吞掉，
+#   7z 把空 stdin 封成名为 xxx.sql.7z 的空壳包（远端实测：backup 目录仅剩 etc.7z.001）。
+#
+# 版本选择（远端 mc7 一次性容器实测，对照生产 mysql8=MySQL 8.4.13）：
+#   - MySQL 5.5/5.6（vault os 仓库的 mysql-5.5.x）：客户端连 8.4 直接报
+#     Authentication plugin 'caching_sha2_password' cannot be loaded → 不可用；
+#   - MySQL 8.0.44 el7：connect 可用（native 账号 + caching_sha2 均通，
+#     mysql_native_password 在 el7 build 里带），但 --flush-logs 对 8.4 服务器报
+#     "Got error: 1047: Unknown command when doing refresh"（客户端走旧 COM_REFRESH
+#     子命令，8.4 已移除），--master-data 则内部执行 SHOW MASTER STATUS → 1064；
+#   - MySQL 8.4.7 el7（官方仍为 el7 出 8.4 包）：以上路径全部 rc=0，dump 内容完整，
+#     --master-data 正确产出 CHANGE REPLICATION SOURCE TO 注释 → 选用。
+#   注意 mysql 库系镜像（compose 注释）默认禁用 mysql_native_password 插件之外的
+#   兼容层，而面板 root 账号为 native，8.4.7 客户端对 native/caching_sha2 双通。
+#
+# 供应链：与 docker CLI 同一策略 —— 固定版本 + 官方域名 + sha256 fail-closed。
+#   sha256 于 2026-11-26 从 repo.mysql.com 实测下载计算（yum 会优先用本地文件，
+#   sha256sum -c 通过后以 /tmp 路径安装，不再联网重取）。
+#   四个包均为 x86_64/noarch，无 aarch64 变体混入。
+#   --nogpgcheck：MySQL 官方签名公钥不在 centos:7 信任库内；完整性由上方逐包
+#   sha256sum -c 硬校验承担（与镜像里既有的 EPEL 移除注释同一取舍口径）。
+ARG MYSQL_CLIENT_VER=8.4.7
+ARG MYSQL_CLIENT_REPO=https://repo.mysql.com/yum/mysql-8.4-community/el/7/x86_64
+RUN set -eux; \
+    cd /tmp; \
+    for pkg in \
+      "mysql-community-common-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm 19bfa39d4896190c049ee11ed8f799e4c56c57160370dd473523057164c6d62f" \
+      "mysql-community-client-plugins-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm 8518f604cfbdf7ba50010326966bd4feb31367af868e0477146f1d24a90f67b8" \
+      "mysql-community-libs-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm 093f2d235f32142cf6c0ff43fd69dee6495ae62e50907076429412d7d15c96b9" \
+      "mysql-community-client-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm ccddab1c9390225b5d712bf4fd0778d28c0419d028d0c6cb9af6217d341313b6" \
+    ; do \
+      f=${pkg%% *}; h=${pkg##* }; \
+      curl -fsSL "${MYSQL_CLIENT_REPO}/${f}" -o "/tmp/${f}"; \
+      echo "${h}  /tmp/${f}" | sha256sum -c -; \
+    done; \
+    yum install -y --nogpgcheck --setopt=tsflags=nodocs \
+      "/tmp/mysql-community-common-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm" \
+      "/tmp/mysql-community-client-plugins-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm" \
+      "/tmp/mysql-community-libs-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm" \
+      "/tmp/mysql-community-client-${MYSQL_CLIENT_VER}-1.el7.x86_64.rpm" \
+    && rm -f /tmp/mysql-community-*.rpm \
+    && ldconfig \
+    && yum clean all; \
+    mysqldump --version | grep -q "Ver ${MYSQL_CLIENT_VER}"; \
+    mysqlbinlog --version | grep -q "Ver ${MYSQL_CLIENT_VER}"
+
+# 停用的 mysql 认证插件（默认全部保留，8.4 客户端连 5.7 native 服务器只需
+# mysql_native_password，镜像内已带；此处不裁剪，仅备注）。
+# libmysqlclient.so.24 由 /etc/ld.so.conf.d/mysql-x86_64.conf + ldconfig 生效。
 
 # vendoring 的第三方库（libmcrypt 2.5.8，标准库；来自本仓库 kangle/vendor/）。
 COPY vendor/libmcrypt.so* /usr/lib64/

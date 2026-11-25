@@ -50,6 +50,12 @@ services:
       - ./data/kangle:/vhs/kangle:rw
       - ./data/homeftp:/home/ftp:rw
       - ./data/acme:/root/.acme.sh:rw
+      # MySQL 数据目录（只读）：backup.api.php 的增量备份路径（backupMysqlInc /
+      # backupMysqlSingleInc）在 SHOW VARIABLES 取到 datadir=/var/lib/mysql 后，
+      # 需要 chdir 进去用 mysqlbinlog 逐个归档 binlog —— 拆分容器部署里该路径
+      # 原本只存在于 mysql 容器，kangle 内不存在 → inc 必然失败。挂只读副本即可
+      # 满足读取；写清单文件的兼容性见 backup.api.php 注释（不再写 datadir）。
+      - ./data/mysql:/var/lib/mysql:ro
       - /etc/localtime:/etc/localtime:ro
       # 挂载宿主 docker.sock（只读）：供面板经 Docker API 管理容器、并以一次性特权
       # 方式触达宿主命名空间。
