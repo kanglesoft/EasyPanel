@@ -64,6 +64,29 @@ class MigrateControl extends Control
 		exit(json_encode($ret));
 	}
 
+	/**
+	 * B5/migrate（上游 ep_safe_name 差集对齐）：迁移账号名白名单化。
+	 * 本仓库 runtime.php 没有 ep_* 系列辅助函数（属共享文件，不动），
+	 * 按上游 framework/runtime.php:102 ep_safe_name 的等价逻辑在本控制器内落地：
+	 * 拒绝 '' / '.' / '..' / 含 '/' '\' / NUL 的名字——$vh 会进
+	 * migrateWget 拼接的下载 URL（&f=）、system_wget 的落盘路径
+	 * （doc_root . '/' . $vh . $file_ext）与 shell 参数，非法字符必须挡在最外层。
+	 */
+	private function _safeMigrateName($vh)
+	{
+		$vh = trim(is_scalar($vh) ? strval($vh) : '');
+
+		if ($vh === '' || $vh === '.' || $vh === '..') {
+			return '';
+		}
+
+		if (strpos($vh, '/') !== false || strpos($vh, '\\') !== false || strpos($vh, "\0") !== false) {
+			return '';
+		}
+
+		return $vh;
+	}
+
 	public function add()
 	{
 		session_start();
@@ -100,7 +123,9 @@ class MigrateControl extends Control
 
 	public function migrate()
 	{
-		$vh = trim($_REQUEST['vh']);
+		/* B5：入口先做账号名白名单（上游 :108 ep_safe_name 等价），
+		 * $vh 会流向 URL 拼接、落盘路径与 shell 参数 */
+		$vh = $this->_safeMigrateName($_REQUEST['vh']);
 
 		if (!$vh) {
 			$this->migrate_result(500, '账号不能为空');
@@ -128,6 +153,13 @@ class MigrateControl extends Control
 
 	public function migrateWebRestore($vh = null)
 	{
+		/* B5（上游 :136 对齐）：restore 步骤同样挡非法账号名（可被直接请求） */
+		$vh = $this->_safeMigrateName($vh);
+
+		if ($vh === '') {
+			$this->migrate_result(500, '账号不能为空');
+		}
+
 		$vh_info = daocall('vhost', 'getVhost', array($this->setting['migrate_prefix'] . $vh));
 
 		if (!$vh_info) {
@@ -147,6 +179,13 @@ class MigrateControl extends Control
 
 	public function migrateSqlRestore($vh = null)
 	{
+		/* B5（上游 :162 对齐） */
+		$vh = $this->_safeMigrateName($vh);
+
+		if ($vh === '') {
+			$this->migrate_result(500, '账号不能为空');
+		}
+
 		$G = $GLOBALS['node_cfg']['localhost'];
 		if (!$G['db_passwd'] || !$G['db_user']) {
 			$this->migrate_result(500, '数据库账号和密码错误');
@@ -184,11 +223,23 @@ class MigrateControl extends Control
 
 	private function migrateWget($vh, $file_ext)
 	{
+		/* B5（上游 :205 对齐 + URL 转义差集）：
+		 * ① 账号名白名单后再进 URL；
+		 * ② `&f=` 参数 rawurlencode —— 原实现直接拼接，$vh 含空格会截断 URL
+		 *   （file_get_contents/wget 语义下查询串被断开），含 &/# 可注入额外
+		 *   参数或片段；$file_ext 是常量不受影响。接收端 api/control/whm.ctl.php
+		 *   migrate_down() 读 $_REQUEST['f'] 时 PHP 已自动 urldecode，协议兼容。 */
+		$vh = $this->_safeMigrateName($vh);
+
+		if ($vh === '') {
+			$this->migrate_result(500, '账号不能为空');
+		}
+
 		load_lib('pub:whm');
 		srand((double) microtime() * 1000000);
 		$call = new WhmCall('api/', 'migrate_down');
 		$url = 'http://' . $this->migrate_host . ':'.$this->migrate_port.'/' . $call->buildEpanelUrl($this->migrate_skey);
-		$url .= '&f=' . $vh . $file_ext;
+		$url .= '&f=' . rawurlencode($vh . $file_ext);
 		$vh_info = daocall('vhost', 'getVhost', array($this->setting['migrate_prefix'] . $vh));
 
 		if (!$vh_info) {
@@ -306,7 +357,14 @@ class MigrateControl extends Control
 
 	public function migrateSql($vh = null)
 	{
-		$arr['vh'] = $vh = $_REQUEST['vh'];
+		/* B5（上游 :346 对齐）：本方法可被直接请求，原实现无条件重读 $_REQUEST['vh']
+		 * 绕过 migrate() 入口校验，改为参数优先 + 白名单 */
+		if ($vh === null || $vh === '') {
+			$vh = $_REQUEST['vh'];
+		}
+
+		$vh = $this->_safeMigrateName($vh);
+		$arr['vh'] = $vh;
 		$vh_info = daocall('vhost', 'getVhost', array($this->setting['migrate_prefix'] . $vh));
 
 		if (!$vh_info) {
@@ -329,7 +387,8 @@ class MigrateControl extends Control
 	public function whmQuery()
 	{
 		$arr['session'] = $session = trim($_REQUEST['session']);
-		$arr['vh'] = $vh = trim($_REQUEST['vh']);
+		/* B5（上游 :375 对齐）：$vh 进 callWhm 参数与 shell query，白名单化 */
+		$arr['vh'] = $vh = $this->_safeMigrateName($_REQUEST['vh']);
 		$step = $_REQUEST['step'];
 		if ($step == 1 || $step == 2 || $step == 7) {
 			$result = $this->callWhm('migrate_query', $arr);
@@ -379,6 +438,13 @@ class MigrateControl extends Control
 
 	private function migrateDelFile($vh = null)
 	{
+		/* B5（上游 :430 对齐）：unlink 路径含 $vh，必须先过白名单防目录穿越 */
+		$vh = $this->_safeMigrateName($vh);
+
+		if ($vh === '') {
+			return false;
+		}
+
 		$vh_info = daocall('vhost', 'getVhost', array($this->setting['migrate_prefix'] . $vh));
 
 		if (!$vh_info) {

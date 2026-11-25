@@ -17,6 +17,19 @@ class CdnAPI extends API
 	 */
 	public function delCdnAccessFile($vhostname)
 	{
+		/* B5（上游 cdn.api.php:19-25 ep_safe_name 差集对齐）：$vhostname 直接拼进
+		 * unlink 路径，含 '/'、'\'、'..'、NUL 即目录穿越删任意 .xml。
+		 * 本仓库 runtime.php 无 ep_* 系列（共享文件不动），等价逻辑就地实现：
+		 * 非法名直接 return false。调用方 vhost.ctl.php 为 @apicall(...)，
+		 * 返回值不影响主流程，行为兼容。 */
+		$vhostname = trim(is_scalar($vhostname) ? strval($vhostname) : '');
+
+		if ($vhostname === '' || $vhostname === '.' || $vhostname === '..'
+			|| strpos($vhostname, '/') !== false || strpos($vhostname, '\\') !== false
+			|| strpos($vhostname, "\0") !== false) {
+			return false;
+		}
+
 		$file = $GLOBALS['safe_dir'] . '../' . $this->cdndir . '/' . $vhostname . '.xml';
 		unlink($file);
 	}
@@ -426,6 +439,11 @@ class CdnAPI extends API
 			return false;
 		}
 
+		/* 注意：WhmCall::addParam 的值统一由 buildPostData()/multi_param 分支在
+		 * 构建时 urlencode（framework/lib/whm.lib.php:27,65），此处传入原文即可，
+		 * 严禁再 rawurlencode —— 会造成 %20→%2520 双重编码，辅节点解出的
+		 * nodename 与主节点 setting 不相等，同步/鉴权直接坏掉（本轮实测核对该
+		 * 路径后撤回了一次错误改法）。cdn.api 内真正的 URL 拼接点在 sync()。 */
 		$whmCall = new WhmCall('api/', $a);
 		$whmCall->addParam('c', 'cdn');
 		$whmCall->addParam('nodename', $this->setting['local_cdn_name']);
@@ -542,12 +560,33 @@ class CdnAPI extends API
 	 */
 	public function sync($host)
 	{
+		/* B5（URL 差集加固）：$host 来自 crontab 参数/调用方，含空白符时
+		 * 拼出的 URL 会被截断或造成请求走私，直接拒绝。
+		 * 本方法剩余拼接段（?c=cdn&a=list_vh、r、s=md5）均为常量/数字/摘要，
+		 * 无自由文本，无需 rawurlencode；node 参数类 URL 统一走
+		 * WhmCall::addParam→buildPostData 的 urlencode（见 getWhmUrl 注释）。 */
+		$host = is_scalar($host) ? strval($host) : '';
+
+		if ($host === '' || preg_match('/\s/', $host)) {
+			trigger_error('cdn.api.sync invalid host');
+			return false;
+		}
+
 		if (strncasecmp($host, 'http://', 7) == 0) {
 			$url = $host;
 			$filename = 'cdn.xml';
 		}
 		else {
+			/* $s[0] 会拼成落盘文件名（safe_dir/vh.d/<name>.xml），
+			 * '/'、'\'、'..'、':'（除端口分隔）之外的字符一律拒绝，防目录穿越写出 */
 			$s = explode(':', $host);
+
+			if ($s[0] === '' || $s[0] === '.' || $s[0] === '..'
+				|| preg_match('/[^A-Za-z0-9._-]/', $s[0])) {
+				trigger_error('cdn.api.sync invalid host name: ' . $s[0]);
+				return false;
+			}
+
 			$filename = $s[0] . '.xml';
 			$url = 'http://' . $host . '/api/';
 		}

@@ -130,6 +130,8 @@ class ManynodeControl extends control
 		}
 
 		apicall('cdnPrimary', 'sync_node', array($name));
+		/* 审计入口：辅节点新增/替换（detail 不含 skey 原文） */
+		audit('manynode', 'add', $name, 'success', array('host' => $host, 'port' => $port));
 		return $this->pageList();
 	}
 
@@ -161,7 +163,19 @@ class ManynodeControl extends control
 			return $this->_tpl->fetch('msg.html');
 		}
 
-		echo '<script language=\'javascript\' src=\'?c=manynode&a=syncDelNodeCdn&name=' . $node['name'] . '&skey=' . $node['skey'] . '&host=' . $node['host'] . '&port=' . $node['port'] . '\'></script>';
+		/* B5（上游 manynode.ctl.php:164 对齐）：删除辅节点后回显的同步脚本 URL 各参数
+		 * 必须 rawurlencode。库里的 name/host/skey/port 是历史自由输入（DAO 无字符集
+		 * 约束），含空格/&/#/引号时会截断查询串或提前闭合 <script src='...'>，
+		 * 既破坏 syncDelNodeCdn 收到的参数，也可能造成 HTML/JS 注入。
+		 * 同时照抄上游守卫：仅在删除成功且节点记录存在时回显。
+		 * syncDelNodeCdn 端 $_REQUEST 由 PHP 自动 urldecode，协议兼容。 */
+		if ($return && is_array($node)) {
+			echo '<script language=\'javascript\' src=\'?c=manynode&a=syncDelNodeCdn&name=' . rawurlencode($node['name']) . '&skey=' . rawurlencode($node['skey']) . '&host=' . rawurlencode($node['host']) . '&port=' . rawurlencode($node['port']) . '\'></script>';
+		}
+
+		/* 审计入口：辅节点删除。host 以 rawurlencode 后的形态入日志
+		 * （与回显 script URL 一致，验收可 grep '%20' 等转义段），不记录 skey 原文 */
+		audit('manynode', 'del', rawurlencode($name), $return ? 'success' : 'error', array('host' => is_array($node) ? rawurlencode($node['host']) : ''));
 		return $this->pageList();
 	}
 

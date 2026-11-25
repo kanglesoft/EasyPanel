@@ -44,15 +44,25 @@ class SsoControl extends Control
 			exit('skey error');
 		}
 
-		$str = $_REQUEST['r'] . $name . $_SESSION['sess_key'] . $skey;
+		$r = isset($_REQUEST['r']) ? strval($_REQUEST['r']) : '';
+		$str = $r . $name . $_SESSION['sess_key'] . $skey;
 		$md5str = md5($str);
-		if (strtolower($md5str) === $_REQUEST['s'] && $_REQUEST['s'] != '') {
-			registerRole('vhost', $_REQUEST['name']);
+		/* B6（上游 vhost/control/sso.ctl.php:59 对齐）：签名比较改用 hash_equals 恒定时间，
+		 * 原 `===` 逐字节短路，耗时差可用于时序爆破 s。dnsmgr 侧 kangle.php:148 仍按
+		 * md5(r.name.sess_key.skey) 小写签名，协议不变，兼容不受影响。
+		 * 强转字符串防 ?s[]= 数组注进比较；两侧统一 strtolower。 */
+		$sign = isset($_REQUEST['s']) ? strval($_REQUEST['s']) : '';
+		if ($sign !== '' && hash_equals(strtolower($md5str), strtolower($sign))) {
+			/* 注册名与参与签名的 $name（已 trim）保持一致，防尾空格造成签名主体与会话主体错位 */
+			registerRole('vhost', $name);
 			$_SESSION['login_from'] = 'vhost';
+			/* 审计入口：SSO 免密登录成功（target 用 rawurlencode 归一，防伪造日志换行） */
+			audit('sso', 'login', rawurlencode($name), 'success', array('entry' => 'vhost'));
 			header('Location: index.php');
 			exit();
 		}
 
+		audit('sso', 'login', rawurlencode($name), 'deny', array('entry' => 'vhost', 'reason' => 'bad_sign'));
 		exit('login failed');
 	}
 

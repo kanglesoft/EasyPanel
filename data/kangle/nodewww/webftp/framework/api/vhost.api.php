@@ -54,7 +54,11 @@ class VhostAPI extends API
 	 */
 	public function addVhost($params)
 	{
-		$arr = '';
+		// 集成步修复（上游同款，.temp/repos/easypanel/framework/api/vhost.api.php:59）：
+		// 原 `$arr = ''` 在 PHP 7.4 下后续 $arr[...] 写入全部静默失效，
+		// 字符串传入 Product::sell() 触发 "Cannot unset string offsets" fatal，
+		// 站点创建（?c=product&a=sell）必 500。
+		$arr = array();
 
 		if ($params['cdn'] == 1) {
 			$params['subdir_flag'] = 1;

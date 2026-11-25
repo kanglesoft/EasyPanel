@@ -30,22 +30,35 @@ class SsoControl extends Control
 			exit('error,sess_key is empty');
 		}
 
-		$name = $_REQUEST['name'];
+		/* 仅强转标量、不 trim：admin 端历史上签名用原始 $_REQUEST['name']，
+		 * 保持签名语义不变（vhost 端本就 trim，维持其原语义） */
+		$name = is_scalar($_REQUEST['name']) ? strval($_REQUEST['name']) : '';
 		$skey = daocall('setting', 'get', array('skey'));
 
 		if (!$skey) {
 			exit('skey error');
 		}
 
-		$str = $_REQUEST['r'] . $name . $_SESSION['sess_key'] . $skey;
+		$r = isset($_REQUEST['r']) ? strval($_REQUEST['r']) : '';
+		$str = $r . $name . $_SESSION['sess_key'] . $skey;
 		$md5str = md5($str);
-		if (strtolower($md5str) === $_REQUEST['s'] && $_REQUEST['s'] != '') {
+		/* B6（上游 sso.ctl.php:52 对齐）：签名比较改用 hash_equals 恒定时间，
+		 * 原 `===` 逐字节短路返回，耗时差可被时序侧信道利用逐字节爆破 s。
+		 * 容器 PHP 7.4 原生带 hash_equals（>=5.6），无需 ep_hash_equals 回退壳；
+		 * 签名/参数强转字符串，防 ?s[]= 数组注进比较造成类型错误。
+		 * 两侧统一 strtolower：上游与 dnsmgr 客户端均产小写 md5，兼容不变。 */
+		$sign = isset($_REQUEST['s']) ? strval($_REQUEST['s']) : '';
+		if ($sign !== '' && hash_equals(strtolower($md5str), strtolower($sign))) {
 			registerRole('admin', 'admin');
-			header('Location: ?c=vhost&a=showVhost&name=' . $name);
+			/* 审计入口：SSO 免密登录成功（target 用 rawurlencode 归一，防伪造日志换行） */
+			audit('sso', 'login', rawurlencode($name), 'success', array('entry' => 'admin'));
+			/* B5 同款：跳转参数 rawurlencode，防空格/&/# 截断 Location 查询串与头注入 */
+			header('Location: ?c=vhost&a=showVhost&name=' . rawurlencode($name));
 			exit();
 			return NULL;
 		}
 
+		audit('sso', 'login', rawurlencode($name), 'deny', array('entry' => 'admin', 'reason' => 'bad_sign'));
 		exit('login failed');
 	}
 
