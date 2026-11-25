@@ -5,15 +5,17 @@
  * 定位：白名单（ruleAction=allow 链）的参数校验层。控制器
  * vhost/control/whitelist.ctl.php 通过 apicall('whitelist', ...) 复用这里的
  * 校验逻辑，后续若有其他单元（如地区放行）需要白名单语义，也从这里取
- * 表名/校验，避免 '!ep_whitelist_*' 命名散落。
+ * 表名/校验，避免 '!ep_wl_*' 命名散落。
  *
- * 表命名约定：所有本面板写入的 access 表以 !ep_ 前缀，便于内核侧
- * grep 审计与集成步残链清理（验收点：grep -c ep_whitelist config.xml 应为 0）。
+ * 表命名约定：所有本面板写入的 access 表以 !ep_ 前缀，且总长 ≤16 字符
+ * （内核 add_table 限制「表名称长度错误(两位到16位)」，超长名建表直接
+ * 500 失败），便于内核侧 grep 审计与集成步残链清理
+ * （验收点：grep -c ep_wl config.xml 应为 0）。
  */
 class WhitelistAPI extends API
 {
-	const IP_TABLE = '!ep_whitelist_ip';
-	const URL_TABLE = '!ep_whitelist_url';
+	const IP_TABLE = '!ep_wl_ip';
+	const URL_TABLE = '!ep_wl_url';
 
 	/**
 	 * 白名单使用的 access 表名清单（供集成/验收脚本比对残链）

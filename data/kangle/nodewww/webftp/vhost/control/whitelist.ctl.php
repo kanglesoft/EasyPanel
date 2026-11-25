@@ -5,8 +5,9 @@
  * 模式抄 vhost/control/banip.ctl.php:98-112（独立 ctl 复用
  * framework/lib/access.lib.php 的 Access 原语），不改 banip.ctl.php。
  * 与黑名单的三点区别：
- *   1. 表名 !ep_whitelist_ip / !ep_whitelist_url（!ep_ 前缀便于残链审计，
- *      验收点：`grep -c ep_whitelist /vhs/kangle/etc/config.xml` 应为 0，
+ *   1. 表名 !ep_wl_ip / !ep_wl_url（!ep_ 前缀便于残链审计，且总长 ≤16
+ *      字符以满足内核 add_table「两位到16位」表名上限，
+ *      验收点：`grep -c ep_wl /vhs/kangle/etc/config.xml` 应为 0，
  *      因此本 ctl 采用「按需建表 + 空表自清理」而不是 banip 的进页即建表）；
  *   2. 叶子链 action='allow'（黑名单是 'deny'）；
  *   3. BEGIN 挂载链通过 add_chain 的 id 参数定位插入（内核 KTable::insertChain
@@ -17,8 +18,8 @@
  *      上核对 config.xml 兜底（见 .temp/integration/whitelist-page.md）。
  */
 needRole('vhost');
-define(ALLOW_BANIP_TABLE, '!ep_whitelist_ip');
-define(ALLOW_BANURL_TABLE, '!ep_whitelist_url');
+define(ALLOW_BANIP_TABLE, '!ep_wl_ip');
+define(ALLOW_BANURL_TABLE, '!ep_wl_url');
 define(ALLOW_ACTION, 'allow');
 define(BEGIN, 'BEGIN');
 class WhitelistControl extends Control
@@ -41,7 +42,7 @@ class WhitelistControl extends Control
 		}
 
 		// 只读渲染：表不存在时 listChain 返回 false，按空列表处理。
-		// 不在进页时建表，保证 teardown 后 grep ep_whitelist 残链为 0。
+		// 不在进页时建表，保证 teardown 后 grep ep_wl 残链为 0。
 		$result = $this->access->listChain(ALLOW_BANIP_TABLE, 1);
 		$result2 = $this->access->listChain(ALLOW_BANURL_TABLE, 1);
 		$mounted_ip = $this->access->findChain(BEGIN, ALLOW_BANIP_TABLE) != false;
@@ -116,6 +117,8 @@ class WhitelistControl extends Control
 	 */
 	private function ensureEnabled($table)
 	{
+		$this->gcLegacyTables();
+
 		if (!$this->addTable($table) || !$this->addTable(BEGIN)) {
 			return false;
 		}
@@ -125,6 +128,22 @@ class WhitelistControl extends Control
 		}
 
 		return $this->mountBegin($table);
+	}
+
+	/**
+	 * 回收旧版超长表名（fix: '!ep_whitelist_url' 17 字符超内核 16 字符表名上限，
+	 * 导致 URL 白名单建表报错；'!ep_whitelist_ip' 恰为 16 字符曾被建出）。
+	 * 白名单功能未随版本发布、旧表无用户数据，启用新表时直接卸下 BEGIN 挂载
+	 * 并删除旧表本体，避免旧名残链干扰 `grep -c ep_wl` 审计。幂等、失败静默。
+	 *
+	 * @return void
+	 */
+	private function gcLegacyTables()
+	{
+		foreach (array('!ep_whitelist_ip', '!ep_whitelist_url') as $legacy) {
+			$this->access->delChainByName(BEGIN, $legacy);
+			$this->access->delTable($legacy);
+		}
 	}
 
 	public function switchIp()
@@ -327,7 +346,7 @@ class WhitelistControl extends Control
 
 	/**
 	 * 空表自清理：规则删光后同时卸下 BEGIN 挂载链并删除表本体，
-	 * 保证验收 `grep -c ep_whitelist /vhs/kangle/etc/config.xml` 残链为 0。
+	 * 保证验收 `grep -c ep_wl /vhs/kangle/etc/config.xml` 残链为 0。
 	 *
 	 * @param string $table 白名单表名
 	 * @param bool $forced 强制回收（delAll 场景，表已被 emptyTable 清空）
