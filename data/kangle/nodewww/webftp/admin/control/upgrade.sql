@@ -142,6 +142,10 @@ CREATE TABLE IF NOT EXISTS [acme_hook_token] (
 	[domain] TEXT NULL,
 	[exp] INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS [health_node] ( [name] TEXT NOT NULL PRIMARY KEY, [type] TEXT NOT NULL DEFAULT 'tcp', [host] TEXT, [port] INTEGER NOT NULL DEFAULT 80, [url] TEXT, [expect] TEXT, [node] TEXT, [cycle] INTEGER NOT NULL DEFAULT 1, [timeout] INTEGER NOT NULL DEFAULT 3, [enabled] INTEGER NOT NULL DEFAULT 1, [status] INTEGER NOT NULL DEFAULT 1, [errcount] INTEGER NOT NULL DEFAULT 0, [latency] INTEGER NOT NULL DEFAULT 0, [lasterr] TEXT, [lastcheck] INTEGER NOT NULL DEFAULT 0, [lastswitch] INTEGER NOT NULL DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS [health_event] ( [id] INTEGER PRIMARY KEY AUTOINCREMENT, [node] TEXT NOT NULL, [action] TEXT NOT NULL, [reason] TEXT, [detail] TEXT, [ejected] INTEGER NOT NULL DEFAULT 0, [ts] INTEGER NOT NULL );
+CREATE INDEX IF NOT EXISTS [IDX_HEALTH_EVENT_TS] ON [health_event] ( [ts] );
+CREATE INDEX IF NOT EXISTS [IDX_HEALTH_EVENT_NODE] ON [health_event] ( [node] );
 CREATE TABLE IF NOT EXISTS [notify_channel] ( [id] INTEGER PRIMARY KEY AUTOINCREMENT, [name] VARCHAR(30) NOT NULL, [type] VARCHAR(16) NOT NULL, [enabled] INTEGER NOT NULL DEFAULT 1, [config] TEXT NULL, [last_status] INTEGER NOT NULL DEFAULT 0, [last_time] INTEGER NOT NULL DEFAULT 0, [last_error] TEXT NULL, [remark] TEXT NULL, [createtime] INTEGER NOT NULL DEFAULT 0 );
 CREATE UNIQUE INDEX IF NOT EXISTS [idx_notify_channel_name] ON [notify_channel] ( [name] );
 CREATE INDEX IF NOT EXISTS [idx_notify_channel_enabled] ON [notify_channel] ( [enabled], [type] );
