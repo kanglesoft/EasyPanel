@@ -1,0 +1,97 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>
+        真实 IP 还原
+        {{if $realip.enabled}}<span class="badge badge-success">已开启</span>{{else}}<span class="badge">未开启</span>{{/if}}
+      </h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        站点使用 CDN 或反向代理时，访客真实 IP 位于代理写入的请求头中，内核记录的 REMOTE_ADDR 只是上一跳代理地址。开启本功能后，内核按所选 Header（经请求控制链 <code>mark_replace_ip</code>）还原 REMOTE_ADDR，黑白名单、防盗链、防 CC 等按 IP 的功能即按真实 IP 匹配。
+      </div>
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        请确保您的 CDN/代理会覆盖（而非透传）所选 Header，否则访客可伪造该头伪造来源 IP；多节点 CDN 场景请选只由自家节点写入的头。选「不开启」并保存即关闭本功能。
+      </div>
+
+      <form id="realip-form" action="?c=realip&amp;a=save" method="post" class="ep-form">
+        <div class="form-group">
+          <label>真实 IP Header</label>
+          <div class="controls">
+            <select name="header" id="realip_header" onchange="realip_header_changed();">
+              <option value="">不开启</option>
+              {{foreach from=$realip_headers item=hdr}}
+              <option value="{{$hdr|escape:'html'}}" {{if $realip.enabled && $realip.header==$hdr}}selected="selected"{{/if}}>{{$hdr|escape:'html'}}</option>
+              {{/foreach}}
+              <option value="__custom__" {{if $realip.custom}}selected="selected"{{/if}}>自定义…</option>
+            </select>
+            <span class="help-text">常见：X-Forwarded-For（多级代理时取第一个 IP）、X-Real-Ip（单层代理）、CF-Connecting-IP（Cloudflare）等。</span>
+          </div>
+        </div>
+
+        <div class="form-group" id="realip-custom-row" {{if !$realip.custom}}style="display:none;"{{/if}}>
+          <label>自定义 Header</label>
+          <div class="controls">
+            <input type="text" name="custom_header" id="realip_custom_header" value="{{if $realip.custom}}{{$realip.header|escape:'html'}}{{/if}}" placeholder="例如 X-Client-IP" />
+            <span class="help-text">仅允许字母、数字与 - _ . 等 RFC7230 token 字符，不要包含冒号、空格。</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label></label>
+          <div class="controls">
+            <input type="button" id="realip_save_btn" onclick="realip_save();" value="保存设置" class="btn" />
+            {{if $realip.enabled}}
+            <span class="help-text">当前生效：REMOTE_ADDR 取自 <b>{{$realip.header|escape:'html'}}</b></span>
+            {{/if}}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function realip_header_changed() {
+  var custom = $('#realip_header').val() === '__custom__';
+  $('#realip-custom-row').toggle(custom);
+  if (custom) $('#realip_custom_header').focus();
+}
+
+function realip_save() {
+  var header = $('#realip_header').val();
+  var data;
+  if (header === '__custom__') {
+    var custom = $.trim($('#realip_custom_header').val());
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/.test(custom)) {
+      alert('请输入有效的Header名称，不要包含冒号、空格或换行');
+      $('#realip_custom_header').focus();
+      return;
+    }
+    data = 'status=1&header=' + encodeURIComponent(custom);
+  } else if (header === '') {
+    if (confirm('确认关闭真实IP还原功能？关闭后按IP的功能将按直连对端地址匹配。') !== true) {
+      return;
+    }
+    data = 'status=0&header=';
+  } else {
+    data = 'status=1&header=' + encodeURIComponent(header);
+  }
+  $.ajax({
+    type: 'post',
+    url: '?c=realip&a=save',
+    data: data,
+    success: function (msg) {
+      if (msg != "成功") {
+        alert(msg);
+        return;
+      }
+      window.location.reload();
+    },
+    error: function () { alert('保存设置失败，请重试'); }
+  });
+}
+</script>
+{{include file='common/foot.html'}}
