@@ -114,3 +114,31 @@ CREATE TABLE IF NOT EXISTS [admin_cron] (
 	[last_run] INTEGER NOT NULL DEFAULT 0,
 	[last_status] INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS [dns_credential] (
+	[id] INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	[provider] TEXT NOT NULL,
+	[name] TEXT NULL,
+	[domain] TEXT NULL,
+	[remark] TEXT NULL,
+	[credential] TEXT NOT NULL,
+	[is_default] INTEGER NOT NULL DEFAULT 0,
+	[cre_time] INTEGER NOT NULL DEFAULT 0,
+	[upd_time] INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS [IDX_DNS_CRED_PROVIDER] ON [dns_credential] ([provider] ASC);
+CREATE TABLE IF NOT EXISTS [acme_order_guard] (
+	[domain] TEXT NOT NULL PRIMARY KEY,
+	[fail_count] INTEGER NOT NULL DEFAULT 0,
+	[last_error] TEXT NULL,
+	[provider] TEXT NULL,
+	[ca] TEXT NULL,
+	[first_fail] INTEGER NOT NULL DEFAULT 0,
+	[last_fail] INTEGER NOT NULL DEFAULT 0,
+	[blocked_until] INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS [acme_hook_token] (
+	[token] TEXT NOT NULL PRIMARY KEY,
+	[cred] INTEGER NOT NULL,
+	[domain] TEXT NULL,
+	[exp] INTEGER NOT NULL
+);

@@ -1,0 +1,113 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+var epCreds = {{$creds|json_encode}};
+
+function epHtml(s) {
+  return $('<div>').text(String(s == null ? '' : s)).html();
+}
+
+function epLoad() {
+  var cred = document.getElementById('dnsCred').value;
+  var domain = document.getElementById('dnsDomain').value.trim();
+  var host = document.getElementById('dnsHost').value.trim();
+  var box = document.getElementById('dnsRows');
+  if (!cred) { box.innerHTML = '<tr><td colspan="6">请选择 DNS 凭据</td></tr>'; return; }
+  if (!domain) { box.innerHTML = '<tr><td colspan="6">请填写主域名（如 example.com）</td></tr>'; return; }
+  box.innerHTML = '<tr><td colspan="6">查询中（真实调用 DNS API）…</td></tr>';
+  $.get('?c=acmessl&a=dnsList', {cred: cred, domain: domain, host: host}, function (r) {
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = {code: 1, msg: '返回解析失败', rows: []}; } }
+    if (r.code != 0) {
+      box.innerHTML = '<tr><td colspan="6"><span style="color:var(--color-danger,#dc2626)">✘ ' + epHtml(r.msg) + '</span></td></tr>';
+      return;
+    }
+    if (!r.rows || !r.rows.length) {
+      box.innerHTML = '<tr><td colspan="6">无匹配记录' + (host ? '（过滤：' + epHtml(host) + '）' : '') + '</td></tr>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < r.rows.length; i++) {
+      var x = r.rows[i];
+      var isAcme = String(x.name).indexOf('_acme-challenge') === 0;
+      html += '<tr' + (isAcme ? ' style="background:rgba(59,130,246,.08);"' : '') + '>'
+        + '<td><code>' + epHtml(x.name) + '</code>' + (isAcme ? ' <span class="badge">ACME</span>' : '') + '</td>'
+        + '<td>' + epHtml(x.type) + '</td>'
+        + '<td style="word-break:break-all;">' + epHtml(x.value) + '</td>'
+        + '<td>' + epHtml(x.ttl) + '</td>'
+        + '<td>' + epHtml(x.id) + '</td>'
+        + '<td><a href="javascript:void(0)" class="btn btn-sm btn-danger" data-rid="' + epHtml(x.id) + '" data-zone="' + epHtml(r.zone_id || r.zone || domain) + '" onclick="epDel(this)">删除</a></td>'
+        + '</tr>';
+    }
+    box.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }, 'json').fail(function () {
+    box.innerHTML = '<tr><td colspan="6"><span style="color:var(--color-danger,#dc2626)">请求失败</span></td></tr>';
+  });
+}
+
+function epDel(btn) {
+  var cred = document.getElementById('dnsCred').value;
+  var zone = btn.getAttribute('data-zone');
+  var rid = btn.getAttribute('data-rid');
+  if (!confirm('确定删除记录 ' + rid + '（zone: ' + zone + '）？\n注意：正在进行的证书签发依赖 _acme-challenge TXT，勿手动删除进行中的验证记录。')) return;
+  btn.disabled = true;
+  $.post('?c=acmessl&a=dnsRecordDel', {cred: cred, zone: zone, record_id: rid}, function (r) {
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) {} }
+    if (r.code == 0) epLoad(); else { btn.disabled = false; alert(r.msg || '删除失败'); }
+  }, 'json').fail(function () { btn.disabled = false; alert('请求失败'); });
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="list"></i> DNS TXT 记录管理</h3>
+      <div class="actions">
+        <a href="?c=acmessl&amp;a=dnsconfig" class="btn btn-sm btn-secondary"><i data-lucide="key-round"></i> DNS 凭据</a>
+        <a href="?c=acmessl&amp;a=index" class="btn btn-sm btn-secondary"><i data-lucide="shield"></i> 证书列表</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>此处直接操作服务商的真实解析记录。DNS-01 验证残留的 <code>_acme-challenge.*</code> TXT 可在此清理；删除其它类型记录可能影响网站解析。</span>
+      </div>
+      <div class="form-section">
+        <div class="form-group">
+          <label for="dnsCred">DNS 凭据</label>
+          <div class="controls">
+            <select id="dnsCred">
+              <option value="">-- 选择凭据 --</option>
+              {{foreach from=$creds item=c}}
+              <option value="{{$c.id}}">{{$c.label}} · {{$c.name}}{{if $c.domain}}（{{$c.domain}}）{{/if}}</option>
+              {{/foreach}}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="dnsDomain">主域名（zone）</label>
+          <div class="controls"><input type="text" id="dnsDomain" placeholder="example.com"></div>
+        </div>
+        <div class="form-group">
+          <label for="dnsHost">主机记录过滤（可选）</label>
+          <div class="controls">
+            <input type="text" id="dnsHost" placeholder="如 _acme-challenge 或 www">
+            <span class="form-hint">留空列出该域名全部记录（各家返回字段以服务商为准）。</span>
+          </div>
+        </div>
+      </div>
+      <div class="ep-flex ep-gap-2 ep-mt-4">
+        <button type="button" class="btn" onclick="epLoad()"><i data-lucide="search"></i> 查询记录</button>
+      </div>
+      <div class="ep-table-responsive ep-mt-4">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>名称</th><th>类型</th><th>值</th><th>TTL</th><th>记录 ID</th><th style="width:110px;">操作</th></tr>
+          </thead>
+          <tbody id="dnsRows">
+            <tr><td colspan="6">选择凭据并填写域名后点击「查询记录」。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

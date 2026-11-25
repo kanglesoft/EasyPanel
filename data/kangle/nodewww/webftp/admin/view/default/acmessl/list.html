@@ -1,47 +1,95 @@
 {{include file='common/head.html'}}
+<script type="text/javascript">
+function epHtml(s) {
+  return $('<div>').text(String(s == null ? '' : s)).html();
+}
+function epRenew(domain, btn) {
+  var row = btn.closest('tr');
+  var tip = row.querySelector('.renew-tip');
+  if (tip) tip.innerHTML = '续签中（DNS-01 需 30~120 秒）…';
+  btn.disabled = true;
+  $.ajax({
+    url: '?c=acmessl&amp;a=renew',
+    type: 'POST',
+    data: {domain: domain},
+    dataType: 'json',
+    timeout: 600000,
+    success: function (r) {
+      btn.disabled = false;
+      if (r.code === 'throttle') {
+        if (tip) tip.innerHTML = '<span style="color:var(--color-danger,#dc2626)">⛔ ' + epHtml(r.msg) + '</span>';
+        return;
+      }
+      if (r.code == 0) {
+        if (tip) tip.innerHTML = '<span style="color:var(--color-success,#16a34a)">✔ ' + epHtml(r.msg) + '</span>';
+        setTimeout(function () { location.reload(); }, 1200);
+      } else if (tip) {
+        tip.innerHTML = '<span style="color:var(--color-danger,#dc2626)">✘ ' + epHtml(r.msg) + '</span>';
+      }
+    },
+    error: function () { btn.disabled = false; if (tip) tip.innerHTML = '<span style="color:var(--color-danger,#dc2626)">请求失败</span>'; }
+  });
+}
+</script>
 <div class="ep-content">
+  {{if $blocked && count($blocked) > 0}}
+  <div class="ep-alert ep-alert-warning">
+    <i data-lucide="timer-off"></i>
+    <span>有 {{count($blocked)}} 个域名因连续签发失败被节流（防 Let's Encrypt 速率限制）：{{foreach from=$blocked item=b}}<strong>{{$b.domain}}</strong>（剩 {{$b.wait}} 秒）{{if !$b@last}}、{{/if}}{{/foreach}}。
+    <a href="?c=acmessl&amp;a=dnsconfig">前往 DNS 凭据页修复/解除</a></span>
+  </div>
+  {{/if}}
   <div class="ep-card">
     <div class="ep-card-header">
       <h3><i data-lucide="shield"></i> 免费 SSL 证书管理</h3>
       <div class="actions">
-        <a href="?c=acmessl&amp;a=applyForm" class="btn btn-sm"><i data-lucide="plus-circle"></i> 申请证书</a>
+        <a href="?c=acmessl&amp;a=dnsconfig" class="btn btn-sm btn-secondary"><i data-lucide="key-round"></i> DNS 凭据</a>
+        <a href="?c=acmessl&amp;a=dns" class="btn btn-sm btn-secondary"><i data-lucide="list"></i> TXT 记录</a>
+        <a href="?c=acmessl&amp;a=dnsconfig" class="btn btn-sm"><i data-lucide="globe"></i> 申请 DNS-01 泛域名</a>
+        <a href="?c=acmessl&amp;a=applyForm" class="btn btn-sm btn-secondary"><i data-lucide="plus-circle"></i> HTTP-01 单域名</a>
       </div>
     </div>
     <div class="ep-card-body">
       <div class="ep-alert ep-alert-info">
         <i data-lucide="info"></i>
-        <span>本功能基于 acme.sh 通过 Let's Encrypt HTTP-01 验证自动签发证书。申请前请确保域名已解析到本服务器，并已绑定到对应网站。</span>
+        <span>基于 acme.sh：HTTP-01（webroot，单域名）与 DNS-01（11 家 DNS 平台 API，支持 <code>*.泛域名</code>）；CA 可选 Let's Encrypt / ZeroSSL / Google。申请前请确保域名已解析，DNS-01 还需在「DNS 凭据」页配好 API 密钥。同域连续失败 3 次自动节流 1 小时。</span>
       </div>
       <div class="ep-table-responsive">
         <table class="table" cellpadding="0" cellspacing="0">
           <thead>
             <tr>
               <th>域名</th>
+              <th>类型</th>
+              <th>CA</th>
               <th>签发时间</th>
-              <th>到期时间</th>
-              <th style="width:260px;">操作</th>
+              <th>到期/续签</th>
+              <th style="width:320px;">操作</th>
             </tr>
           </thead>
           <tbody>
             {{foreach from=$certs item=cert}}
             <tr>
               <td><strong>{{$cert.domain}}</strong></td>
+              <td>{{if $cert.is_wildcard}}<span class="badge">泛域名</span>{{else}}单域名{{/if}}</td>
+              <td>{{$cert.server}}</td>
               <td>{{$cert.Le_CertCreateTimeStr}}</td>
               <td>{{$cert.Le_NextRenewTimeStr}}</td>
               <td>
                 <div class="ep-flex ep-gap-2 ep-flex-wrap">
-                  <a href="?c=acmessl&amp;a=view&amp;domain={{$cert.domain}}" class="btn btn-sm btn-secondary"><i data-lucide="eye"></i> 查看/复制</a>
-                  <a href="javascript:if(confirm('确定删除 {{$cert.domain}} 的证书？')){location.href='?c=acmessl&amp;a=remove&amp;domain={{$cert.domain}}';}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
+                  <a href="javascript:void(0)" class="btn btn-sm" onclick="epRenew('{{$cert.domain|escape:'javascript'}}', this)"><i data-lucide="refresh-cw"></i> 续签</a>
+                  <a href="?c=acmessl&amp;a=view&amp;domain={{$cert.domain|escape:'url'}}" class="btn btn-sm btn-secondary"><i data-lucide="eye"></i> 查看/复制</a>
+                  <a href="javascript:if(confirm('确定删除 {{$cert.domain|escape:'javascript'}} 的证书？')){location.href='?c=acmessl&amp;a=remove&amp;domain={{$cert.domain|escape:'url'}}';}" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</a>
                 </div>
+                <div class="renew-tip" style="font-size:12px;margin-top:4px;"></div>
               </td>
             </tr>
             {{foreachelse}}
-            <tr><td colspan="4">
+            <tr><td colspan="6">
               <div class="ep-empty">
                 <div class="ep-empty-icon"><i data-lucide="shield"></i></div>
                 <h4>暂无证书</h4>
-                <p>还没有申请过 Let's Encrypt 免费证书。</p>
-                <a href="?c=acmessl&amp;a=applyForm" class="btn"><i data-lucide="plus-circle"></i> 立即申请</a>
+                <p>还没有申请过免费 SSL 证书。DNS-01 可签发泛域名且不依赖 80 端口。</p>
+                <a href="?c=acmessl&amp;a=dnsconfig" class="btn"><i data-lucide="globe"></i> 配置 DNS 凭据并申请</a>
               </div>
             </td></tr>
             {{/foreach}}

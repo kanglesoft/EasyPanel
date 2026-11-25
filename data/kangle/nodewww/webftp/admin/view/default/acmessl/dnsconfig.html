@@ -1,0 +1,365 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+var epProviders = {{$providers|json_encode}};
+var epCreds = {{$creds|json_encode}};
+var epEditingId = 0;
+
+function epShowProviderFields() {
+  var p = document.getElementById('credProvider').value;
+  var box = document.getElementById('providerFieldsets');
+  var groups = box.querySelectorAll('.provider-fields');
+  for (var i = 0; i < groups.length; i++) {
+    groups[i].style.display = (groups[i].getAttribute('data-provider') === p) ? '' : 'none';
+  }
+  var meta = document.getElementById('providerHelp');
+  if (meta && epProviders[p]) {
+    meta.innerHTML = epProviders[p].help + (epProviders[p].link ? ' <a href="' + epProviders[p].link + '" target="_blank" rel="noopener">控制台</a>' : '');
+  }
+}
+
+function epFillEdit(id) {
+  var c = null;
+  for (var i = 0; i < epCreds.length; i++) if (epCreds[i].id == id) { c = epCreds[i]; break; }
+  if (!c) return;
+  epEditingId = c.id;
+  document.getElementById('credFormTitle').innerHTML = '编辑凭据 #' + c.id;
+  document.getElementById('credProvider').value = c.provider;
+  epShowProviderFields();
+  document.getElementById('credName').value = c.name;
+  document.getElementById('credDomain').value = c.domain;
+  document.getElementById('credRemark').value = c.remark;
+  // secret 字段不回显明文；非 secret 字段也无法逐一定位（preview 已打码），
+  // 提示用户：留空的敏感字段沿用旧值
+  window.scrollTo(0, document.getElementById('credFormCard').offsetTop - 12);
+}
+
+function epResetForm() {
+  epEditingId = 0;
+  document.getElementById('credFormTitle').innerHTML = '添加凭据';
+  document.getElementById('credForm').reset();
+  epShowProviderFields();
+}
+
+function epSaveCred(btn) {
+  var p = document.getElementById('credProvider').value;
+  var data = {
+    id: epEditingId,
+    provider: p,
+    name: document.getElementById('credName').value,
+    domain: document.getElementById('credDomain').value,
+    remark: document.getElementById('credRemark').value
+  };
+  var inputs = document.querySelectorAll('#providerFieldsets input');
+  data.fields = {};
+  for (var i = 0; i < inputs.length; i++) {
+    if (inputs[i].name && inputs[i].name.indexOf('fields[') === 0) {
+      var key = inputs[i].name.replace('fields[', '').replace(']', '');
+      data.fields[key] = inputs[i].value;
+    }
+  }
+  var msg = document.getElementById('credMsg');
+  msg.innerHTML = '保存中…';
+  btn.disabled = true;
+  $.post('?c=acmessl&a=dnsconfigSave', data, function (r) {
+    btn.disabled = false;
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = {code: 1, msg: '返回解析失败'}; } }
+    msg.innerHTML = '<span style="color:' + (r.code == 0 ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #dc2626)') + '">' + r.msg + '</span>';
+    if (r.code == 0) setTimeout(function () { location.reload(); }, 600);
+  }, 'json').fail(function () { btn.disabled = false; msg.innerHTML = '<span style="color:var(--color-danger,#dc2626)">请求失败</span>'; });
+}
+
+function epDelCred(id, name) {
+  if (!confirm('确定删除凭据「' + name + '」？依赖它的续签不受影响（acme.sh 已存有账号级配置），但面板将无法再用它签发新证书。')) return;
+  $.post('?c=acmessl&a=dnsconfigDelete', {id: id}, function (r) {
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) {} }
+    if (r.code == 0) location.reload(); else alert(r.msg || '删除失败');
+  }, 'json');
+}
+
+function epSetDefault(id) {
+  $.post('?c=acmessl&a=dnsconfigDefault', {id: id}, function (r) {
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) {} }
+    if (r.code == 0) location.reload(); else alert(r.msg || '操作失败');
+  }, 'json');
+}
+
+function epTestCred(id, btn) {
+  var out = document.getElementById('testResult-' + id);
+  out.innerHTML = '测试中（真实调用 DNS 服务商 API，请稍候）…';
+  btn.disabled = true;
+  $.post('?c=acmessl&a=dnsconfigTest', {id: id}, function (r) {
+    btn.disabled = false;
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) { r = {code: 1, msg: '返回解析失败'}; } }
+    out.innerHTML = '<span style="color:' + (r.code == 0 ? 'var(--color-success, #16a34a)' : 'var(--color-danger, #dc2626)') + '">' + (r.code == 0 ? '✔ ' : '✘ ') + epHtml(r.msg) + '</span>';
+  }, 'json').fail(function () { btn.disabled = false; out.innerHTML = '<span style="color:var(--color-danger,#dc2626)">请求失败</span>'; });
+}
+
+function epHtml(s) {
+  return $('<div>').text(String(s == null ? '' : s)).html();
+}
+
+function epApply(btn) {
+  var msg = document.getElementById('applyMsg');
+  var data = {
+    mode: 'dns',
+    domain: document.getElementById('applyDomain').value,
+    cred: document.getElementById('applyCred').value,
+    vhost: document.getElementById('applyVhost').value,
+    ca: document.getElementById('applyCa').value,
+    keytype: document.querySelector('input[name="keytype"]:checked') ? document.querySelector('input[name="keytype"]:checked').value : 'ecc',
+    email: document.getElementById('applyEmail').value,
+    no_root: document.getElementById('applyRoot').checked ? '0' : '1'
+  };
+  if (!data.domain) { msg.innerHTML = '<span style="color:var(--color-danger,#dc2626)">请填写域名</span>'; return; }
+  msg.innerHTML = '签发中：DNS-01 验证 + CA 签发通常需要 30~120 秒，请勿关闭页面…';
+  btn.disabled = true;
+  $.ajax({
+    url: '?c=acmessl&a=apply',
+    type: 'POST',
+    data: data,
+    dataType: 'json',
+    timeout: 600000,
+    success: function (r) {
+      btn.disabled = false;
+      if (r.code === 'throttle') {
+        msg.innerHTML = '<span style="color:var(--color-danger,#dc2626)">⛔ 已节流：' + epHtml(r.msg) + '</span>';
+        return;
+      }
+      if (r.code == 0) {
+        msg.innerHTML = '<span style="color:var(--color-success,#16a34a)">✔ ' + epHtml(r.msg) + '</span>';
+        setTimeout(function () { location.href = '?c=acmessl&a=index'; }, 1200);
+      } else {
+        var extra = (r.fail_count !== undefined) ? '（本轮失败 ' + r.fail_count + '/' + (r.limit || 3) + '，连错 ' + (r.limit || 3) + ' 次将节流 1 小时）' : '';
+        msg.innerHTML = '<span style="color:var(--color-danger,#dc2626)">✘ ' + epHtml(r.msg) + ' ' + epHtml(extra) + '</span>';
+      }
+    },
+    error: function (x) {
+      btn.disabled = false;
+      msg.innerHTML = '<span style="color:var(--color-danger,#dc2626)">请求失败：' + epHtml(x.statusText || '网络错误') + '</span>';
+    }
+  });
+}
+
+function epClearThrottle(domain, btn) {
+  if (!confirm('确定解除 ' + domain + ' 的签发节流？请确认 DNS 凭据已修复，否则会很快再次触发。')) return;
+  $.post('?c=acmessl&a=throttleClear', {domain: domain}, function (r) {
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch (e) {} }
+    if (r.code == 0) location.reload(); else alert(r.msg || '操作失败');
+  }, 'json');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  epShowProviderFields();
+});
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="key-round"></i> DNS 凭据（DNS-01 泛域名证书）</h3>
+      <div class="actions">
+        <a href="?c=acmessl&amp;a=index" class="btn btn-sm btn-secondary"><i data-lucide="shield"></i> 证书列表</a>
+        <a href="?c=acmessl&amp;a=dns" class="btn btn-sm btn-secondary"><i data-lucide="list"></i> TXT 记录管理</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info">
+        <i data-lucide="info"></i>
+        <span>DNS-01 验证通过服务商 API 自动添加 <code>_acme-challenge</code> TXT 记录，可签发 <code>*.example.com</code> 泛域名证书，且不要求 80 端口可达。密钥加密存储于面板数据库；连续失败 {{if $fail_limit}}{{$fail_limit}}{{else}}3{{/if}} 次将自动节流 1 小时，防止触发 Let's Encrypt 速率限制。</span>
+      </div>
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr><th>平台</th><th>名称</th><th>主域名</th><th>凭据（打码）</th><th>更新</th><th style="width:320px;">操作</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$creds item=c}}
+            <tr>
+              <td><strong>{{$c.label}}</strong>{{if $c.is_default}} <span class="badge">默认</span>{{/if}}</td>
+              <td>{{$c.name}}</td>
+              <td>{{$c.domain}}</td>
+              <td>{{foreach from=$c.preview item=pv}}<div style="font-size:12px;">{{$pv|escape}}</div>{{/foreach}}<div id="testResult-{{$c.id}}" style="margin-top:4px;font-size:12px;"></div></td>
+              <td>{{if $c.upd_time}}{{$c.upd_time|date_format:"%Y-%m-%d %H:%M"}}{{/if}}</td>
+              <td>
+                <div class="ep-flex ep-gap-2 ep-flex-wrap">
+                  <a href="javascript:void(0)" class="btn btn-sm btn-secondary" onclick="epTestCred({{$c.id}}, this)"><i data-lucide="plug"></i> 测试</a>
+                  <a href="javascript:void(0)" class="btn btn-sm btn-secondary" onclick="epFillEdit({{$c.id}})"><i data-lucide="pencil"></i> 编辑</a>
+                  {{if !$c.is_default}}<a href="javascript:void(0)" class="btn btn-sm btn-secondary" onclick="epSetDefault({{$c.id}})"><i data-lucide="star"></i> 设默认</a>{{/if}}
+                  <a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="epDelCred({{$c.id}}, '{{$c.name|escape:'javascript'}}')"><i data-lucide="trash"></i> 删除</a>
+                </div>
+              </td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="6">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="key-round"></i></div>
+                <h4>尚无 DNS 凭据</h4>
+                <p>在下方添加所选 DNS 平台的 API 密钥后即可签发泛域名证书。</p>
+              </div>
+            </td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card" id="credFormCard">
+    <div class="ep-card-header">
+      <h3 id="credFormTitle"><i data-lucide="plus-circle"></i> 添加凭据</h3>
+      <div class="actions"><a href="javascript:void(0)" class="btn btn-sm btn-secondary" onclick="epResetForm()">重填</a></div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-form" id="credForm">
+        <div class="form-section">
+          <div class="form-section-title">基本信息</div>
+          <div class="form-group">
+            <label for="credProvider">DNS 平台</label>
+            <div class="controls">
+              <select id="credProvider" onchange="epShowProviderFields();">
+                {{foreach from=$providers item=pd key=pk}}
+                <option value="{{$pk}}">{{$pd.label}}</option>
+                {{/foreach}}
+              </select>
+              <span class="form-hint" id="providerHelp"></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="credName">备注名称</label>
+            <div class="controls"><input type="text" id="credName" placeholder="留空自动用平台名"></div>
+          </div>
+          <div class="form-group">
+            <label for="credDomain">主域名（可选）</label>
+            <div class="controls">
+              <input type="text" id="credDomain" placeholder="example.com">
+              <span class="form-hint">填写后，申请该域名的证书会优先选用此凭据（否则用默认凭据）。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="credRemark">说明</label>
+            <div class="controls"><input type="text" id="credRemark" placeholder="选填"></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">API 密钥（加密存储；编辑时留空表示不修改）</div>
+          <div id="providerFieldsets">
+            {{foreach from=$providers item=pd key=pk}}
+            <div class="provider-fields" data-provider="{{$pk}}" style="display:none;">
+              {{foreach from=$pd.fields item=f}}
+              <div class="form-group">
+                <label>{{$f.label}}{{if $f.required}}<span style="color:var(--color-danger,#dc2626);"> *</span>{{/if}}</label>
+                <div class="controls">
+                  <input type="{{if $f.secret}}password{{else}}text{{/if}}" name="fields[{{$f.key}}]"
+                    autocomplete="new-password"
+                    placeholder="{{if isset($f.placeholder)}}{{$f.placeholder}}{{elseif $f.secret}}（加密保存）{{/if}}">
+                </div>
+              </div>
+              {{/foreach}}
+            </div>
+            {{/foreach}}
+          </div>
+        </div>
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="button" class="btn" onclick="epSaveCred(this)"><i data-lucide="save"></i> 保存凭据</button>
+          <span id="credMsg"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="globe"></i> 申请 DNS-01 证书（支持泛域名）</h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="form-section">
+        <div class="form-group">
+          <label for="applyDomain">域名</label>
+          <div class="controls">
+            <input type="text" id="applyDomain" placeholder="*.example.com 或 example.com">
+            <span class="form-hint">填 <code>*.example.com</code> 默认同时包含裸域 example.com（SAN），可取消勾选。</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="applyCred">DNS 凭据</label>
+          <div class="controls">
+            <select id="applyCred">
+              <option value="0">-- 自动（按域名匹配，否则默认凭据）--</option>
+              {{foreach from=$creds item=c}}
+              <option value="{{$c.id}}">{{$c.label}} · {{$c.name}}{{if $c.domain}}（{{$c.domain}}）{{/if}}</option>
+              {{/foreach}}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="applyCa">证书颁发机构（CA）</label>
+          <div class="controls">
+            <select id="applyCa">
+              <option value="letsencrypt">Let's Encrypt（默认）</option>
+              <option value="zerossl">ZeroSSL</option>
+              <option value="google">Google Trust Services</option>
+              <option value="staging">LE Staging（测试，不计生产配额）</option>
+            </select>
+            <span class="form-hint">切换 CA 后 acme.sh 会为每个 CA 单独建账户；ZeroSSL 建议填写邮箱。</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>密钥类型</label>
+          <div class="controls">
+            <label><input type="radio" name="keytype" value="ecc" checked> ECDSA P-256（推荐）</label>
+            &nbsp;&nbsp;<label><input type="radio" name="keytype" value="rsa"> RSA 2048</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="applyEmail">账户邮箱（选填）</label>
+          <div class="controls"><input type="text" id="applyEmail" placeholder="admin@example.com"></div>
+        </div>
+        <div class="form-group">
+          <label for="applyVhost">部署到网站（可选）</label>
+          <div class="controls">
+            <select id="applyVhost">
+              <option value="">-- 不自动部署 --</option>
+              {{foreach from=$vhosts item=v}}
+              <option value="{{$v.name}}">{{$v.name}}</option>
+              {{/foreach}}
+            </select>
+            <span class="form-hint"><label><input type="checkbox" id="applyRoot" checked> 泛域名同时包含裸域（SAN: example.com）</label></span>
+          </div>
+        </div>
+      </div>
+      <div class="ep-flex ep-gap-2 ep-mt-4">
+        <button type="button" class="btn" onclick="epApply(this)"><i data-lucide="shield-check"></i> 申请证书</button>
+        <a href="?c=acmessl&amp;a=applyForm" class="btn btn-secondary">HTTP-01 单域名（旧）</a>
+        <span id="applyMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="timer-off"></i> 签发节流状态（连续失败保护）</h3>
+      <div class="actions"><a href="javascript:void(0)" class="btn btn-sm btn-secondary" onclick="if(confirm('清空全部节流记录？'))$.post('?c=acmessl&a=throttleClear',{domain:''},function(r){location.reload();},'json')">全部解除</a></div>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead><tr><th>域名</th><th>失败次数</th><th>剩余冷却</th><th>最后错误</th><th>平台/CA</th><th style="width:120px;">操作</th></tr></thead>
+          <tbody>
+            {{foreach from=$blocked item=b}}
+            <tr>
+              <td><strong>{{$b.domain}}</strong></td>
+              <td>{{$b.fail_count}}</td>
+              <td>{{$b.wait}} 秒</td>
+              <td>{{$b.last_error}}</td>
+              <td>{{$b.provider}} / {{$b.ca}}</td>
+              <td><a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="epClearThrottle('{{$b.domain|escape:'javascript'}}', this)">解除</a></td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="6"><div class="ep-empty"><p>无节流中的域名。同一域名连续失败 3 次（1 小时窗口）会出现在这里。</p></div></td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}

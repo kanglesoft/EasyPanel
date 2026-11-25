@@ -1006,6 +1006,13 @@ function csrf_enforce_level($c, $a)
 			'apply'              => CSRF_REAUTH_NONE,  // 触发外部 CA 请求（有配额/频率风险）
 			'applyToVhost'       => CSRF_REAUTH_NONE,  // 写宿主证书 + 重载 kangle
 			'deployCertToDomain' => CSRF_REAUTH_NONE,  // 写宿主证书（本轮新增）
+			'renew'              => CSRF_REAUTH_NONE,  // DNS-01 续签（同 apply，有 CA 配额风险）
+			'dnsconfigSave'      => CSRF_REAUTH_NONE,  // 写 DNS API 凭据
+			'dnsconfigDelete'    => CSRF_REAUTH_GRACE, // 删凭据（不可逆，但只影响面板侧）
+			'dnsconfigTest'      => CSRF_REAUTH_NONE,  // 只读探测（出网请求）
+			'dnsconfigDefault'   => CSRF_REAUTH_NONE,  // 切默认凭据
+			'dnsRecordDel'       => CSRF_REAUTH_GRACE, // 直删服务商真实解析记录
+			'throttleClear'      => CSRF_REAUTH_NONE,  // 解除节流（解除后仍受 fail 计数自然复封）
 			'remove'             => CSRF_REAUTH_GRACE, // 删除证书
 		),
 		'manynode' => array(
