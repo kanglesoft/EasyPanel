@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {{if $geo_supported}}<li><a href="?c=geoip&amp;a=show" class="{{if $smarty.get.c=='geoip'}}active{{/if}}"><i data-lucide="globe-lock"></i> 地区封禁</a></li>{{/if}}
         <li><a href="?c=antisql&amp;a=antisqlfrom" class="{{if $smarty.get.c=='antisql'}}active{{/if}}"><i data-lucide="shield-alert"></i> SQL 注入防护</a></li>
         <li><a href="?c=antiupload&amp;a=antiuploadfrom" class="{{if $smarty.get.c=='antiupload'}}active{{/if}}"><i data-lucide="shield-check"></i> 上传保护</a></li>
+        <li><a href="?c=webwaf&amp;a=webwafFrom" class="{{if $smarty.get.c=='webwaf'}}active{{/if}}"><i data-lucide="shield-half"></i> 雷池 WAF</a></li>
       </ul>
 
       <div class="nav-section-title">缓存与优化</div>
@@ -163,6 +164,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <li><a href="?c=cache&amp;a=cachefrom" class="{{if $smarty.get.c=='cache'}}active{{/if}}"><i data-lucide="zap"></i> 页面缓存</a></li>
         <li><a href="?c=cacheclean&amp;a=cachecleanfrom" class="{{if $smarty.get.c=='cacheclean'}}active{{/if}}"><i data-lucide="eraser"></i> 缓存清理</a></li>
         <li><a href="?c=cdn&amp;a=addTableFrom" class="{{if $smarty.get.c=='cdn'}}active{{/if}}"><i data-lucide="map"></i> CDN 设置</a></li>
+        <li><a href="?c=http3&amp;a=show" class="{{if $smarty.get.c=='http3'}}active{{/if}}"><i data-lucide="wifi"></i> HTTP/3</a></li>
         {{* Gzip 压缩：本构建无对应控制器（?c=gzip 点击必崩），已从导航移除 *}}
       </ul>
 
@@ -171,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <li><a href="?c=rewrite&amp;a=rewriteFrom" class="{{if $smarty.get.c=='rewrite'}}active{{/if}}"><i data-lucide="file-code"></i> URL 重写</a></li>
         <li><a href="?c=mime&amp;a=mimefrom" class="{{if $smarty.get.c=='mime'}}active{{/if}}"><i data-lucide="clipboard-list"></i> MIME 类型</a></li>
         <li><a href="?c=response&amp;a=gzipFrom" class="{{if $smarty.get.c=='response'}}active{{/if}}"><i data-lucide="arrow-up-from-line"></i> 响应头</a></li>
-        <li><a href="?c=hsts&amp;a=hstsFrom" class="{{if $smarty.get.c=='hsts'}}active{{/if}}"><i data-lucide="shield-lock"></i> HSTS</a></li>
+        <li><a href="?c=hsts&amp;a=hstsFrom" class="{{if $smarty.get.c=='hsts'}}active{{/if}}"><i data-lucide="lock-keyhole"></i> HSTS</a></li>
       </ul>
 
       <div class="nav-section-title">工具</div>
