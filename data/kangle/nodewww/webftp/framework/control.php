@@ -37,6 +37,12 @@ class Control
 		if (function_exists('csrf_token')) {
 			$this->_tpl->assign('csrf_token', csrf_token());
 		}
+
+		// 原生 POST 表单的服务端隐藏域（login 页处于 enforce 档，不能依赖 JS 注入）。
+		// 与 csrf_token 同步注入：绕过 Control::fetch() 的 $this->_tpl->display() 路径同样可取。
+		if (function_exists('csrf_field')) {
+			$this->_tpl->assign('csrf_field', csrf_field());
+		}
 	}
 
 	/**
@@ -76,6 +82,10 @@ class Control
 		// 无需逐个表单/逐个 $.post 改造。
 		if (function_exists('csrf_token')) {
 			$this->_tpl->assign('csrf_token', csrf_token());
+		}
+
+		if (function_exists('csrf_field')) {
+			$this->_tpl->assign('csrf_field', csrf_field());
 		}
 
 		try {

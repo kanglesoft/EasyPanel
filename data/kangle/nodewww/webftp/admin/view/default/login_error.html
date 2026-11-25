@@ -10,6 +10,8 @@
       {{$msg|default:'用户名或密码错误，请重新尝试。'}}
     </div>
     <form action="index.php?c=session&amp;a=login" method="post" name="form1" class="ep-form">
+      {{* 失败重答同样处于 enforce 档（会话此时已下发 token，豁免通道关闭），必须带隐藏域 *}}
+      {{$csrf_field}}
       <div class="form-group">
         <label>用户名</label>
         <div class="controls">

@@ -7,6 +7,9 @@
     <h1>管理员登录</h1>
     <p>请输入您的账号和密码以继续</p>
     <form action="index.php?c=session&amp;a=login" method="post" name="form1" class="ep-form">
+      {{* 服务端直出隐藏域：csrf.js 的 JS 注入在脚本被拦截/报错时失效，
+          而 session/login 处于 enforce 档——表单必须自带 token *}}
+      {{$csrf_field}}
       <div class="form-group">
         <label>用户名</label>
         <div class="controls">

@@ -7,6 +7,8 @@
     <h1>用户登录</h1>
     <p>请输入您的账号和密码以继续</p>
     <form action="index.php?c=session&amp;a=login" method="post" name="form1" class="ep-form">
+      {{* 与 admin 端一致：隐藏域服务端直出（vhost 侧守卫本轮未启用，接线保持两端统一，为后续纳入 enforce 做准备） *}}
+      {{$csrf_field}}
       <div class="form-group">
         <label>用户名</label>
         <div class="controls"><input type="text" name="username" placeholder="请输入用户名" autofocus /></div>
