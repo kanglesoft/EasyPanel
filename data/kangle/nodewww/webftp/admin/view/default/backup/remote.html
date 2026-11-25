@@ -1,0 +1,238 @@
+{{include file='common/head.html'}}
+<script language='javascript'>
+/**
+ * 远程备份配置页（backup-remote-and-ignore）
+ * 四个远程类型分区块显示；test_remote 走 POST（csrf.js 全局注入 _csrf），
+ * 返回约定 {"result":true|false,"code":"...","msg":"..."}，任何分支都只 alert，不刷新页面。
+ */
+var REMOTE_TYPES = ['ftp', 'sftp', 'webdav', 's3'];
+
+function view_remote_type(val)
+{
+  for (var i = 0; i < REMOTE_TYPES.length; i++) {
+    var el = document.getElementById('remote-' + REMOTE_TYPES[i]);
+    if (el) {
+      el.style.display = (val === REMOTE_TYPES[i]) ? 'block' : 'none';
+    }
+  }
+}
+
+function collect_data(type)
+{
+  var data = {type: type};
+
+  if (type === 'ftp') {
+    data.host = $("#ftp_host_ro").val();
+    data.port = $("#ftp_port").val();
+    data.user = $("#ftp_user_ro").val();
+    data.passwd = $("#ftp_passwd_ro").val();
+    data.dir = $("#ftp_dir_ro").val();
+  } else if (type === 'sftp') {
+    data.host = $("#sftp_host").val();
+    data.port = $("#sftp_port").val();
+    data.user = $("#sftp_user").val();
+    data.passwd = $("#sftp_passwd").val();
+    data.key = $("#sftp_key").val();
+    data.dir = $("#sftp_dir").val();
+    data.timeout = $("#sftp_timeout").val();
+  } else if (type === 'webdav') {
+    data.url = $("#webdav_url").val();
+    data.user = $("#webdav_user").val();
+    data.passwd = $("#webdav_passwd").val();
+    data.dir = $("#webdav_dir").val();
+    data.timeout = $("#webdav_timeout").val();
+  } else if (type === 's3') {
+    data.endpoint = $("#s3_endpoint").val();
+    data.region = $("#s3_region").val();
+    data.bucket = $("#s3_bucket").val();
+    data.access_key = $("#s3_access_key").val();
+    data.secret_key = $("#s3_secret_key").val();
+    data.dir = $("#s3_dir").val();
+    data.timeout = $("#s3_timeout").val();
+  }
+
+  return data;
+}
+
+function test_remote(type)
+{
+  var btn = $('#test-' + type);
+  btn.prop('disabled', true).text('测试中…');
+
+  function done(r) {
+    btn.prop('disabled', false).text('测试连接');
+
+    if (typeof r === 'string') {
+      // 非 JSON（理论上不该出现：403 也会回 JSON）兜底按失败处理
+      alert('测试失败：' + r);
+      return;
+    }
+
+    if (r && r.result) {
+      alert('连接可用\n' + (r.msg || ''));
+    } else {
+      alert('连接失败 [' + ((r && r.code) || 'E_UNKNOWN') + ']\n' + ((r && r.msg) || '未知错误'));
+    }
+  }
+
+  function fail(xhr){
+    btn.prop('disabled', false).text('测试连接');
+    var msg = '请求失败（HTTP ' + (xhr ? xhr.status : 'n/a') + '）';
+
+    try {
+      var j = JSON.parse(xhr.responseText);
+      if (j && j.msg) msg += '：' + j.msg;
+    } catch (e) {}
+
+    alert(msg);
+  }
+
+  $.post('?c=backupremote&a=testRemote', collect_data(type), done, 'json').fail(fail);
+}
+
+function backup_now_remote()
+{
+  if (!confirm('确定现在触发一次全量备份（含远程推送）?')) return;
+
+  $.post('?c=backupremote&a=backupNow', {}, function(msg){
+    $("#cmd").html(msg);
+    $("#xsnazzy").css('display','block');
+  }, 'json').fail(function(){ alert('请求失败'); });
+}
+</script>
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>远程备份存储</h3>
+      <div class="actions">
+        <a href="?c=backup&amp;a=addForm" class="btn btn-sm btn-secondary"><i data-lucide="archive"></i> 返回备份恢复</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      {{if $msg}}<div class="ep-alert ep-alert-success">{{$msg}}</div>{{/if}}
+      <div class="form-hint" style="margin-bottom:12px;">
+        远程类型对「备份恢复」页中保存位置为 <b>远程 / 本地和远程</b> 时生效；FTP 账号配置仍由「备份恢复」页维护，本页只做类型选择、SFTP/WebDAV/S3 凭据与连通测试。
+        容器内访问宿主自建靶服务请使用 <code>http://host.docker.internal:端口</code>。
+      </div>
+      <div class="form-group">
+        <label>计划任务状态</label>
+        <div class="controls">
+          {{if $cron_installed}}
+            <span style="color:var(--color-success,#16a34a);">/etc/cron.d/ep_backup_remote 已注册（每小时检查一次备份计划）</span>
+          {{else}}
+            <span style="color:var(--color-danger);">/etc/cron.d/ep_backup_remote 未注册，保存本表单后将自动写入</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>当前保存位置</label>
+        <div class="controls">
+          {{if $backup_save_place == 'r'}}仅远程{{elseif $backup_save_place == 'lr'}}本地 + 远程{{else}}仅本地（远程配置暂不生效）{{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-body">
+      <form name="remoteform" action="?c=backupremote&amp;a=save" method="post" class="ep-form">
+        <div class="form-section">
+          <div class="form-section-title">远程类型</div>
+          <div class="form-group">
+            <label>存储类型</label>
+            <div class="controls">
+              <select name="backup_remote_type" id="backup_remote_type" onchange="view_remote_type(this.value);">
+                <option value="ftp" {{if $remote_type=='ftp'}}selected{{/if}}>FTP（旧配置）</option>
+                <option value="sftp" {{if $remote_type=='sftp'}}selected{{/if}}>SFTP（curl/libssh2）</option>
+                <option value="webdav" {{if $remote_type=='webdav'}}selected{{/if}}>WebDAV</option>
+                <option value="s3" {{if $remote_type=='s3'}}selected{{/if}}>S3（含 R2 / MinIO）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">连接配置</div>
+
+          <div id="remote-ftp" style="display:{{if $remote_type=='ftp'}}block{{else}}none{{/if}};">
+            <div class="form-group">
+              <label>FTP（只读，请前往「备份恢复」页修改）</label>
+              <div class="controls">
+                <span class="inline-item"><label>主机:</label><input id="ftp_host_ro" readonly value="{{if $setting.ftp_host}}{{$setting.ftp_host}}{{/if}}"></span>
+                <span class="inline-item"><label>端口:</label><input name="ftp_port" id="ftp_port" size="5" value="{{if $setting.ftp_port}}{{$setting.ftp_port}}{{else}}21{{/if}}"></span>
+                <span class="inline-item"><label>账号:</label><input id="ftp_user_ro" readonly value="{{if $setting.ftp_user}}{{$setting.ftp_user}}{{/if}}"></span>
+                <span class="inline-item"><label>密码:</label><input id="ftp_passwd_ro" readonly type="password" value="{{if $setting.ftp_passwd}}{{$setting.ftp_passwd}}{{/if}}"></span>
+                <span class="inline-item"><label>目录:</label><input id="ftp_dir_ro" readonly value="{{if $setting.ftp_dir}}{{$setting.ftp_dir}}{{/if}}"></span>
+                <button type="button" class="btn btn-sm" id="test-ftp" onclick="test_remote('ftp');"><i data-lucide="activity"></i> 测试连接</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="remote-sftp" style="display:{{if $remote_type=='sftp'}}block{{else}}none{{/if}};">
+            <div class="form-group">
+              <label>SFTP</label>
+              <div class="controls">
+                <span class="inline-item"><label>主机地址:</label><input name="sftp_host" id="sftp_host" size="20" value="{{if $setting.sftp_host}}{{$setting.sftp_host}}{{/if}}"></span>
+                <span class="inline-item"><label>端口:</label><input name="sftp_port" id="sftp_port" size="5" value="{{if $setting.sftp_port}}{{$setting.sftp_port}}{{else}}22{{/if}}"></span>
+                <span class="inline-item"><label>账号:</label><input name="sftp_user" id="sftp_user" size="12" value="{{if $setting.sftp_user}}{{$setting.sftp_user}}{{/if}}"></span>
+                <span class="inline-item"><label>密码:</label><input name="sftp_passwd" id="sftp_passwd" type="password" size="12" value="{{if $setting.sftp_passwd}}{{$setting.sftp_passwd}}{{/if}}"></span>
+                <span class="inline-item"><label>私钥路径:</label><input name="sftp_key" id="sftp_key" size="24" value="{{if $setting.sftp_key}}{{$setting.sftp_key}}{{/if}}"></span>
+                <span class="inline-item"><label>远程目录:</label><input name="sftp_dir" id="sftp_dir" size="14" value="{{if $setting.sftp_dir}}{{$setting.sftp_dir}}{{/if}}"></span>
+                <span class="inline-item"><label>传输超时(秒):</label><input name="sftp_timeout" id="sftp_timeout" size="6" value="{{if $setting.sftp_timeout}}{{$setting.sftp_timeout}}{{else}}3600{{/if}}"></span>
+                <button type="button" class="btn btn-sm" id="test-sftp" onclick="test_remote('sftp');"><i data-lucide="activity"></i> 测试连接</button>
+                <div class="form-hint">SFTP 由容器内 curl(libssh2) 原生实现（密码或私钥二选一，私钥填面板容器内绝对路径，带口令私钥不支持）。</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="remote-webdav" style="display:{{if $remote_type=='webdav'}}block{{else}}none{{/if}};">
+            <div class="form-group">
+              <label>WebDAV</label>
+              <div class="controls">
+                <span class="inline-item"><label>地址:</label><input name="webdav_url" id="webdav_url" size="40" placeholder="http://host.docker.internal:8081" value="{{if $setting.webdav_url}}{{$setting.webdav_url}}{{/if}}"></span>
+                <span class="inline-item"><label>账号:</label><input name="webdav_user" id="webdav_user" size="12" value="{{if $setting.webdav_user}}{{$setting.webdav_user}}{{/if}}"></span>
+                <span class="inline-item"><label>密码:</label><input name="webdav_passwd" id="webdav_passwd" type="password" size="12" value="{{if $setting.webdav_passwd}}{{$setting.webdav_passwd}}{{/if}}"></span>
+                <span class="inline-item"><label>远程目录:</label><input name="webdav_dir" id="webdav_dir" size="14" value="{{if $setting.webdav_dir}}{{$setting.webdav_dir}}{{/if}}"></span>
+                <span class="inline-item"><label>传输超时(秒):</label><input name="webdav_timeout" id="webdav_timeout" size="6" value="{{if $setting.webdav_timeout}}{{$setting.webdav_timeout}}{{else}}3600{{/if}}"></span>
+                <button type="button" class="btn btn-sm" id="test-webdav" onclick="test_remote('webdav');"><i data-lucide="activity"></i> 测试连接</button>
+                <div class="form-hint">测试会向远端真实上传一个 <code>ep_remote_test_*.txt</code> 探针文件，用于验证写权限。</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="remote-s3" style="display:{{if $remote_type=='s3'}}block{{else}}none{{/if}};">
+            <div class="form-group">
+              <label>S3 / R2 / MinIO</label>
+              <div class="controls">
+                <span class="inline-item"><label>Endpoint:</label><input name="s3_endpoint" id="s3_endpoint" size="32" placeholder="https://s3.ap-northeast-1.amazonaws.com" value="{{if $setting.s3_endpoint}}{{$setting.s3_endpoint}}{{/if}}"></span>
+                <span class="inline-item"><label>Region:</label><input name="s3_region" id="s3_region" size="16" value="{{if $setting.s3_region}}{{$setting.s3_region}}{{else}}auto{{/if}}"></span>
+                <span class="inline-item"><label>Bucket:</label><input name="s3_bucket" id="s3_bucket" size="18" value="{{if $setting.s3_bucket}}{{$setting.s3_bucket}}{{/if}}"></span>
+                <span class="inline-item"><label>AccessKey:</label><input name="s3_access_key" id="s3_access_key" size="18" value="{{if $setting.s3_access_key}}{{$setting.s3_access_key}}{{/if}}"></span>
+                <span class="inline-item"><label>SecretKey:</label><input name="s3_secret_key" id="s3_secret_key" type="password" size="18" value="{{if $setting.s3_secret_key}}{{$setting.s3_secret_key}}{{/if}}"></span>
+                <span class="inline-item"><label>Key 前缀:</label><input name="s3_dir" id="s3_dir" size="14" value="{{if $setting.s3_dir}}{{$setting.s3_dir}}{{/if}}"></span>
+                <span class="inline-item"><label>传输超时(秒):</label><input name="s3_timeout" id="s3_timeout" size="6" value="{{if $setting.s3_timeout}}{{$setting.s3_timeout}}{{else}}3600{{/if}}"></span>
+                <button type="button" class="btn btn-sm" id="test-s3" onclick="test_remote('s3');"><i data-lucide="activity"></i> 测试连接</button>
+                <div class="form-hint">Path-style + SigV4 纯 PHP 实现，自签 MinIO 需把 Endpoint 填成完整 http(s):// 地址。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="check"></i> 保存配置</button>
+          <button type="button" class="btn btn-secondary" onclick="backup_now_remote();"><i data-lucide="archive"></i> 立即备份</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="xsnazzy" style="display:none">
+    <div class="xboxcontent" style="text-align:center;"><div id="cmd"></div></div>
+  </div>
+</div>
+<script>
+$(function(){
+  view_remote_type($('#backup_remote_type').val());
+});
+</script>
+{{include file='common/foot.html'}}

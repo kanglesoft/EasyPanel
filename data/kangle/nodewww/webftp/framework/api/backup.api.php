@@ -23,9 +23,14 @@ class BackupAPI extends API
 	private $fopen;
 	private $databases;
 	private $ftpconnect = null;
-	private $ignoredatabase;
+	/* T-BRI ignore_backup：默认空数组，避免 in_array(null) 告警与漏判 */
+	private $ignoredatabase = array();
+	/* T-BRI 远程存储适配器（ftp/sftp/webdav/s3），null=未初始化，false=创建失败 */
+	private $storage = null;
 	private $isbackup_web;
 	private $isbackup_mysql;
+	/* T-BRI：并发备份互斥锁句柄（本单元新增 hourly cron 后才可能出现重叠） */
+	private $lockfp = null;
 
 	public function __construct()
 	{
@@ -56,10 +61,22 @@ class BackupAPI extends API
 		$this->isbackup_web = $this->setting['backup_web'];
 		$this->isbackup_mysql = $this->setting['backup_mysql'];
 		load_lib('pub:process');
+		/* T-BRI：远程存储适配器工厂（SFTP/WebDAV/S3），仅远程保存场景使用 */
+		load_api('remotestorage');
 	}
 
 	public function backup($argv = null)
 	{
+		/* T-BRI：本单元新增 /etc/cron.d/ep_backup_remote（hourly）后，一次耗时超过
+		 * 一小时的备份会与下一轮 cron 重叠：两个进程写同一 filesavedir、互相
+		 * purge binlog，会直接损坏备份包。这里用非阻塞 flock 互斥：
+		 * 拿不到锁说明另一进程在跑，本轮直接跳过（不是错误，不告警）。
+		 * 锁文件随进程退出自动释放，无陈旧锁残留问题。 */
+		if ($this->os == 'lin' && !$this->acquireLock()) {
+			$this->showMsg("backup already running, skip this round\n");
+			return false;
+		}
+
 		if (!$this->check_ent()) {
 			$this->showMsg("Not Support(Please contact us to buy)\n");
 			return false;
@@ -80,7 +97,11 @@ class BackupAPI extends API
 			}
 		}
 
-		if ($this->setting['backup_save_place'] != 'l' && !$this->setting['ftp_dir']) {
+		/* T-BRI：非本地保存时校验远程根目录。FTP 沿用 ftp_dir；
+		 * sftp/webdav/s3 的目录允许为空（直接落在各自根/桶前缀下）。 */
+		$remote_type = $this->getRemoteType();
+
+		if ($this->setting['backup_save_place'] != 'l' && $remote_type == 'ftp' && !$this->setting['ftp_dir']) {
 			$this->showMsg("ftp dir not set\n");
 			return false;
 		}
@@ -118,6 +139,9 @@ class BackupAPI extends API
 			return false;
 		}
 
+		/* T-BRI ignore_backup 全路径核对（1/4）：汇总被忽略站点绑定的库名，
+		 * 供 backupMysqlFull / backupMysqlSingleInc / backupMysqlSingleFull
+		 * 三个数据库路径统一跳过（此前只有 SingleFull 生效）。 */
 		foreach ($this->vhs as $vh) {
 			if ($vh['ignore_backup'] == 1) {
 				if ($vh['db_name']) {
@@ -161,7 +185,7 @@ class BackupAPI extends API
 					continue;
 				}
 
-				$this->ftpPush($savefilename);
+				$this->remotePush($savefilename);
 				$this->showMsg("done\n");
 			}
 		}
@@ -298,8 +322,13 @@ class BackupAPI extends API
 
 		$filename = $this->getFilename($vh['name'] . '.nb');
 		chdir($fdir);
-		/* T05-M6：vhost 名参与拼命令，转义后作为单个 7z 参数，防止命令注入。 */
-		$savefilename = escapeshellarg($this->filesavedir . $vh['name'] . '.web.7z');
+		/* T05-M6：vhost 名参与拼命令，转义后作为单个 7z 参数，防止命令注入。
+		 * T-BRI：命令内用转义串，返回值改为未转义的真实路径 —— 此前返回
+		 * escapeshellarg() 结果，带引号的路径让分卷探测 file_exists() 永远
+		 * 命中不到，远程上传被静默跳过（本会话远端实测：WebDAV 靶收不到
+		 * 任何文件；S3 未起靶，按同一机制推断）。 */
+		$realfile = $this->filesavedir . $vh['name'] . '.web.7z';
+		$savefilename = escapeshellarg($realfile);
 		$cmd = $this->get7zcmd();
 		$cmd .= $savefilename;
 
@@ -320,7 +349,7 @@ class BackupAPI extends API
 
 		unlink($txt);
 		unlink($nbtxt);
-		return $savefilename;
+		return $realfile;
 	}
 
 	/**
@@ -345,11 +374,24 @@ class BackupAPI extends API
 			return false;
 		}
 
-		$dsn = 'mysql:host=localhost;port=' . $this->db_port;
-		$pdo = new PDO($dsn, $this->db_user, $this->db_passwd);
+		/* T-BRI：DSN 之前硬编码 host=localhost —— 在 docker 部署里 mysql 是独立
+		 * 容器（node.cfg db_host=mysql，无本地 unix socket），PDO 直接 2002 致命
+		 * 崩溃；本单元新增 hourly cron 后这会成为每小时一次的 fatal。改为与
+		 * mysqldump 命令同口径的 db_host，并把连接失败降级为可诊断的 showMsg。 */
+		/* db_port 在本项目部署里可能为空串（远端 node.cfg.php 实测），
+		 * 空 port 段会让 PDO 报 invalid specifier，只在有值时拼接。 */
+		$db_port = intval($this->db_port);
+		$dsn = 'mysql:host=' . $this->db_host;
 
-		if (!$pdo) {
-			$this->showMsg("mysql :pdo not connect\n");
+		if ($db_port > 0) {
+			$dsn .= ';port=' . $db_port;
+		}
+
+		try {
+			$pdo = new PDO($dsn, $this->db_user, $this->db_passwd);
+		}
+		catch (Throwable $e) {
+			$this->showMsg('mysql :pdo not connect (' . $e->getMessage() . ")\n");
 			return false;
 		}
 
@@ -384,7 +426,7 @@ class BackupAPI extends API
 			$file = $this->backupMysqlFull($pdo);
 		}
 
-		$this->ftpPush($file);
+		$this->remotePush($file);
 	}
 
 	private function backupMysqlSingleInc($pdo)
@@ -434,6 +476,12 @@ class BackupAPI extends API
 		$process = new Process();
 
 		foreach ($this->databases as $database) {
+			/* T-BRI ignore_backup 全路径核对（3/4）：独立增量同样要跳过忽略库 */
+			if (in_array($database, $this->ignoredatabase)) {
+				$this->showMsg($database . " ignore\n");
+				continue;
+			}
+
 			unset($cmd);
 			unset($cmd2);
 			$cmd[] = $logbin;
@@ -453,7 +501,7 @@ class BackupAPI extends API
 				continue;
 			}
 
-			$this->ftpPush($savefile);
+			$this->remotePush($savefile);
 		}
 
 		$this->purgeMysqlLogs($pdo, $last_log_file);
@@ -522,7 +570,27 @@ class BackupAPI extends API
 			$cmd = $this->getMsqldumpCmd();
 		}
 
-		$cmd .= ' --flush-logs --single-transaction --master-data --all-databases |';
+		/* T-BRI ignore_backup 全路径核对（2/4）：此前一律 --all-databases，
+		 * 站点被勾选「忽略备份」时其数据库仍会进入整库包。存在忽略库时
+		 * 改为显式 --databases 列表（排除系统库 + ignoredatabase）；
+		 * 无忽略库时保持 --all-databases 原语义，零行为变化。 */
+		$db_args = '--all-databases';
+		$selected = $this->listBackupDatabases($pdo);
+
+		if ($selected !== false) {
+			if (count($selected) <= 0) {
+				$this->showMsg("mysql: all databases ignored by ignore_backup, skip\n");
+				return false;
+			}
+
+			$db_args = '--databases';
+
+			foreach ($selected as $database) {
+				$db_args .= ' ' . escapeshellarg($database);
+			}
+		}
+
+		$cmd .= ' --flush-logs --single-transaction --master-data ' . $db_args . ' |';
 
 		if ($this->os == 'win') {
 			$cmd .= $this->get7zChCmd();
@@ -559,7 +627,12 @@ class BackupAPI extends API
 	 * @param unknown_type $max_log_file
 	 * @return boolean
 	 */
-	private function purgeMysqlLogs($pdo, $max_log_file)
+	/* T-BRI：$max_log_file 改为可选 —— backupMysqlFull 第 611 行一直按单参调用
+	 * （purgeMysqlLogs($pdo)），而本函数签名要求两参，PHP 7.4 下直接
+	 * ArgumentCountError 致命（远端实测 RC=255，日志见 purgeMysqlLogs ...
+	 * exactly 2 expected）。函数体首行 `if (!$max_log_file)` 本就处理空值
+	 * 分支（flush logs → SHOW master LOGS → 取最新），补默认值即恢复设计语义。 */
+	private function purgeMysqlLogs($pdo, $max_log_file = null)
 	{
 		if (!$max_log_file) {
 			$pdo->query('flush logs');
@@ -657,6 +730,181 @@ class BackupAPI extends API
 				$this->showMsg($now_time . '<' . $backup_time . "\n");
 				return false;
 			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * 非阻塞获取备份互斥锁（fail-open：任何异常都允许备份继续，
+	 * 宁可少一层保护也不把“备份不跑了”这种事故引入既有链路）。
+	 * @return bool true=可以开跑；false=已有实例在跑
+	 */
+	private function acquireLock()
+	{
+		if (!function_exists('flock')) {
+			return true;
+		}
+
+		$dir = $this->kangle_dir . '/tmp/';
+
+		if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+			return true;
+		}
+
+		$fp = @fopen($dir . 'ep_backup.lock', 'c');
+
+		if (!$fp) {
+			return true;
+		}
+
+		$this->lockfp = $fp;
+		return @flock($fp, LOCK_EX | LOCK_NB);
+	}
+
+	/**
+	 * 当前远程存储类型（ftp|sftp|webdav|s3），默认 ftp 兼容旧配置
+	 * @return string
+	 */
+	private function getRemoteType()
+	{
+		$type = isset($this->setting['backup_remote_type']) ? strtolower(trim($this->setting['backup_remote_type'])) : 'ftp';
+
+		if (!in_array($type, array('ftp', 'sftp', 'webdav', 's3'))) {
+			$type = 'ftp';
+		}
+
+		return $type;
+	}
+
+	/**
+	 * 取得远程存储适配器（非 ftp 类型时使用）
+	 * @return RemoteStorage|false
+	 */
+	private function getStorage()
+	{
+		if ($this->storage !== null) {
+			return $this->storage === false ? false : $this->storage;
+		}
+
+		$storage = apicall('remotestorage', 'create', array($this->setting));
+
+		if (!$storage) {
+			$this->showMsg(apicall('remotestorage', 'getLastError', array()) . "\n");
+			$this->storage = false;
+			return false;
+		}
+
+		$this->storage = $storage;
+		return $storage;
+	}
+
+	/**
+	 * 需要进全量备份包的数据库列表。
+	 * 返回 false 表示“无需过滤”（无忽略库，调用方保持 --all-databases 原语义）；
+	 * 返回数组（可能为空）表示显式数据库白名单。
+	 * @param  PDO $pdo
+	 * @return array|false
+	 */
+	private function listBackupDatabases($pdo)
+	{
+		if (count($this->ignoredatabase) <= 0) {
+			return false;
+		}
+
+		$result = $pdo->query('SHOW DATABASES');
+
+		if (!$result) {
+			// 查询失败时保守返回 false：保持原 --all-databases 行为，绝不悄悄丢库
+			return false;
+		}
+
+		$selected = array();
+
+		foreach ($result->fetchAll() as $row) {
+			$name = $row[0];
+
+			/* 与 backupMysqlSingleInc 的既有口径一致：只跳 information_schema /
+			 * performance_schema（mysqldump 本身也拒绝导这两个）。
+			 * mysql / sys 系统库保持进包 —— 原 --all-databases 行为就包含它们，
+			 * 只在存在忽略库时才收窄，避免顺带改变恢复语义。 */
+			if ($name == 'information_schema' || $name == 'performance_schema') {
+				continue;
+			}
+
+			if (in_array($name, $this->ignoredatabase)) {
+				$this->showMsg($name . " ignore\n");
+				continue;
+			}
+
+			$selected[] = $name;
+		}
+
+		return $selected;
+	}
+
+	/**
+	 * 远程上传统一入口：ftp 走原 ftp_* 通道（行为零变化），
+	 * sftp/webdav/s3 走 remotestorage 适配器。
+	 * @param  string $file 本地真实路径（未转义）
+	 */
+	private function remotePush($file)
+	{
+		if ($this->setting['backup_save_place'] == 'l') {
+			return true;
+		}
+
+		/* backupMysqlFull 等路径失败时返回 false，这里统一短路，避免拼出
+		 * “false.001” 这类幽灵文件名。 */
+		if ($file === false || $file === '' || !is_string($file)) {
+			return false;
+		}
+
+		if ($this->getRemoteType() == 'ftp') {
+			return $this->ftpPush($file);
+		}
+
+		$storage = $this->getStorage();
+
+		if (!$storage) {
+			return false;
+		}
+
+		if (!$storage->mkDir($this->savedir)) {
+			$this->showMsg($storage->getError() . "\n");
+			return false;
+		}
+
+		/* 待推送清单：主包（不分卷时 7z 只产出它）+ 全部分卷 .001/.002/…
+		 * 原 ftpPush 循环只探测分卷，单卷场景下主包会被静默漏传。 */
+		$pending = array();
+
+		if (is_file($file)) {
+			$pending[] = $file;
+		}
+
+		for ($i = 1; $i < 1000; $i++) {
+			$volume = $file . sprintf('.%03d', $i);
+
+			if (!is_file($volume)) {
+				break;
+			}
+
+			$pending[] = $volume;
+		}
+
+		if (count($pending) <= 0) {
+			$this->showMsg('远程推送跳过：本地备份文件不存在 ' . $file . "\n");
+			return false;
+		}
+
+		foreach ($pending as $new_file) {
+			if (!$storage->putFile($new_file, $this->savedir . '/' . basename($new_file))) {
+				$this->showMsg($storage->getError() . "\n");
+				return false;
+			}
+
+			$this->delLocalfile($new_file);
 		}
 
 		return true;
@@ -782,7 +1030,7 @@ class BackupAPI extends API
 			return false;
 		}
 
-		$this->ftpPush($this->filesavedir . $filename);
+		$this->remotePush($this->filesavedir . $filename);
 	}
 
 	private function getBinlogCmd()
@@ -957,7 +1205,49 @@ class BackupAPI extends API
 		}
 
 		$del_time = $this->setting['backup_last_time'] - $this->setting['backup_save_day'] * 86400;
+		$ddate = date('Ymd', $del_time);
+
+		/* T-BRI：非 FTP 类型改走适配器（listDirs/deleteDir），
+		 * FTP 保持原有实现，home 相对目录语义零变化。 */
+		if ($this->getRemoteType() != 'ftp') {
+			$storage = $this->getStorage();
+
+			if (!$storage) {
+				return false;
+			}
+
+			$dirlist = $storage->listDirs('');
+
+			if ($dirlist === false) {
+				$this->showMsg('远程目录列举失败：' . $storage->getError() . "\n");
+				return false;
+			}
+
+			if (count($dirlist) <= 0) {
+				return false;
+			}
+
+			foreach ($dirlist as $d) {
+				if (intval($d) <= 0) {
+					continue;
+				}
+
+				if (substr($d, 0, 8) < $ddate) {
+					if (!$storage->deleteDir($d)) {
+						$this->showMsg('远程过期目录删除失败：' . $d . ' ' . $storage->getError() . "\n");
+					}
+				}
+			}
+
+			return true;
+		}
+
 		$ftpcon = $this->getFtpCon();
+
+		if (!$ftpcon) {
+			return false;
+		}
+
 		$ret = ftp_pasv($ftpcon, true);
 		ftp_chdir($ftpcon, $this->setting['ftp_dir']);
 		$dirlist = ftp_nlist($ftpcon, '.');
@@ -965,8 +1255,6 @@ class BackupAPI extends API
 		if (count($dirlist) <= 0) {
 			return false;
 		}
-
-		$ddate = date('Ymd', $del_time);
 
 		foreach ($dirlist as $d) {
 			if (intval($d) <= 0) {
@@ -1177,6 +1465,8 @@ class BackupAPI extends API
 		while ($row = mysqli_fetch_row($result)) {
 			$databasename = $row[0];
 
+			/* T-BRI ignore_backup 全路径核对（4/4）：SingleFull 沿用既有跳过逻辑，
+			 * 推送改走适配器；ignoredatabase 现已默认空数组，in_array 不再对 null 告警。 */
 			if (in_array($databasename, $this->ignoredatabase)) {
 				$this->showMsg($databasename . " ignore\n");
 				continue;
@@ -1202,7 +1492,7 @@ class BackupAPI extends API
 				print_r($msg);
 			}
 
-			$this->ftpPush($this->filesavedir . '/' . $filename);
+			$this->remotePush($this->filesavedir . '/' . $filename);
 		}
 	}
 }
