@@ -1,0 +1,152 @@
+{{include file='common/head.html'}}
+<script type="text/javascript">
+  function hsts_submit() {
+    var max_age = $("#hsts_max_age").val();
+    if (!/^[1-9][0-9]{0,7}$/.test(max_age)) {
+      return alert('max-age 必须是 1-63072000 之间的整数（秒）');
+    }
+    if (parseInt(max_age, 10) > 63072000) {
+      return alert('max-age 不能超过 63072000（2 年）');
+    }
+    var data = {
+      status: 1,
+      max_age: max_age,
+      include_subdomains: $("#hsts_subdomains").is(":checked") ? 1 : 0,
+      preload: $("#hsts_preload").is(":checked") ? 1 : 0
+    };
+    $.post('?c=hsts&a=setHsts', data, function(msg) {
+      alert(msg);
+      if (msg == '成功') { location.reload(); }
+    });
+  }
+  function hsts_off() {
+    if (!confirm('关闭后浏览器将不再强制 HTTPS 访问该站点，确认关闭？')) return;
+    $.post('?c=hsts&a=setHsts', {status: 0}, function(msg) {
+      alert(msg);
+      location.reload();
+    });
+  }
+  function hsts_domain_toggle(domain, status) {
+    $.post('?c=hsts&a=setDomainHsts', {domain: domain, status: status}, function(msg) {
+      alert(msg);
+      if (msg == '成功' || msg == '已经是关闭状态') { location.reload(); }
+    });
+  }
+</script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>HSTS（全站）</h3></div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        注：HSTS 开启后，站点所有 HTTPS 响应将携带 Strict-Transport-Security
+        头，浏览器会在 max-age 期间内强制以 HTTPS 访问本站（对明文 HTTP
+        响应浏览器自动忽略该头，RFC 6797 §7.2）。请确认已正确部署 SSL
+        证书且 http→https 跳转正常后再开启；如需撤销，请先将 max-age
+        改为 0 并等待过期，或从 preload 列表移除。
+      </div>
+      {{if $enabled==1}}
+      <div class="form-group">
+        <label>全站开关</label>
+        <div class="controls">
+          <div>
+            <a href="javascript:hsts_off();" title="禁用功能">
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+          </div>
+          {{if $current_value}}
+          <p class="help-text">当前生效头值：{{$current_value}}</p>
+          {{/if}}
+        </div>
+      </div>
+      {{elseif $port_ok}}
+      <div class="form-group">
+        <label>全站开关</label>
+        <div class="controls">
+          <div>
+            <a href="javascript:hsts_submit();" title="开启功能">
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+          </div>
+        </div>
+      </div>
+      {{/if}}
+      {{if $port_ok}}
+      <div class="form-group">
+        <label>max-age（秒）</label>
+        <div class="controls">
+          <input name="max_age" id="hsts_max_age" value="{{$max_age}}" />
+          <p class="help-text">浏览器强制 HTTPS 的时长，建议不小于 31536000（1 年）；修改后点击右侧按钮重新开启即生效。</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>includeSubDomains</label>
+        <div class="controls">
+          <input type="checkbox" id="hsts_subdomains" value="1" {{if $include_subdomains}}checked{{/if}} />
+          <p class="help-text">对本站所有子域名同时生效（确认全部子域名均有有效证书后再勾选）。</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>preload</label>
+        <div class="controls">
+          <input type="checkbox" id="hsts_preload" value="1" {{if $preload}}checked{{/if}} />
+          <p class="help-text">声明允许提交浏览器预加载列表（需 includeSubDomains 且 max-age≥31536000；本开关只负责带头，提交预加载列表需自行到 hstspreload.org）。</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label></label>
+        <div class="controls">
+          <input type="button" value="{{if $enabled==1}}保存并开启{{else}}开启{{/if}}" class="btn" onclick="hsts_submit();" />
+          {{if $enabled==1}}
+          <input type="button" value="关闭" class="btn btn-danger" onclick="hsts_off();" />
+          {{/if}}
+        </div>
+      </div>
+      {{else}}
+      <div class="ep-alert ep-alert-warning">
+        您的账号未开启 SSL 端口（443s），全站 HSTS 不可用；请先联系管理员为账号开通 SSL 端口。单域名 HSTS 仍可在下表中按域名开启。
+      </div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>HSTS（按域名）</h3></div>
+    <div class="ep-card-body">
+      {{if $rows}}
+      <table class="ep-table">
+        <thead>
+          <tr>
+            <th>域名</th>
+            <th>状态</th>
+            <th>生效头值</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$rows item=row}}
+          <tr>
+            <td>{{$row.domain}}</td>
+            <td>
+              {{if $row.enabled}}<span class="ep-text-success">已开启</span>{{else}}<span class="ep-text-muted">已关闭</span>{{/if}}
+            </td>
+            <td>{{if $row.value}}{{$row.value}}{{else}}-{{/if}}</td>
+            <td>
+              {{if $row.enabled==0}}
+              <a href="javascript:hsts_domain_toggle('{{$row.domain}}',1);" class="btn btn-sm">开启</a>
+              {{else}}
+              <a href="javascript:hsts_domain_toggle('{{$row.domain}}',0);" class="ep-text-danger">关闭</a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table>
+      <p class="help-text">按域名开启仅对该域名的响应生效（内核 acl_wide_host 匹配），适合与全站策略不一致的个别域名。</p>
+      {{else}}
+      <p class="ep-text-muted">暂无域名，请先在「域名管理」添加域名。</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
