@@ -15,6 +15,7 @@ if ($c == '') {
 
 $tpl = TPL::singleton();
 loadSetting($tpl);
+$tpl->assign('geo_supported', apicall('geo', 'isSupported', array()));
 $vhost = getRole('vhost');
 
 if ($vhost) {

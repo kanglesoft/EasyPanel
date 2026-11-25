@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <li><a href="?c=banip&amp;a=addTableFrom" class="{{if $smarty.get.c=='banip'}}active{{/if}}"><i data-lucide="ban"></i> IP 黑名单</a></li>
         <li><a href="?c=whitelist&amp;a=addTableFrom" class="{{if $smarty.get.c=='whitelist'}}active{{/if}}"><i data-lucide="shield-check"></i> IP 白名单</a></li>
         <li><a href="?c=realip&amp;a=realipForm" class="{{if $smarty.get.c=='realip'}}active{{/if}}"><i data-lucide="arrow-right-left"></i> 真实 IP</a></li>
+        {{if $geo_supported}}<li><a href="?c=geoip&amp;a=show" class="{{if $smarty.get.c=='geoip'}}active{{/if}}"><i data-lucide="globe-lock"></i> 地区封禁</a></li>{{/if}}
         <li><a href="?c=antisql&amp;a=antisqlfrom" class="{{if $smarty.get.c=='antisql'}}active{{/if}}"><i data-lucide="shield-alert"></i> SQL 注入防护</a></li>
         <li><a href="?c=antiupload&amp;a=antiuploadfrom" class="{{if $smarty.get.c=='antiupload'}}active{{/if}}"><i data-lucide="shield-check"></i> 上传保护</a></li>
       </ul>

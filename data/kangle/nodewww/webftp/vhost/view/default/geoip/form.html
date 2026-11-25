@@ -1,0 +1,232 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  {{if !$geo_supported}}
+  <!-- 降级态：仓库默认无 IP 地区库 / config.xml 未挂 mark_geo。
+       验收锚点文案「地区数据库未就绪」为固定标题，勿改。 -->
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>地区数据库未就绪</h3>
+      <button type="button" class="btn btn-sm btn-secondary" onclick="geo_recheck()"><i data-lucide="refresh-cw"></i> 重新检测</button>
+    </div>
+    <div class="ep-card-body">
+      <p class="help-text" style="margin-bottom:12px">{{if $geo_hint}}{{$geo_hint}}{{else}}无法读取地区数据源状态，请点击“重新检测”。{{/if}}</p>
+      <div class="ep-table-responsive">
+        <table class="table">
+          <thead>
+            <tr><th>检测项</th><th>状态</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>内核 KGeoMark 模块（mark_geo / geo_mark_download）</td><td>{{if $geo_status.kernel}}<span class="text-success">已编译</span>{{else}}<span class="text-danger">未编译</span>{{/if}}</td></tr>
+            <tr><td>全局请求链 mark_geo 挂载（config.xml）</td><td>{{if $geo_status.chain}}<span class="text-success">已挂载</span>{{else}}<span class="text-danger">未挂载</span>{{/if}}</td></tr>
+            <tr><td>IP 地区库文件</td><td>{{if $geo_status.data}}<span class="text-success">已就绪</span>{{else}}<span class="text-danger">缺失</span>{{/if}}</td></tr>
+            <tr><td>降级提示（hint）</td><td><code>{{$geo_status.hint|default:'-'}}</code></td></tr>
+            <tr><td>上次检测时间</td><td>{{if $geo_status.checked_at}}{{date('Y-m-d H:i:s',$geo_status.checked_at)}}{{else}}-{{/if}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="help-text">提示：数据源就绪需管理员放置 IP 地区库并在内核全局 request 链挂载 <code>&lt;mark_geo file=... url=... flush_time=.../&gt;</code>（内核经 geo_mark_download 自更新）；面板将在下次检测后自动开放本页的配置功能。</p>
+    </div>
+  </div>
+  {{else}}
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>按地区封禁</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick="geo_del_all('deny')"><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <div class="form-group">
+        <label>地区封禁开关</label>
+        <div class="controls"><div>
+          {{if $deny_on}}
+          <a href="javascript:geo_switch('deny',2)" title="禁用功能">
+            <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+          </a>
+          {{else}}
+          <a href="javascript:geo_switch('deny',1)" title="开启功能">
+            <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+          </a>
+          {{/if}}
+        </div></div>
+      </div>
+      <form onsubmit="return false;" class="ep-form">
+        <div class="form-group">
+          <label>选择地区</label>
+          <div class="controls">
+            <select id="bangeo-continent-d" onchange="geo_fill_country('d')"><option value="">请选择大洲</option></select>
+            <select id="bangeo-country-d" onchange="geo_fill_province('d')"><option value="">国家/地区（整洲则留空）</option></select>
+            <select id="bangeo-province-d"><option value="">省份（全国则留空）</option></select>
+            <button type="button" class="btn" onclick="geo_add('deny')">增加封禁</button>
+          </div>
+        </div>
+      </form>
+      <div class="ep-table-responsive">
+        <table class="table ep-mt-4">
+          <thead>
+            <tr><th>操作</th><th>封禁地区</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$deny_regions item=row}}
+            <tr>
+              <td><a href="javascript:geo_del('deny',{{$row.id}})">删除</a></td>
+              <td>{{$row.region|escape:'html'}}</td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="2">暂无封禁地区</td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>按地区放行（白名单）</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick="geo_del_all('allow')"><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <div class="form-group">
+        <label>地区放行开关</label>
+        <div class="controls"><div>
+          {{if $allow_on}}
+          <a href="javascript:geo_switch('allow',2)" title="禁用功能">
+            <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+          </a>
+          {{else}}
+          <a href="javascript:geo_switch('allow',1)" title="开启功能">
+            <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+          </a>
+          {{/if}}
+        </div></div>
+      </div>
+      <p class="help-text">开启后放行列表内的地区一律允许访问（优先于封禁与其他黑名单）；放行列表为空时开启本开关会拦截所有请求，请谨慎。</p>
+      <form onsubmit="return false;" class="ep-form">
+        <div class="form-group">
+          <label>选择地区</label>
+          <div class="controls">
+            <select id="bangeo-continent-a" onchange="geo_fill_country('a')"><option value="">请选择大洲</option></select>
+            <select id="bangeo-country-a" onchange="geo_fill_province('a')"><option value="">国家/地区（整洲则留空）</option></select>
+            <select id="bangeo-province-a"><option value="">省份（全国则留空）</option></select>
+            <button type="button" class="btn" onclick="geo_add('allow')">增加放行</button>
+          </div>
+        </div>
+      </form>
+      <div class="ep-table-responsive">
+        <table class="table ep-mt-4">
+          <thead>
+            <tr><th>操作</th><th>放行地区</th></tr>
+          </thead>
+          <tbody>
+            {{foreach from=$allow_regions item=row}}
+            <tr>
+              <td><a href="javascript:geo_del('allow',{{$row.id}})">删除</a></td>
+              <td>{{$row.region|escape:'html'}}</td>
+            </tr>
+            {{foreachelse}}
+            <tr><td colspan="2">暂无放行地区</td></tr>
+            {{/foreach}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // 地区树由 GeoAPI::regions() 内联（源：上游 style/geo-regions.json 全量转写）
+  var EP_GEO_TREE = {{if $regions_json}}{{$regions_json}}{{else}}{}{{/if}};
+
+  // 封禁/放行两张卡各带一组三级下拉，用后缀 d/a 区分
+  function geo_fill_country(sfx) {
+    var cont = document.getElementById('bangeo-continent-' + sfx);
+    var country = document.getElementById('bangeo-country-' + sfx);
+    var name = cont.value;
+    country.innerHTML = '<option value="">国家/地区（整洲则留空）</option>';
+    if (name && EP_GEO_TREE[name]) {
+      for (var k in EP_GEO_TREE[name]) {
+        var op = document.createElement('option');
+        op.value = k; op.text = k;
+        country.appendChild(op);
+      }
+    }
+    geo_fill_province(sfx);
+  }
+  function geo_fill_province(sfx) {
+    var cont = document.getElementById('bangeo-continent-' + sfx);
+    var country = document.getElementById('bangeo-country-' + sfx);
+    var prov = document.getElementById('bangeo-province-' + sfx);
+    prov.innerHTML = '<option value="">省份（全国则留空）</option>';
+    var list = (EP_GEO_TREE[cont.value] || {})[country.value] || [];
+    for (var i = 0; i < list.length; i++) {
+      var op = document.createElement('option');
+      op.value = list[i]; op.text = list[i];
+      prov.appendChild(op);
+    }
+    prov.disabled = (list.length === 0);
+  }
+  (function () {
+    ['d', 'a'].forEach(function (sfx) {
+      var cont = document.getElementById('bangeo-continent-' + sfx);
+      if (!cont) return;
+      for (var k in EP_GEO_TREE) {
+        var op = document.createElement('option');
+        op.value = k; op.text = k;
+        cont.appendChild(op);
+      }
+    });
+  })();
+  function geo_post(url, data, silent_fail) {
+    $.ajax({
+      type: 'post',
+      url: url,
+      data: data,
+      dataType: 'json',
+      success: function (r) {
+        if (r && r.code == 200) { window.location.reload(); return; }
+        if (!silent_fail) alert((r && r.msg) ? r.msg : '操作失败');
+      },
+      error: function () { if (!silent_fail) alert('请求失败，请刷新页面重试'); },
+      complete: function () { show_sync(); }
+    });
+  }
+  function geo_switch(mode, val) {
+    if (val == 2 && !confirm('确定关闭该地区开关?')) return;
+    geo_post('?c=geoip&a=switchGeo', 'mode=' + mode + '&status=' + val);
+  }
+  function geo_add(mode) {
+    var sfx = mode === 'allow' ? 'a' : 'd';
+    var cont = document.getElementById('bangeo-continent-' + sfx);
+    var country = document.getElementById('bangeo-country-' + sfx);
+    var prov = document.getElementById('bangeo-province-' + sfx);
+    if (!cont || !cont.value) return alert('请选择大洲');
+    geo_post('?c=geoip&a=addRegion', 'mode=' + mode
+      + '&continent=' + encodeURIComponent(cont.value)
+      + '&country=' + encodeURIComponent(country ? country.value : '')
+      + '&province=' + encodeURIComponent(prov ? prov.value : ''));
+  }
+  function geo_del(mode, id) {
+    if (!confirm('确定要删除该地区规则?')) return;
+    geo_post('?c=geoip&a=delRegion', 'mode=' + mode + '&id=' + id);
+  }
+  function geo_del_all(mode) {
+    if (!confirm('确定要清空该地区列表?')) return;
+    geo_post('?c=geoip&a=delRegionAll', 'mode=' + mode);
+  }
+  function geo_recheck() {
+    show_sync();
+    $.ajax({
+      type: 'get',
+      url: '?c=geoip&a=checkSource&refresh=1',
+      dataType: 'json',
+      success: function (r) {
+        if (r && r.available) { window.location.reload(); return; }
+        alert('地区数据库仍未就绪' + (r && r.hint ? '（' + r.hint + '）' : ''));
+        window.location.reload();
+      },
+      error: function () { alert('检测请求失败，请稍后重试'); }
+    });
+  }
+  </script>
+  {{/if}}
+</div>
+{{include file='common/foot.html'}}
