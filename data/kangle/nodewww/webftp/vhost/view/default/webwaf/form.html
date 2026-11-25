@@ -1,0 +1,70 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>
+        Web 安全防护（雷池 WAF）
+        {{if $installed==1}}<span class="badge badge-success">已检测到雷池</span>{{else}}<span class="badge badge-danger">未检测到雷池</span>{{/if}}
+      </h3>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        Web 安全防护功能由长亭雷池（SafeLine）WAF 提供，基于智能语义分析，可有效防御 SQL 注入、XSS、webshell 上传、命令注入等攻击。面板通过内核请求控制链 <code>acl_safeline_waf</code> 将本站点流量转发至雷池检测引擎。
+      </div>
+      {{if $installed==1}}
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        检测端点：{{$endpoint}}{{if $enabled==1}}；当前本站点防护链已启用{{else}}；当前本站点防护链未启用{{/if}}
+      </div>
+      <div class="form-group">
+        <label>安全防护开关</label>
+        <div class="controls">
+          <div>
+            {{if $enabled==0}}
+            <a href="javascript:webwaf_switch(1)" title='开启'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:webwaf_switch(2)" title='关闭'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label></label>
+        <div class="controls">
+          <a href="javascript:webwaf_recheck();" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重新检测</a>
+        </div>
+      </div>
+      {{else}}
+      <div class="ep-alert ep-alert-info ep-justify-center">
+        本节点暂无法开启 Web 安全防护：{{$reason}}。<br />
+        待雷池部署就绪后点击“重新检测”，即可出现防护开关。
+      </div>
+      <div class="form-group">
+        <label></label>
+        <div class="controls">
+          <a href="javascript:webwaf_recheck();" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重新检测</a>
+          <a href="?c=index&amp;a=main" class="btn btn-sm"><i data-lucide="arrow-left"></i> 返回</a>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<script>
+function webwaf_switch(val) {
+  // status=1 开启 / status=2 关闭，与控制器 webwafSwitch 约定一致；
+  // functoin_checkon 自带 confirm 并在返回「成功」后 reload
+  functoin_checkon('?c=webwaf&a=webwafSwitch', 'status=' + val);
+}
+function webwaf_recheck() {
+  $.get('?c=webwaf&a=recheck', function(res) {
+    window.location.reload();
+  }, 'json');
+}
+</script>
+{{include file='common/foot.html'}}
