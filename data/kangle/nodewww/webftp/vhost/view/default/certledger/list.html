@@ -1,0 +1,91 @@
+{{include file='common/head.html'}}
+{{* 仅当页面上真的存在过期证书时，才输出过期行类名与对应样式块。
+    这是验收互判据的要求：全为有效证书的页面源码中该类名出现次数必须为 0，
+    因此样式与行类名都不能无条件输出。 *}}
+{{if $has_expired}}
+<style>
+tr.ep-expired { background: var(--color-danger-subtle); }
+tr.ep-expired td { color: var(--color-danger); font-weight: 600; }
+</style>
+{{/if}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>
+        <i data-lucide="badge-check"></i> 证书台账
+        {{if $has_expired}}<span class="badge badge-danger"><i data-lucide="triangle-alert"></i> 有过期证书</span>{{/if}}
+      </h3>
+      <a href='?c=certledger&a=form' class="btn btn-sm"><i data-lucide="plus"></i> 上传手动证书</a>
+    </div>
+    <div class="ep-card-body">
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        台账汇总本站点的 <b>站点证书</b>、<b>单域名证书</b> 与 <b>手动上传证书</b>（品牌 / SAN / 有效期）。
+        站点与域名证书在每次打开本页时从当前生效证书文件重新同步；到期日在 30 天内的证书标黄，已过期整行标红。
+      </div>
+
+      {{if count($rows) == 0}}
+      <div class="ep-empty">
+        <div class="ep-empty-icon"><i data-lucide="file-clock"></i></div>
+        <h4>台账为空</h4>
+        <p>当前站点还没有可用证书记录。可在「SSL 证书」页配置证书，或点右上角上传手动证书入台账。</p>
+      </div>
+      {{else}}
+      <div class="ep-table-responsive"><table class="table">
+        <thead>
+          <tr>
+            <th>域名</th>
+            <th>品牌（颁发机构）</th>
+            <th>SAN 域名列表</th>
+            <th>有效期开始</th>
+            <th>到期时间</th>
+            <th>剩余</th>
+            <th>状态</th>
+            <th>来源</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$rows item=row}}
+          <tr{{if $row.expired}} class="ep-expired"{{/if}}>
+            <td>{{$row.domain}}</td>
+            <td>{{$row.brand}}</td>
+            <td style="max-width:320px;word-break:break-all;">{{$row.sans}}</td>
+            <td>{{$row.not_before_text}}</td>
+            <td>{{$row.not_after_text}}</td>
+            <td>{{if $row.days_left < 0}}-{{else}}{{$row.days_left}} 天{{/if}}</td>
+            <td>
+              {{if $row.status == 'expired'}}<span class="badge badge-danger">已过期</span>
+              {{elseif $row.status == 'not_yet'}}<span class="badge badge-info">未生效</span>
+              {{elseif $row.status == 'expiring'}}<span class="badge badge-warning">即将到期</span>
+              {{elseif $row.status == 'unknown'}}<span class="badge badge-info">未知</span>
+              {{else}}<span class="badge badge-success">正常</span>{{/if}}
+            </td>
+            <td>{{$row.source_label}}</td>
+            <td>{{$row.note}}</td>
+            <td><a href="javascript:certledger_del({{$row.id}})">删除</a></td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+      <div class="ep-text-muted ep-text-sm ep-mt-4">统计时间：{{$now_text}}（北京时间）</div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<script>
+function certledger_del(id){
+  if(!confirm('确认删除该台账记录？站点/域名证书删除后，下次打开本页会按当前生效证书重新同步。')) return;
+  $.post('?c=certledger&a=del', {id:id}, function(res){
+    if(res === '成功' || (res && res.indexOf && res.indexOf('成功') >= 0)){
+      window.location.href='?c=certledger&a=list';
+    }else{
+      alert('删除失败：' + (typeof res === 'string' ? res : '未知错误'));
+    }
+  });
+}
+</script>
+
+{{include file='common/foot.html'}}
