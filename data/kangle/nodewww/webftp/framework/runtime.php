@@ -498,6 +498,10 @@ function isRole($role)
 
 function notice_cdn_changed($vh = null)
 {
+	// cert-renewal-cdn-distribution：站点/证书变更事件 → 分发任务表
+	// Throwable 非 Exception：PHP8 fatal 兼容；失败静默，绝不断主流程
+	try { apicall('certtask', 'onCertOrCdnChanged', array($vh)); } catch (Throwable $e) {}
+
 	if (!$vh) {
 		$vh = getrole('vhost');
 	}
@@ -1020,6 +1024,14 @@ function csrf_enforce_level($c, $a)
 			'setLocalName' => CSRF_REAUTH_NONE,   // 变更主节点标识
 			'del'          => CSRF_REAUTH_GRACE,  // 变更全网同步拓扑
 			'toggle'       => CSRF_REAUTH_GRACE,  // 停用/启用多节点（本轮新增）
+		),
+		// cert-renewal-cdn-distribution：证书分发写动作入强制清单
+		'certdeploy' => array(
+			'create'      => CSRF_REAUTH_NONE,
+			'retry'       => CSRF_REAUTH_NONE,
+			'runNow'      => CSRF_REAUTH_NONE,
+			'installCron' => CSRF_REAUTH_NONE,
+			'del'         => CSRF_REAUTH_GRACE,
 		),
 		// admin-system-cron：计划任务写动作入强制清单
 		'admincron' => array(

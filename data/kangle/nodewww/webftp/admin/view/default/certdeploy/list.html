@@ -1,0 +1,136 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3><i data-lucide="send"></i> 证书分发（续签 → CDN 辅节点）</h3>
+      <div class="actions">
+        <form action="?c=certdeploy&amp;a=runNow" method="post" style="display:inline;" onsubmit="return confirm('立即执行一轮分发任务？到期任务将马上推送。');">
+          <button type="submit" class="btn btn-sm"><i data-lucide="play"></i> 立即执行一轮</button>
+        </form>
+        <form action="?c=certdeploy&amp;a=installCron" method="post" style="display:inline;margin-left:8px;">
+          <button type="submit" class="btn btn-sm btn-secondary"><i data-lucide="clock"></i> 重装计划任务</button>
+        </form>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      {{if !$nodes}}
+      <div class="ep-alert ep-alert-warning">
+        <i data-lucide="alert-triangle"></i>
+        <span>尚未配置任何 CDN 辅节点，分发任务无处可推。请先在「<a href="?c=manynode&amp;a=pageList">多节点设置</a>」中添加辅节点。</span>
+      </div>
+      {{/if}}
+      {{if !$cron_installed}}
+      <div class="ep-alert ep-alert-info">
+        <i data-lucide="info"></i>
+        <span>检测到 ep_certtask 计划任务未安装（容器重建后 /etc/cron.d 会清空）。点击上方「重装计划任务」即可恢复每分钟自动重试。</span>
+      </div>
+      {{/if}}
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <a href="?c=certdeploy&amp;a=pageList" class="btn btn-sm{{if $status==''}} btn-secondary{{/if}}">全部({{$counts.pending+$counts.running+$counts.failed+$counts.success+$counts.abandoned}})</a>
+          <a href="?c=certdeploy&amp;a=pageList&amp;status=pending" class="btn btn-sm{{if $status=='pending'}} btn-secondary{{/if}}">待推送({{$counts.pending}})</a>
+          <a href="?c=certdeploy&amp;a=pageList&amp;status=failed" class="btn btn-sm{{if $status=='failed'}} btn-secondary{{/if}}">失败重试中({{$counts.failed}})</a>
+          <a href="?c=certdeploy&amp;a=pageList&amp;status=success" class="btn btn-sm{{if $status=='success'}} btn-secondary{{/if}}">成功({{$counts.success}})</a>
+          <a href="?c=certdeploy&amp;a=pageList&amp;status=abandoned" class="btn btn-sm{{if $status=='abandoned'}} btn-secondary{{/if}}">已放弃({{$counts.abandoned}})</a>
+        </div>
+      </div>
+      {{if $nodes && $vhosts}}
+      <form action="?c=certdeploy&amp;a=create" method="post" class="ep-form" style="margin-bottom:16px;">
+        <div class="form-group" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:0;">
+          <label>手动新建分发任务：</label>
+          <div class="controls">
+            <select name="vhost">
+              {{foreach from=$vhosts item=vh}}
+              <option value="{{$vh|escape}}">{{$vh|escape}}</option>
+              {{/foreach}}
+            </select>
+          </div>
+          <div class="controls">
+            <select name="node">
+              {{foreach from=$nodes item=nd}}
+              <option value="{{$nd|escape}}">{{$nd|escape}}</option>
+              {{/foreach}}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-sm"><i data-lucide="plus"></i> 创建</button>
+          <span class="help-text">续签成功后系统会自动建任务；此处用于补发或测试。</span>
+        </div>
+      </form>
+      {{/if}}
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>网站</th>
+              <th>辅节点</th>
+              <th>状态</th>
+              <th>重试</th>
+              <th>下次执行</th>
+              <th>最后错误</th>
+              <th>更新时间</th>
+              <th style="width:200px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{foreach from=$list item=row}}
+            <tr>
+              <td>{{$row.id}}</td>
+              <td><strong>{{$row.vhost|escape}}</strong></td>
+              <td>{{$row.node|escape}}</td>
+              <td>
+                {{if $row.status=='success'}}<span class="badge badge-success">成功</span>
+                {{elseif $row.status=='pending'}}<span class="badge badge-warning">待推送</span>
+                {{elseif $row.status=='running'}}<span class="badge badge-info">推送中</span>
+                {{elseif $row.status=='failed'}}<span class="badge badge-danger">失败重试中</span>
+                {{else}}<span class="badge badge-danger">已放弃</span>{{/if}}
+              </td>
+              <td>{{$row.retry}}/6</td>
+              <td>{{if $row.status=='pending' || $row.status=='failed'}}{{date('Y-m-d H:i:s',$row.next_run)}}{{else}}-{{/if}}</td>
+              <td style="max-width:260px;word-break:break-all;">{{$row.error|escape}}</td>
+              <td>{{if $row.mtime}}{{date('Y-m-d H:i:s',$row.mtime)}}{{/if}}</td>
+              <td>
+                <div class="btn-group">
+                  <form action="?c=certdeploy&amp;a=retry" method="post" style="display:inline;">
+                    <input type="hidden" name="id" value="{{$row.id}}" />
+                    <button type="submit" class="btn btn-sm"><i data-lucide="refresh-cw"></i> 立即重试</button>
+                  </form>
+                  <a href="?c=certdeploy&amp;a=log&amp;id={{$row.id}}" class="btn btn-sm btn-secondary"><i data-lucide="list"></i> 日志</a>
+                  <form action="?c=certdeploy&amp;a=del" method="post" style="display:inline;" onsubmit="return confirm('确定删除任务 #{{$row.id}}（{{$row.vhost|escape}} → {{$row.node|escape}}）及其日志？');">
+                    <input type="hidden" name="id" value="{{$row.id}}" />
+                    <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="trash"></i></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {{foreachelse}}
+            <tr>
+              <td colspan="9">
+                <div class="ep-empty">
+                  <div class="ep-empty-icon"><i data-lucide="send"></i></div>
+                  <h4>暂无分发任务</h4>
+                  <p>为持证网站续签证书或修改 SSL 设置后，这里会自动出现推送任务。</p>
+                </div>
+              </td>
+            </tr>
+            {{/foreach}}
+            <tr>
+              <td colspan="9" style="text-align:right;">
+                {{if $page>1}}
+                <a href='?c=certdeploy&amp;a=pageList{{if $status}}&amp;status={{$status}}{{/if}}&amp;page=1'>首页</a>
+                <a href='?c=certdeploy&amp;a=pageList{{if $status}}&amp;status={{$status}}{{/if}}&amp;page={{$page-1}}'>上一页</a>
+                {{else}}首页 上一页{{/if}}
+                {{if $page!=$total_page}}
+                <a href='?c=certdeploy&amp;a=pageList{{if $status}}&amp;status={{$status}}{{/if}}&amp;page={{$page+1}}'>下一页</a>
+                <a href='?c=certdeploy&amp;a=pageList{{if $status}}&amp;status={{$status}}{{/if}}&amp;page={{$total_page}}'>尾页</a>
+                {{else}}下一页 尾页{{/if}}
+                {{$page}}/{{$total_page}}&nbsp;共计{{$count}}记录&nbsp;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
