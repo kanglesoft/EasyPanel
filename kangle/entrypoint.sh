@@ -103,6 +103,32 @@ else
     echo "[entrypoint] WARN: skip sync_flow cron (php bin or shell.php not found)"
 fi
 
+# ── 系统计划任务重建通道（单元 admin-system-cron）──
+# /etc/cron.d 属容器运行时层，镜像重建/容器 recreate 即丢失；面板的「计划任务」
+# （admin_cron 表 → /etc/cron.d/ep_admincron）与其他单元的定时任务定义持久化在
+# vhs.db（bind 挂载），因此每次启动都要按库重放一次。cronresync.php 依次：
+#   1) @apicall('admincron','install_all')（归属单一：admincron.api.php，评审#6）
+#   2) framework/api/{healthprobe,certtask,remotestorage}.api.php 存在才调 install_cron
+# 只依赖 sqlite（vhs.db），放在 MySQL 等待之前安全；任何失败仅告警不阻断启动
+# （entrypoint 处于 set -e 之下，必须 || 兜底）。
+CRONRESYNC="/vhs/kangle/nodewww/webftp/framework/cronresync.php"
+if [ -n "$PHP_BIN" ] && [ -f "$CRONRESYNC" ]; then
+    # set -e 之下必须用 if 保护：cronresync 失败只告警，绝不阻断容器启动。
+    # 不用 `php | sed`：管道退出码是 sed 的，php 的失败会被吞掉。
+    CRONRESYNC_LOG=$(mktemp 2>/dev/null || echo /tmp/cronresync.log)
+    if "$PHP_BIN" "$CRONRESYNC" >"$CRONRESYNC_LOG" 2>&1; then
+        sed 's/^/[entrypoint][cronresync] /' "$CRONRESYNC_LOG"
+        echo "[entrypoint] cronresync done"
+    else
+        CRONRESYNC_RC=$?
+        sed 's/^/[entrypoint][cronresync] /' "$CRONRESYNC_LOG"
+        echo "[entrypoint] WARN: cronresync exited rc=$CRONRESYNC_RC, system crons may be missing until next save"
+    fi
+    rm -f "$CRONRESYNC_LOG" 2>/dev/null || true
+else
+    echo "[entrypoint] WARN: skip cronresync (php bin or cronresync.php not found)"
+fi
+
 # ── 健壮的 MySQL 就绪等待（修复问题[1]：避免 kangle/easypanel 初始化时 MySQL 尚未真正可用，
 #    出现 "dependency mysql failed to start" / easypanel 连库竞态）──
 # 说明：docker-compose 的 depends_on: condition: service_healthy 仅保证 mysqladmin ping 通过，

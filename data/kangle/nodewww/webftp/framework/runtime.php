@@ -1014,6 +1014,15 @@ function csrf_enforce_level($c, $a)
 			'del'          => CSRF_REAUTH_GRACE,  // 变更全网同步拓扑
 			'toggle'       => CSRF_REAUTH_GRACE,  // 停用/启用多节点（本轮新增）
 		),
+		// admin-system-cron：计划任务写动作入强制清单
+		'admincron' => array(
+			'save'      => CSRF_REAUTH_NONE,
+			'del'       => CSRF_REAUTH_GRACE,  // 不可逆删除任务+日志
+			'toggle'    => CSRF_REAUTH_NONE,
+			'run'       => CSRF_REAUTH_NONE,
+			'sync'      => CSRF_REAUTH_NONE,
+			'clearLog'  => CSRF_REAUTH_NONE,
+		),
 	);
 
 	/**

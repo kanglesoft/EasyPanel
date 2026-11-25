@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
       <div class="nav-section-title">主机运维</div>
       <ul>
+        <li><a href="?c=admincron&amp;a=index" class="{{if $smarty.get.c=='admincron'}}active{{/if}}"><i data-lucide="clock"></i>计划任务</a></li>
         <li><a href="?c=docker&amp;a=pageList" class="{{if $smarty.get.c=='docker'}}active{{/if}}"><i data-lucide="box"></i>容器管理</a></li>
         <li><a href="?c=host&amp;a=index" class="{{if $smarty.get.c=='host'}}active{{/if}}"><i data-lucide="shield-alert"></i>主机安全</a></li>
         <li><a href="?c=filemanager&amp;a=index" class="{{if $smarty.get.c=='filemanager'}}active{{/if}}"><i data-lucide="folder"></i>文件管理</a></li>

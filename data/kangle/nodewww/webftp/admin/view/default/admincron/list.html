@@ -1,0 +1,184 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>系统计划任务</h3></div>
+    <div class="ep-card-body">
+      <div id="msg" class="ep-alert ep-alert-danger" style="display:none;"></div>
+      {{if $msg}}
+      <div class="ep-alert ep-alert-success ep-mb-4">{{$msg|escape}}</div>
+      {{/if}}
+      <div class="ep-flex ep-gap-2 ep-mb-4" style="align-items:center;flex-wrap:wrap;">
+        <a href="?c=admincron&amp;a=addForm" class="btn btn-sm btn-success"><i data-lucide="plus"></i> 添加任务</a>
+        <button id="syncBtn" class="btn btn-sm"><i data-lucide="refresh-cw"></i> 重建 cron.d</button>
+        <form method="get" action="index.php" class="ep-flex ep-gap-2" style="margin-left:auto;">
+          <input type="hidden" name="c" value="admincron">
+          <input type="text" name="keyword" value="{{$keyword|escape}}" placeholder="搜索名称/命令/周期" style="min-width:180px;">
+          <button type="submit" class="btn btn-sm"><i data-lucide="search"></i> 搜索</button>
+        </form>
+      </div>
+      <p style="font-size:12px;color:var(--color-font-secondary);margin-bottom:12px;">
+        任务以 root 身份在 kangle 容器内执行，写入单一系统文件 <code>/etc/cron.d/ep_admincron</code>；容器重建后由启动钩子自动恢复。勾选“防重叠”的任务用 flock -n 保证同一任务不并发。
+      </p>
+      <div class="ep-table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:48px;">ID</th>
+              <th>名称</th>
+              <th style="width:70px;">类型</th>
+              <th>命令 / URL</th>
+              <th style="width:170px;">周期</th>
+              <th style="width:70px;">状态</th>
+              <th style="width:160px;">最后执行</th>
+              <th style="width:300px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{if $count > 0}}
+            {{foreach item=task from=$tasks}}
+            <tr data-id="{{$task.id}}">
+              <td>{{$task.id}}</td>
+              <td>{{$task.name|escape}}</td>
+              <td>{{if $task.type == 'url'}}URL{{else}}Shell{{/if}}</td>
+              <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{$task.cmd|escape}}"><code style="font-size:12px;">{{$task.cmd|truncate:80:'…':true|escape}}</code></td>
+              <td><code style="font-size:12px;">{{$task.cron|escape}}</code><br><span style="font-size:12px;color:var(--color-font-secondary);">{{$task.cron_desc|escape}}</span></td>
+              <td>{{if $task.enabled == 1}}<span style="color:var(--color-success);">启用</span>{{else}}<span style="color:var(--color-font-secondary);">停用</span>{{/if}}</td>
+              <td style="font-size:12px;">{{$task.last_run_text|escape}}<br><span style="color:{{if $task.last_status == 1}}var(--color-success){{else}}{{if $task.last_status == 2}}var(--color-danger){{else}}var(--color-font-secondary){{/if}}{{/if}};">{{$task.status_text|escape}}</span></td>
+              <td>
+                <div class="btn-group">
+                  <a href="?c=admincron&amp;a=editForm&amp;id={{$task.id}}" class="btn btn-sm"><i data-lucide="pencil"></i> 编辑</a>
+                  <button type="button" class="btn btn-sm act-run" data-id="{{$task.id}}" data-name="{{$task.name|escape}}"><i data-lucide="play"></i> 执行</button>
+                  <button type="button" class="btn btn-sm act-log" data-id="{{$task.id}}" data-name="{{$task.name|escape}}"><i data-lucide="file-text"></i> 日志</button>
+                  {{if $task.enabled == 1}}
+                  <button type="button" class="btn btn-sm btn-warning act-toggle" data-id="{{$task.id}}" data-enabled="0" data-name="{{$task.name|escape}}">停用</button>
+                  {{else}}
+                  <button type="button" class="btn btn-sm btn-success act-toggle" data-id="{{$task.id}}" data-enabled="1" data-name="{{$task.name|escape}}">启用</button>
+                  {{/if}}
+                  <button type="button" class="btn btn-sm btn-danger act-del" data-id="{{$task.id}}" data-name="{{$task.name|escape}}"><i data-lucide="trash-2"></i></button>
+                </div>
+              </td>
+            </tr>
+            {{/foreach}}
+            {{else}}
+            <tr><td colspan="8">
+              <div class="ep-empty">
+                <div class="ep-empty-icon"><i data-lucide="clock"></i></div>
+                <h4>暂无计划任务</h4>
+                <p>{{if $keyword}}没有匹配“{{$keyword|escape}}”的任务。{{else}}点击“添加任务”创建第一个 URL 或 Shell 计划任务。{{/if}}</p>
+              </div>
+            </td></tr>
+            {{/if}}
+          </tbody>
+        </table>
+      </div>
+      {{if $total_page > 1}}
+      <div class="ep-flex ep-gap-2 ep-mt-4" style="align-items:center;">
+        {{if $page > 1}}<a class="btn btn-sm" href="?c=admincron&page={{$page-1}}{{if $keyword}}&amp;keyword={{$keyword|escape:url}}{{/if}}">上一页</a>{{/if}}
+        <span style="font-size:12px;color:var(--color-font-secondary);">{{$page}}/{{$total_page}} 页 · 共 {{$count}} 条</span>
+        {{if $page < $total_page}}<a class="btn btn-sm" href="?c=admincron&page={{$page+1}}{{if $keyword}}&amp;keyword={{$keyword|escape:url}}{{/if}}">下一页</a>{{/if}}
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+{{* 日志查看弹层（自实现，不依赖 artDialog 回调兼容性） *}}
+<div id="logModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;">
+  <div style="position:absolute;top:5%;left:50%;transform:translateX(-50%);width:min(860px,92vw);height:85vh;background:var(--color-bg-card,#fff);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--color-border,#ddd);display:flex;align-items:center;gap:8px;">
+      <b id="logTitle">任务日志</b>
+      <span style="margin-left:auto;"></span>
+      <button type="button" id="logReloadBtn" class="btn btn-sm"><i data-lucide="refresh-cw"></i> 刷新</button>
+      <button type="button" id="logClearBtn" class="btn btn-sm btn-warning">清空</button>
+      <button type="button" id="logRunBtn" class="btn btn-sm btn-success"><i data-lucide="play"></i> 立即执行</button>
+      <button type="button" id="logCloseBtn" class="btn btn-sm">关闭</button>
+    </div>
+    <pre id="logBody" style="flex:1;margin:0;padding:14px;overflow:auto;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;"></pre>
+  </div>
+</div>
+
+<script>
+$(function(){
+  function showMsg(t, ok){
+    $('#msg').removeClass('ep-alert-danger ep-alert-success').addClass(ok?'ep-alert-success':'ep-alert-danger').text(t).show();
+  }
+  function reloadSoon(){ setTimeout(function(){ location.reload(); }, 700); }
+
+  // —— 启停 ——（csrf.js 已全局为 $.post 注入 token）
+  $(document).on('click', '.act-toggle', function(){
+    var id=$(this).data('id'), en=$(this).data('enabled'), name=$(this).data('name');
+    if(!confirm((en==1?'启用':'停用')+'任务 “'+name+'” ？'+(en==0?'\n停用后其 cron.d 行将立即移除。':''))) return;
+    var btn=$(this); btn.prop('disabled',true);
+    $.post('?c=admincron&a=toggle', {id:id, enabled:en}, function(r){
+      if(r && r.success){ showMsg(r.msg, true); reloadSoon(); }
+      else { showMsg((r&&r.msg)||'操作失败', false); btn.prop('disabled',false); }
+    }, 'json').fail(function(){ showMsg('请求失败', false); btn.prop('disabled',false); });
+  });
+
+  // —— 删除 ——
+  $(document).on('click', '.act-del', function(){
+    var id=$(this).data('id'), name=$(this).data('name');
+    if(!confirm('删除任务 “'+name+'” ？\n对应 cron.d 行与任务日志将一并清除，不可恢复。')) return;
+    var btn=$(this); btn.prop('disabled',true);
+    $.post('?c=admincron&a=del', {id:id}, function(r){
+      if(r && r.success){ showMsg(r.msg, true); reloadSoon(); }
+      else { showMsg((r&&r.msg)||'删除失败', false); btn.prop('disabled',false); }
+    }, 'json').fail(function(){ showMsg('请求失败', false); btn.prop('disabled',false); });
+  });
+
+  // —— 重建 cron.d（数据库 → 系统文件全量重渲染）——
+  $('#syncBtn').on('click', function(){
+    if(!confirm('按当前任务列表整体重建 /etc/cron.d/ep_admincron ？')) return;
+    var btn=$(this); btn.prop('disabled',true);
+    $.post('?c=admincron&a=sync', {}, function(r){
+      if(r && r.success){ showMsg(r.msg, true); setTimeout(function(){ location.reload(); }, 600); }
+      else { showMsg((r&&r.msg)||'重建失败', false); }
+      btn.prop('disabled',false);
+    }, 'json').fail(function(){ showMsg('请求失败', false); btn.prop('disabled',false); });
+  });
+
+  // —— 手动触发执行 ——
+  $(document).on('click', '.act-run', function(){
+    var id=$(this).data('id'), name=$(this).data('name');
+    if(!confirm('立即执行一次任务 “'+name+'” ？\n后台运行，结果稍后可在日志查看。')) return;
+    var btn=$(this); btn.prop('disabled',true);
+    $.post('?c=admincron&a=run', {id:id}, function(r){
+      showMsg((r&&r.msg)||'请求失败', r&&r.success);
+      btn.prop('disabled',false);
+    }, 'json').fail(function(){ showMsg('请求失败', false); btn.prop('disabled',false); });
+  });
+
+  // —— 日志弹层 ——
+  var logId = 0;
+  function loadLog(){
+    if(!logId) return;
+    $('#logBody').text('加载中…');
+    $.get('?c=admincron&a=logdata&id='+logId+'&_ts='+new Date().getTime(), function(txt){
+      $('#logBody').text(typeof txt === 'string' ? txt : JSON.stringify(txt));
+    }).fail(function(){ $('#logBody').text('日志读取失败'); });
+  }
+  $(document).on('click', '.act-log', function(){
+    logId=$(this).data('id');
+    $('#logTitle').text('任务日志 #'+logId+' · '+$(this).data('name'));
+    $('#logModal').show();
+    loadLog();
+  });
+  $('#logCloseBtn').on('click', function(){ $('#logModal').hide(); });
+  $('#logReloadBtn').on('click', loadLog);
+  $('#logRunBtn').on('click', function(){
+    if(!logId) return;
+    $.post('?c=admincron&a=run', {id:logId}, function(r){
+      showMsg((r&&r.msg)||'触发失败', r&&r.success);
+      setTimeout(loadLog, 1500);
+    }, 'json');
+  });
+  $('#logClearBtn').on('click', function(){
+    if(!logId) return;
+    if(!confirm('清空该任务日志？')) return;
+    $.post('?c=admincron&a=clearLog', {id:logId}, function(r){
+      if(r && r.success){ loadLog(); } else { alert((r&&r.msg)||'清空失败'); }
+    }, 'json');
+  });
+});
+</script>
+{{include file='common/foot.html'}}
