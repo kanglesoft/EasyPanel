@@ -1,0 +1,122 @@
+{{include file='common/head.html'}}
+<script src='{{$STATIC}}js/whitelist.js?v=1'></script>
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>IP白名单</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick='wl_ip_del_all()'><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=whitelist&a=addBanip' method='post' class="ep-form">
+        <div class="form-group">
+          <label>IP白名单开关</label>
+    <div class="controls"><div>
+            {{if $banip==0}}
+            <a href="javascript:wl_ip_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:wl_ip_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>允许IP</label>
+    <div class="controls">
+            <input name='ip' id='ip' placeholder="192.168.0.1 或 192.168.0.1/24" />
+            <span class="help-text">放行单个IP：192.168.0.1；放行IP段：192.168.0.1/24。白名单链优先于黑名单命中，可用于防CC误杀后放行</span>
+            <input name='life_time' id='life_time' style="width:80px" placeholder="0" /> <span class="help-text">分钟（0=永久）</span>
+            <input type='button' onclick='wl_ip_add();' value='增加' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>允许IP</th>
+            <th>有效时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$ips item=row}}
+          <tr>
+            <td><a href="javascript:wl_ip_del({{$row.id}})">删除</a></td>
+            <td>{{$row.ip}}</td>
+            <td>{{if $row.expire==0}}永久{{else}}{{ceil(($row.expire-time())/60)}}分钟{{/if}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>URL白名单</h3>
+      <button type="button" class="btn btn-sm btn-danger" onclick='wl_url_del_all()'><i data-lucide="trash"></i> 清空全部</button>
+    </div>
+    <div class="ep-card-body">
+      <form action='?c=whitelist&a=addBanurl' method='post' class="ep-form">
+        <div class="form-group">
+          <label>URL白名单开关</label>
+    <div class="controls"><div>
+            {{if $banurl==0}}
+            <a href="javascript:wl_url_checkon(1)" title='开启功能'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:wl_url_checkon(2)" title='禁用功能'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}</div>
+        </div>
+  </div>
+        <div class="form-group">
+          <label>URL</label>
+    <div class="controls"><input name='url' id='url' placeholder="/api/heartbeat" />
+            <span class="help-text">放行的URL前缀（不含域名），例如 /api/heartbeat</span></div>
+  </div>
+        <div class="form-group">
+          <label>方法</label>
+    <div class="controls"><select name='meth' id='meth'>
+            <option value="">全部</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="!GET">!GET</option>
+            <option value="!POST">!POST</option>
+            <option value="!PUT">!PUT</option>
+            <option value="!DELETE">!DELETE</option>
+          </select></div>
+  </div>
+        <div class="form-group">
+          <label></label>
+    <div class="controls"><input type='button' onclick='wl_url_add();' value='增加' class="btn" /></div>
+  </div>
+      </form>
+
+      <div class="ep-table-responsive"><table class="table ep-mt-4">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>请求方法</th>
+            <th>允许URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{foreach from=$urls item=row}}
+          <tr>
+            <td><a href="javascript:wl_url_del({{$row.id}})">删除</a></td>
+            <td>{{$row.meth}}</td>
+            <td>{{$row.url}}</td>
+          </tr>
+          {{/foreach}}
+        </tbody>
+      </table></div>
+  </div>
+</div>
+{{include file='common/foot.html'}}
