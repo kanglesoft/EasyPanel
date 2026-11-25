@@ -1,0 +1,66 @@
+{{include file='common/head.html'}}
+
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>
+        HTTP/3 (QUIC) 开关
+        {{if $supported==1}}<span class="badge badge-success">内核支持</span>{{else}}<span class="badge badge-danger">不支持 HTTP/3</span>{{/if}}
+      </h3>
+    </div>
+    <div class="ep-card-body">
+      {{if $supported==1}}
+      <div class="ep-alert ep-alert-info ep-mb-4">
+        开启后本站点将通过 HTTP/3（QUIC）对外提供服务。需浏览器经 HTTPS/443 协商 Alt-Svc 生效；关闭则仅保留 HTTP/1.1 与 HTTP/2。当前状态：{{$probe_info}}
+      </div>
+      <div class="form-group">
+        <label>HTTP/3</label>
+        <div class="controls">
+          <div>
+            {{if $status==0}}
+            <a href="javascript:http3_checkon(1)" title='开启'>
+              <span class="ep-switch is-off"><span class="track"></span><span>已关闭</span></span>
+            </a>
+            {{else}}
+            <a href="javascript:http3_checkon(0)" title='关闭'>
+              <span class="ep-switch is-on"><span class="track"></span><span>已开启</span></span>
+            </a>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label></label>
+        <div class="controls">
+          <a href="javascript:http3_recheck();" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重新检测内核支持</a>
+        </div>
+      </div>
+      {{else}}
+      <div class="ep-alert ep-alert-info ep-justify-center">
+        本节点内核不支持 HTTP/3（未编译 QUIC 支持或未映射 UDP 443），暂无法开启。<br />
+        当前状态：{{$probe_info}}。内核升级支持后重新检测即可开启本功能。
+      </div>
+      <div class="form-group">
+        <label></label>
+        <div class="controls">
+          <a href="javascript:http3_recheck();" class="btn btn-sm btn-secondary"><i data-lucide="refresh-cw"></i> 重新检测</a>
+          <a href="?c=index&amp;a=main" class="btn btn-sm"><i data-lucide="arrow-left"></i> 返回</a>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<script>
+function http3_checkon(val) {
+  var data = 'status=' + val;
+  functoin_checkon('?c=http3&a=save', data);
+}
+function http3_recheck() {
+  $.get('?c=http3&a=recheck', function() {
+    window.location.reload();
+  });
+}
+</script>
+{{include file='common/foot.html'}}
