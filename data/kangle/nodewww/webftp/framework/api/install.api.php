@@ -33,7 +33,11 @@ class InstallAPI extends API
 
 			$sql .= $files[$i];
 			if (substr($files[$i], 0 - 2) == ";\n" || substr($files[$i], 0 - 3) == ";\r\n") {
-				@$pdo->exec($sql);
+				// schema-version-bump：失败落 error_log 便于排查（重放的裸 ALTER duplicate column 属预期噪声，不作验收判据）
+				$r = @$pdo->exec($sql);
+				if ($r === false) {
+					error_log('[upgrade.sql] ' . $pdo->errorInfo()[2]);
+				}
 				$sql = '';
 			}
 
@@ -41,7 +45,10 @@ class InstallAPI extends API
 		}
 
 		if ($sql != '') {
-			@$pdo->exec($sql);
+			$r = @$pdo->exec($sql);
+			if ($r === false) {
+				error_log('[upgrade.sql] ' . $pdo->errorInfo()[2]);
+			}
 		}
 
 		return true;

@@ -1517,7 +1517,7 @@ function audit($module, $action, $target, $result, $detail = array())
 }
 
 error_reporting(E_ERROR | E_PARSE | E_COMPILE_ERROR);
-define('EASYPANEL_VERSION', '2.6.29');
+define('EASYPANEL_VERSION', '2.6.30');
 define('PHP_DEFAULT_VERSION', 'php74');
 define('IIS_DEFAULT_VERSION', 'v2.0.50727');
 define('ASDF_10_BVCX', 'ZHNhZmRqb2ozbzBqZmQwb2p1WzA0LTIzOT0yMy09aWUtZmpvc2lkZ');
