@@ -4,7 +4,7 @@
   <meta charset="UTF-8" data-page-node-id="Bjkj9Lelyr8M1aEfZjYmWz" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="aD75w1a877QAh9FaWqBPls" />
   <title>EasyPanel Heavy · 现代化虚拟主机控制面板</title>
-  <meta name="description" content="EasyPanel Heavy 是基于 Docker 的现代化虚拟主机控制面板，一行命令完成部署，支持多 PHP 版本、自动 SSL 与数据持久化，内置安全加固，并新增 EOL 老系统换源、DNS 锁定防污染、CDN-only 安装模式与 Docker registry 镜像加速。" data-page-node-id="JY3Z9LiriurOfVqrBjHoZC" />
+  <meta name="description" content="EasyPanel Heavy 是基于 Docker 的现代化虚拟主机控制面板，一行命令完成部署，支持多 PHP 版本、自动 SSL 与数据持久化，内置安全加固与 CDN 自动化（真实 IP 还原、HSTS、白名单、地区封禁、证书签发分发、健康探测与通知），并新增 EOL 老系统换源、DNS 锁定防污染、CDN-only 安装模式与 Docker registry 镜像加速。" data-page-node-id="JY3Z9LiriurOfVqrBjHoZC" />
   <link rel="stylesheet" href="assets/css/style.css" data-page-node-id="xBI5M7FdbB9l7sGAPFZpPU" />
 </head>
 <body data-page-node-id="11X0fa4GmCckEZ3NHmLysg">
@@ -41,6 +41,7 @@
         <a href="#advantages" data-page-node-id="HLuM3OXAz2YHb67lZYVjgF">优势</a>
         <a href="#v3" data-page-node-id="NZC2ehQggt30QxxLKi7UcE">v3 能力</a>
         <a href="#changelog" data-page-node-id="9JcEWfKEt0IdJLSuEMo9vY">更新日志</a>
+        <a href="#credits" data-page-node-id="qagw21F5OYAKpb7VlyzVdV">致谢</a>
         <a class="nav-github" href="https://github.com/kanglesoft/EasyPanel" target="_blank" rel="noopener" data-page-node-id="0a6MZSZ5Ha6oHHbroK4YN3">GitHub</a>
       </nav>
     </div>
@@ -566,6 +567,19 @@
       </div>
 
       <div class="changelog" data-page-node-id="iHq3erKckbppiLKEFGOYyP">
+        <div class="changelog-group" data-page-node-id="tHPabtctnXaZqGsgeSmIZe">
+          <p class="changelog-period" data-page-node-id="xrnzpeuuJnzOInHXYaqAaj">2026-11 · CDN 安全与证书自动化增强</p>
+          <ul class="changelog-list" data-page-node-id="VlbSAPqPnHeIzOvmVCQpzN">
+            <li data-page-node-id="ZqfSTOZKHDZeHBlcDMbWxJ"><strong data-page-node-id="LfbHbKUeLaCloekoAAIqWp">真实 IP 还原（realip）</strong>：新增 realip 页面，支持 X-Forwarded-For / X-Real-Ip / Cloudflare / 阿里云 CDN 等来源头选择，写入内核 access 链（mark_replace_ip），CDN 回源场景下访客真实 IP 可直接用于 CC 防护、黑名单与日志。</li>
+            <li data-page-node-id="JDOABQKjZHGcjkZqKiXRfW"><strong data-page-node-id="ZtyBLAoaKXkNuqYvfjAwPy">HSTS 与证书信息</strong>：全站 / 单域名 HSTS（Strict-Transport-Security）响应头一键开关；新增证书台账，站点 SSL、单域名与手动上传证书统一展示签发方 / SAN / 有效期，过期整行标红；并提供原生证书 API（skey 签名 JSON 的签发 / 导入 / 部署 / 查询），外部系统不再需要模拟表单。</li>
+            <li data-page-node-id="qkfSXYjpqZPVfEvUBVWBHs"><strong data-page-node-id="DelyBTYsGurlNFFwXNsgyO">访问控制补全</strong>：新增 IP / URL 白名单页（与黑名单独立的 allow 链，链序 allow → replace_ip → deny）；新增地区封禁（geoip）页，基于内核 KGeoMark 按地区放行 / 封禁，未配置 IP 库时自动降级为引导提示并隐藏入口。</li>
+            <li data-page-node-id="rBccmXExlIbnmEDvhBJLnM"><strong data-page-node-id="MGfXrfGaUsrWwZbUlnfNHH">证书自动化闭环</strong>：ACME 支持 DNS-01 泛域名签发与多 CA 选择，新增 11 家 DNS 平台管理接口（阿里云 / DNSPod·腾讯云 / 华为云 / 百度智能云 / 新网 / 火山引擎 / DNS.LA / Cloudflare / AWS Route 53 / NameSilo / PowerDNS，凭证加密存储 + 连通测试 + API 透传，每轮失败节流防 rate limit）；续签成功后证书自动分发到 CDN 辅节点，任务表记录状态并按退避策略重试，执行日志可查。</li>
+            <li data-page-node-id="QRcfddJjRhdYZowMKqaCUv"><strong data-page-node-id="ZNqEEISUAFHqgyMNIsiyxC">健康探测与通知渠道</strong>：源站 / CDN 辅节点支持 ping / tcp / http 三种探测，分钟级巡检，故障自动摘除上游并告警；新增 SMTP / Telegram / Webhook 通知渠道，证书到期、备份失败、节点失联不再静默。</li>
+            <li data-page-node-id="HGOKvZOWmGegOEoGRdoOgT"><strong data-page-node-id="KuoAxVwtOKhyeWoYKbxsfd">备份与运维</strong>：远程备份存储新增 S3 / WebDAV / SFTP 适配器（含连通测试），备份链全路径支持站点级 ignore_backup 排除；后台新增系统计划任务管理（增删改 / 启停 / 立即执行 / cron.d 重建 / 日志查看）；HTTP/3（QUIC）按内核能力探测开关；雷池 WAF 接入代码保留、探测未就绪时自动隐藏。</li>
+            <li data-page-node-id="EpYYrvakyVHwjoHcZNHTpt"><strong data-page-node-id="YbhzFgyrRqsLDdjzjBMksO">上游安全同步与 PHP 扩展落地</strong>：比对上游 easypanel / dnsmgr 差集并合入适用的安全修复；用户端 PHP 扩展开关打通到多版本 PHP-FPM 容器，从「仅界面清单」变为真实生效。</li>
+          </ul>
+        </div>
+
         <div class="changelog-group" data-page-node-id="WjOxB4LmGaUhO7Hg41hDER">
           <p class="changelog-period" data-page-node-id="RBow4b26tH7PVeLoeM5HI4">2026-09 · v3 发布</p>
           <ul class="changelog-list" data-page-node-id="KS4mW4XZSB20mUYbsPUmtY">
@@ -608,6 +622,45 @@
       </div>
     </section>
 
+    <!-- ============ 致谢 ============ -->
+    <section class="features" id="credits" data-page-node-id="mTyfEqcScCJavruTGDSJHf">
+      <div class="section-head" data-page-node-id="QZJyFTcjLBtNMKcSrIrQeR">
+        <h2 class="section-title" data-page-node-id="MJvJGHuvscqhQvZZQTpYwt">致谢</h2>
+        <p class="section-desc" data-page-node-id="PpYZlhqZjHuOmrotWChEXk">EasyPanel Heavy 站在这些开源项目的肩膀上，特此致谢。</p>
+      </div>
+
+      <div class="doc-list" data-page-node-id="TehPvgnfMoWPCwwkdKvyrv">
+        <div class="doc-item" data-page-node-id="QaIWYDNjRVvLbiQEJOnhEk">
+          <h4 data-page-node-id="egZfIBjklPMCtIdiauLMeC"><a href="https://www.kangle.org" target="_blank" rel="noopener" data-page-node-id="fWYmGtwKseMDHKWNHoQUyY">Kangle</a></h4>
+          <p data-page-node-id="fRRsEWCggcEmNMcPfPWzsf">本项目底层的高性能 Web / 反向代理 / CDN 内核（企业版 3.5.21），access 链、缓存、真实 IP 还原、地区标记等核心能力均由其提供。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="cMyyZcNydgvfHxvbvokEbd">
+          <h4 data-page-node-id="ENkOpoNMWsZoFoCghuHYwk"><a href="https://github.com/funnycups/kangle" target="_blank" rel="noopener" data-page-node-id="FtRadvubcuykWsWPUCaDgM">funnycups/kangle</a></h4>
+          <p data-page-node-id="rkucKuSEzSbycNneQlYzVd">特别鸣谢：本项目的重点参考实现，面板结构与部署思路深受其启发。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="thoLIWvPYyusGsxYHCEnLB">
+          <h4 data-page-node-id="zKmTtoRpoAgAOBVcIBJQki"><a href="https://github.com/netcccyun/easypanel" target="_blank" rel="noopener" data-page-node-id="lmLWqMjfUajbYTuGlchTUh">netcccyun/easypanel</a></h4>
+          <p data-page-node-id="jVxGXVMSVdsbrEgEsVtRhu">上游 EasyPanel 源码。真实 IP 还原、HSTS、白名单、证书展示、系统计划任务、远程备份存储等能力以其为参考蓝本适配而来。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="UcBsAlLJHpWhTTwtkQlQDU">
+          <h4 data-page-node-id="tsQIQnDczpdrwNuhfhOSIe"><a href="https://github.com/netcccyun/dnsmgr" target="_blank" rel="noopener" data-page-node-id="SAZvJVmMhaSxbLeDTHDxHJ">netcccyun/dnsmgr</a></h4>
+          <p data-page-node-id="uUxJigwyrDvejvwOeRGdRJ">上游 DNS 管理系统源码。证书 DNS-01 签发、续签后 CDN 分发重试链、源站 / 节点健康探测与通知渠道等自动化闭环借鉴其模型设计。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="jKxUSwkWnCynWrxtGmJaoe">
+          <h4 data-page-node-id="RzezOzFvjHXZDWeoHpRxAA"><a href="https://github.com/acmesh-official/acme.sh" target="_blank" rel="noopener" data-page-node-id="bphtzsXWpALZCWFlUfEzzB">acme.sh</a></h4>
+          <p data-page-node-id="XMtOLXCyaKKbmDECTLgMKb">纯 Shell 的 ACME 证书客户端，负责 Let's Encrypt 证书的自动申请与续期（HTTP-01 / DNS-01）。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="zQZkIWUWMtuzOzFwQtxXev">
+          <h4 data-page-node-id="UtJXfspELKkrilaWQoomGd"><a href="https://github.com/smarty-php/smarty" target="_blank" rel="noopener" data-page-node-id="wABsWLQjMkcphzGFJdGMqI">Smarty</a></h4>
+          <p data-page-node-id="ODwbYhhAJseqzREzSsQKJe">面板后台与用户端全部模板所用的 PHP 模板引擎。</p>
+        </div>
+        <div class="doc-item" data-page-node-id="RjjGbXwyRCKvfJPXUzisoy">
+          <h4 data-page-node-id="mTtqJiaSRsvsUiqqyohlzB"><a href="https://github.com/php/php-src" target="_blank" rel="noopener" data-page-node-id="vbrpeIEKMVUmabziQODqef">PHP</a> · <a href="https://github.com/docker" target="_blank" rel="noopener" data-page-node-id="qVVSbvwdszAFnnrGyZuXIF">Docker</a> · <a href="https://github.com/mysql/mysql-server" target="_blank" rel="noopener" data-page-node-id="GRESJQmRUvUsnZdUcpFWxo">MySQL</a></h4>
+          <p data-page-node-id="pNjjpwYnsmQgvIqIbWmrvT">运行时、容器编排与数据库基础设施；面板数据层同时依赖 SQLite 与 phpMyAdmin（DB 管理入口）。</p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ============ 页脚 ============ -->
@@ -616,7 +669,7 @@
       <div class="footer-brand" data-page-node-id="XMB4b14r9QzWiK6yMjUXTs">EasyPanel Heavy</div>
       <p class="footer-license" data-page-node-id="WINXOyqu6It0nEFepySHXS">本项目<strong data-page-node-id="fxodfu3PDBHfu5kHgeCB8I">自开发的新增脚本与配置（install.sh、uninstall.sh、upgrade.sh、add_php.sh 及配套配置）均遵循 MIT 许可证开源</strong>；底层 Kangle / EasyPanel 等组件版权归各自原作者，遵循其原有许可证。</p>
       <p class="footer-disclaimer" data-page-node-id="RozLVkFetrCpwgFqPOhBEb">免责声明：EasyPanel Heavy 基于开源组件构建，底层组件版权归各自原作者所有。</p>
-      <p class="footer-thanks" data-page-node-id="EkqLjlGicvMeNNBGiqH9WB">特别鸣谢：本项目参考 <a href="https://github.com/funnycups/kangle" target="_blank" rel="noopener" data-page-node-id="GWc6LOEpMS3ouAF3bgZrkD">funnycups/kangle</a>。</p>
+      <p class="footer-thanks" data-page-node-id="EkqLjlGicvMeNNBGiqH9WB">特别鸣谢：本项目参考 <a href="https://github.com/funnycups/kangle" target="_blank" rel="noopener" data-page-node-id="GWc6LOEpMS3ouAF3bgZrkD">funnycups/kangle</a>，以及 <a href="https://github.com/netcccyun/easypanel" target="_blank" rel="noopener" data-page-node-id="nK7TqEvR3xUaPmWc5YdSfh">netcccyun/easypanel</a> 与 <a href="https://github.com/netcccyun/dnsmgr" target="_blank" rel="noopener" data-page-node-id="vR2LpQhX8bNcTkYe6WmAgd">netcccyun/dnsmgr</a>（作者 netcccyun）的上游源码。</p>
       <p class="footer-notice" data-page-node-id="5qQPewNK9gBJSVePBLLyHi">声明：本项目并非 Kangle / EasyPanel 官方产品，仅供学习、讨论与互相交流使用；如涉及侵权，请联系后下架。</p>
       <a class="footer-github" href="https://github.com/kanglesoft/EasyPanel" target="_blank" rel="noopener" data-page-node-id="txBqPJiktXDEwgP8FcqKef">GitHub 仓库</a>
     </div>
