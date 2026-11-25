@@ -13,6 +13,8 @@
 # SEC-13 要求 `git ls-files | grep node.cfg.php` 无命中。
 data/kangle/etc/node.cfg.php
 !data/kangle/etc/node.cfg.php.example
+# acme-dns01-wildcard：DNS 凭据加密主密钥（运行期机密，与 node.cfg.php 同口径排除）
+data/kangle/etc/dns_cred.key
 
 # =========================================================================
 # Docker 本地覆盖配置（个人开发用，不入库）
@@ -132,3 +134,9 @@ data/kangle/**/*.db
 # Smarty compiled templates (regenerated at runtime)
 # =========================================================================
 data/kangle/nodewww/webftp/framework/templates_c/
+
+# 面板 PHP 扩展开关运行期产物（容器级状态，随环境走，不入库）
+data/kangle/etc/php-fpm-ini/*/enable-*.ini
+
+# ====== 调研中间产物（agent research artifacts, never commit）======
+.temp/
