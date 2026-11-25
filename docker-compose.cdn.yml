@@ -36,6 +36,12 @@ services:
         MIRROR_BASE: ${MIRROR_BASE:-https://mirrors.aliyun.com}
     container_name: kangle
     restart: unless-stopped
+    # 与 docker-compose.yml 保持一致：notification-channels 的 extra_hosts + 3.5G 主机限内存
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      # 集成步验收测试站：与 docker-compose.yml 保持一致
+      - "ep-test.local:127.0.0.1"
+    mem_limit: 1073741824
     ports:
       - "80:80"
       - "443:443"     # HTTPS

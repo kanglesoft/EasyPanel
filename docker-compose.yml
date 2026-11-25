@@ -28,6 +28,15 @@ services:
         MIRROR_BASE: ${MIRROR_BASE:-https://mirrors.aliyun.com}
     container_name: kangle
     restart: unless-stopped
+    # notification-channels：容器内 host.docker.internal 解析到宿主网关，
+    # webhook 渠道可回调宿主服务（属创建期配置，改后必须 recreate，restart 不生效）。
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      # 集成步验收测试站：容器内 ep-test.local 解析到本机回环（重建后仍在）
+      - "ep-test.local:127.0.0.1"
+    # 集成步（远端 3.5G 内存机）：限内存防 OOM。实测基线 kangle RSS ~66MiB、
+    # MySQL ~425MiB，留足面板并发 php-cgi 与 mysqld 增长余量。
+    mem_limit: 1073741824
     depends_on:
       mysql:
         condition: service_healthy
@@ -85,7 +94,9 @@ services:
     # MySQL 8.4 默认不再加载 mysql_native_password 插件；而 easypanel / 旧版 PHP
     # mysqli 驱动仅支持该插件。必须显式启用，否则 native_password 账户登录会报
     # "Plugin 'mysql_native_password' is not loaded"。
-    command: ["mysqld", "--mysql-native-password=ON"]
+    # innodb-buffer-pool-size 压到 256M：3.5G 主机上给面板/内核留内存，实测足够面板负载。
+    command: ["mysqld", "--mysql-native-password=ON", "--innodb-buffer-pool-size=256M"]
+    mem_limit: 1073741824
     ports:
       # H1 / SEC-20：只监听回环地址。改为 0.0.0.0 会把 MySQL 直接暴露到公网，
       # 配合弱口令或 MySQL 8.4 的认证插件差异，等于把整个面板数据库敞开。
