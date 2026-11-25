@@ -21,8 +21,14 @@ FROM php:${PHP_VERSION}-fpm
 # 选 soap 而非 redis：源码随 PHP 自带，离线可构建，无需 PECL/网络。
 #
 # zz-panel 子目录由面板（phpset 控制器）经宿主挂载写入，容器内只读。
+# 编译依赖与 docker-php-ext-install 清单一一对应：
+#   gd->libpng/libjpeg/libfreetype；zip->libzip+zlib；intl->libicu；mbstring->libonig；
+#   soap->libxml2（源码随 PHP 自带但链接 libxml2 头文件，缺 libxml2-dev 该步编译失败）；
+#   pdo_mysql/mysqli 走内置 mysqlnd、exif 无外部依赖，均不需要额外 -dev 包。
+#   zlib1g-dev 虽可由 libzip-dev 隐式带入，此处显式列出以防上游依赖解析变化。
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpng-dev libjpeg-dev libfreetype6-dev libzip-dev libonig-dev libicu-dev \
+        libpng-dev libjpeg-dev libfreetype6-dev libzip-dev zlib1g-dev libonig-dev \
+        libicu-dev libxml2-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j2 \
         pdo_mysql mysqli gd zip intl mbstring exif \
