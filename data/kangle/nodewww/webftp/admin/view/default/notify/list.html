@@ -1,0 +1,155 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header">
+      <h3>通知渠道</h3>
+      <div class="actions">
+        <a href="?c=notify&amp;a=addFrom" class="btn btn-sm"><i data-lucide="plus"></i> 增加渠道</a>
+      </div>
+    </div>
+    <div class="ep-card-body">
+      <div id="notifyMsg" class="ep-alert ep-alert-danger" style="display:none;"></div>
+      <div class="ep-alert ep-alert-info" style="margin-bottom:12px;">
+        <div class="ep-flex ep-gap-2" style="align-items:flex-start;">
+          <i data-lucide="info" style="flex:0 0 auto;margin-top:2px;"></i>
+          <div>
+            这里配置面板的<b>出站</b>通知通道：证书到期、续签/分发失败、备份失败、节点健康告警都会投递到<b>所有启用</b>的渠道。
+            渠道密码/token Bot Token / 签名密钥只保存不回显，编辑时留空表示沿用原值。
+            「测试」会真实发一条消息到该渠道的目标地址，并在列表里留下最近发送结果。
+          </div>
+        </div>
+      </div>
+
+      <div class="ep-table-responsive">
+        <table class="table" cellpadding="0" cellspacing="0">
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>渠道名称</th>
+              <th>类型</th>
+              <th>目标</th>
+              <th>状态</th>
+              <th>最近发送</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{if $list}}
+            {{foreach from=$list item=row}}
+            <tr data-id="{{$row.id}}">
+              <td>
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm act-test" data-id="{{$row.id}}" data-name="{{$row.name|escape}}"><i data-lucide="send"></i> 测试</button>
+                  <a href="?c=notify&amp;a=addFrom&amp;id={{$row.id}}" class="btn btn-sm"><i data-lucide="edit"></i> 修改</a>
+                  <form action="?c=notify&amp;a=toggle" method="post" style="display:inline;">
+                    <input type="hidden" name="id" value="{{$row.id}}">
+                    <button type="submit" class="btn btn-sm {{if $row.enabled==1}}btn-secondary{{else}}btn-success{{/if}}"><i data-lucide="power"></i> {{if $row.enabled==1}}停用{{else}}启用{{/if}}</button>
+                  </form>
+                  <form action="?c=notify&amp;a=del" method="post" style="display:inline;" onsubmit="return confirm('确定删除渠道 「{{$row.name|escape}}」？依赖它的告警将不再投递。');">
+                    <input type="hidden" name="id" value="{{$row.id}}">
+                    <button type="submit" class="btn btn-sm btn-danger"><i data-lucide="trash"></i> 删除</button>
+                  </form>
+                </div>
+              </td>
+              <td><strong>{{$row.name|escape}}</strong></td>
+              <td>{{$row.type_label|escape}}</td>
+              <td style="word-break:break-all;">{{$row.target|escape}}</td>
+              <td>
+                {{if $row.enabled==1}}<span class="badge badge-success">启用</span>{{else}}<span class="badge badge-warning">停用</span>{{/if}}
+              </td>
+              <td>
+                {{if $row.last_status==1}}
+                  <span class="badge badge-success">成功</span>
+                {{elseif $row.last_status==2}}
+                  <span class="badge badge-danger">失败</span>
+                {{else}}
+                  <span class="badge">未发送</span>
+                {{/if}}
+                {{if $row.last_time>0}}
+                  <div style="font-size:12px;color:var(--color-font-secondary);">{{date('Y-m-d H:i:s',$row.last_time)}}</div>
+                {{/if}}
+                {{if $row.last_status==2 && $row.last_error}}
+                  <div style="font-size:12px;color:var(--color-danger);max-width:340px;word-break:break-all;" title="{{$row.last_error|escape}}">{{$row.last_error|truncate:120:'…':true|escape}}</div>
+                {{/if}}
+              </td>
+              <td>{{$row.remark|escape}}</td>
+            </tr>
+            {{/foreach}}
+            {{else}}
+            <tr>
+              <td colspan="7">
+                <div class="ep-empty">
+                  <div class="ep-empty-icon"><i data-lucide="bell-off"></i></div>
+                  <h4>尚未配置通知渠道</h4>
+                  <p>增加一个 SMTP / Telegram / Webhook 渠道后，面板的证书、备份与节点告警才会真正送达。</p>
+                  <a href="?c=notify&amp;a=addFrom" class="btn btn-sm"><i data-lucide="plus"></i> 增加渠道</a>
+                </div>
+              </td>
+            </tr>
+            {{/if}}
+            <tr>
+              <td colspan="7" style="text-align:right;">
+                {{if $page>1}}
+                <a href='?c=notify&amp;a=pageList&page=1'>首页</a>
+                <a href='?c=notify&amp;a=pageList&page={{$page-1}}'>上一页</a>
+                {{else}}首页 上一页{{/if}}
+                {{if $page!=$total_page}}
+                <a href='?c=notify&amp;a=pageList&page={{$page+1}}'>下一页</a>
+                <a href='?c=notify&amp;a=pageList&page={{$total_page}}'>尾页</a>
+                {{else}}下一页 尾页{{/if}}
+                {{$page}}/{{$total_page}}&nbsp;共计{{$count}}条&nbsp;
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+$(function () {
+  function showMsg(text, ok) {
+    $('#notifyMsg')
+      .removeClass('ep-alert-danger ep-alert-success')
+      .addClass(ok ? 'ep-alert-success' : 'ep-alert-danger')
+      .text(text)
+      .show();
+  }
+
+  // 测试发送 → ?c=notify&a=testSend，服务端保证返回结构化 JSON
+  $(document).on('click', '.act-test', function () {
+    var btn = $(this);
+    var id = btn.data('id');
+    var name = btn.data('name');
+    var old = btn.html();
+
+    btn.prop('disabled', true).text('发送中…');
+
+    function restore() {
+      btn.prop('disabled', false).html(old);
+      if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+    }
+
+    $.post('?c=notify&a=testSend', { id: id })
+      .done(function (r) {
+        if (typeof r === 'string') {
+          try { r = JSON.parse(r); } catch (e) { r = null; }
+        }
+        // 刻意不自动 reload：结果提示（尤其失败原因，常是对端 401/405/DNS/证书
+        // 一长串）会被刷新冲掉。列表的「最近发送」列已写明本条结果落库，
+        // 需要看徽标变化时由管理员自己刷新。
+        if (r && r.success) {
+          showMsg('渠道「' + name + '」测试发送成功' + (r.http_code ? '（HTTP ' + r.http_code + '）' : '') + '，目标侧应已收到消息；结果已记录，刷新列表可见。', true);
+        } else {
+          showMsg('渠道「' + name + '」测试发送失败：' + ((r && (r.error || r.msg)) || '服务端返回异常'), false);
+        }
+        restore();
+      })
+      .fail(function (x) {
+        showMsg('测试请求失败：HTTP ' + (x && x.status ? x.status : '未知') + '（若为 401/403 请重新登录后再试）', false);
+        restore();
+      });
+  });
+});
+</script>
+{{include file='common/foot.html'}}

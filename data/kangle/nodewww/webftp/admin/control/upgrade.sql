@@ -142,3 +142,6 @@ CREATE TABLE IF NOT EXISTS [acme_hook_token] (
 	[domain] TEXT NULL,
 	[exp] INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS [notify_channel] ( [id] INTEGER PRIMARY KEY AUTOINCREMENT, [name] VARCHAR(30) NOT NULL, [type] VARCHAR(16) NOT NULL, [enabled] INTEGER NOT NULL DEFAULT 1, [config] TEXT NULL, [last_status] INTEGER NOT NULL DEFAULT 0, [last_time] INTEGER NOT NULL DEFAULT 0, [last_error] TEXT NULL, [remark] TEXT NULL, [createtime] INTEGER NOT NULL DEFAULT 0 );
+CREATE UNIQUE INDEX IF NOT EXISTS [idx_notify_channel_name] ON [notify_channel] ( [name] );
+CREATE INDEX IF NOT EXISTS [idx_notify_channel_enabled] ON [notify_channel] ( [enabled], [type] );

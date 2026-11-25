@@ -1,0 +1,229 @@
+{{include file='common/head.html'}}
+<div class="ep-content">
+  <div class="ep-card">
+    <div class="ep-card-header"><h3>{{if $channel.id>0}}编辑通知渠道 #{{$channel.id}}{{else}}新增通知渠道{{/if}}</h3></div>
+    <div class="ep-card-body">
+      {{if $err}}
+      <div class="ep-alert ep-alert-danger" style="margin-bottom:16px;">
+        <i data-lucide="alert-triangle"></i> {{$err|escape}}
+      </div>
+      {{/if}}
+
+      <form name="notify" action="?c=notify&amp;a=add" method="post" class="ep-form">
+        <input type="hidden" name="id" value="{{$channel.id}}">
+
+        <div class="form-group">
+          <label>渠道名称:</label>
+          <div class="controls">
+            <input type="text" name="name" value="{{$channel.name|default:''|escape}}" maxlength="30" required>
+            <span class="help-text">2~30 个字符（中文、字母、数字、下划线、短横线）；名称重复会被拒绝。</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>渠道类型:</label>
+          <div class="controls">
+            <select name="type" id="notifyType" onchange="epNotifySwitchType(this.value)">
+              <option value="webhook" {{if $channel.type=='webhook'}}selected{{/if}}>Webhook（自定义 HTTP 回调）</option>
+              <option value="smtp" {{if $channel.type=='smtp'}}selected{{/if}}>SMTP 邮件</option>
+              <option value="telegram" {{if $channel.type=='telegram'}}selected{{/if}}>Telegram Bot</option>
+            </select>
+            <span class="help-text">切换类型不会带过来另一类的已填参数，保存时以当前类型的字段为准。</span>
+          </div>
+        </div>
+
+        {{* ---------- Webhook ---------- *}}
+        <div class="notify-pane" id="pane_webhook">
+          <div class="form-group">
+            <label>回调地址:</label>
+            <div class="controls">
+              <input type="text" name="hook_url" value="{{$channel.cfg.url|default:''|escape}}" placeholder="http://host.docker.internal:8099/notify" style="min-width:360px;">
+              <span class="help-text">仅支持 http/https。面板跑在 kangle 容器内：要打<b>宿主</b>服务请用 <code>host.docker.internal</code>（compose 已配 extra_hosts），写 127.0.0.1 只会连到容器自己。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>请求方法 / 正文格式:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="width:120px;">
+                <select name="hook_method">
+                  <option value="POST" {{if $channel.cfg.method=='GET' || $channel.cfg.method=='PUT'}}{{else}}selected{{/if}}>POST</option>
+                  <option value="PUT" {{if $channel.cfg.method=='PUT'}}selected{{/if}}>PUT</option>
+                  <option value="GET" {{if $channel.cfg.method=='GET'}}selected{{/if}}>GET</option>
+                </select>
+              </span>
+              <span class="inline-item" style="width:170px;">
+                <select name="hook_body_type">
+                  <option value="json" {{if $channel.cfg.body_type=='form' || $channel.cfg.body_type=='text'}}{{else}}selected{{/if}}>JSON</option>
+                  <option value="form" {{if $channel.cfg.body_type=='form'}}selected{{/if}}>表单 urlencoded</option>
+                  <option value="text" {{if $channel.cfg.body_type=='text'}}selected{{/if}}>纯文本</option>
+                </select>
+              </span>
+            </div>
+            <span class="help-text">GET 时正文改为查询串（title / content），不发送请求体。</span>
+          </div>
+          <div class="form-group">
+            <label>自定义正文模板（可选）:</label>
+            <div class="controls">
+              <textarea name="hook_body_template" rows="3" style="font-family:monospace;" placeholder='留空使用默认载荷 {"title":"…","content":"…","source":"EasyPanel","time":"…"}；对接钉钉/企微可写 {"msgtype":"text","text":{"content":"{content}"}}'>{{$channel.cfg.body_template|default:''|escape}}</textarea>
+              <span class="help-text">占位符：<code>{title}</code> / <code>{content}</code>；JSON 内需自行处理引号用 <code>{title_json}</code> / <code>{content_json}</code>。JSON 格式下模板解析失败会自动回落默认载荷。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>附加请求头（可选）:</label>
+            <div class="controls">
+              <textarea name="hook_headers" rows="2" style="font-family:monospace;" placeholder="每行一条，例如&#10;X-Source: easypanel">{{$channel.cfg.headers|default:''|escape}}</textarea>
+              <span class="help-text">Content-Type 由正文格式自动设置；Content-Length / Host / Connection 填写会被忽略。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>HMAC 签名密钥（可选）:</label>
+            <div class="controls">
+              <input type="password" name="hook_sign_key" value="" autocomplete="new-password" placeholder="{{if $channel.secret_sign}}已保存（留空表示不修改）{{else}}留空则不签名{{/if}}" style="min-width:320px;">
+              <span class="help-text">填写后随请求附带 <code>X-Ep-Signature: sha256=&lt;hmac(body)&gt;</code> 与 <code>X-Ep-Timestamp</code>，接收端据此校验来源。</span>
+            </div>
+          </div>
+        </div>
+
+        {{* ---------- SMTP ---------- *}}
+        <div class="notify-pane" id="pane_smtp">
+          <div class="form-group">
+            <label>SMTP 服务器 / 端口 / 加密:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="flex:2;">
+                <input type="text" name="smtp_host" value="{{$channel.cfg.host|default:''|escape}}" placeholder="smtp.qq.com">
+              </span>
+              <span class="inline-item" style="width:110px;">
+                <input type="text" name="smtp_port" value="{{$channel.cfg.port|default:587}}" placeholder="587">
+              </span>
+              <span class="inline-item" style="width:190px;">
+                <select name="smtp_secure">
+                  <option value="ssl" {{if $channel.cfg.secure=='ssl'}}selected{{/if}}>隐式 TLS（465）</option>
+                  <option value="tls" {{if $channel.cfg.secure=='tls'}}selected{{/if}}>强制 STARTTLS</option>
+                  <option value="auto" {{if $channel.cfg.secure=='tls' || $channel.cfg.secure=='ssl' || $channel.cfg.secure=='none'}}{{else}}selected{{/if}}>自动（可用则 STARTTLS）</option>
+                  <option value="none" {{if $channel.cfg.secure=='none'}}selected{{/if}}>不加密</option>
+                </select>
+              </span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>账号 / 密码:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="smtp_user" value="{{$channel.cfg.user|default:''|escape}}" placeholder="留空表示服务器无需认证" autocomplete="off">
+              </span>
+              <span class="inline-item" style="flex:1;">
+                <input type="password" name="smtp_pass" value="" autocomplete="new-password" placeholder="{{if $channel.secret_pass}}已保存（留空表示不修改）{{else}}授权码 / 密码{{/if}}">
+              </span>
+            </div>
+            <span class="help-text">国内邮箱（QQ / 163 / exmail）这里填的是<b>SMTP 授权码</b>，不是登录密码。</span>
+          </div>
+          <div class="form-group">
+            <label>发件人地址 / 署名:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="smtp_from" value="{{$channel.cfg.from|default:''|escape}}" placeholder="alert@example.com" required>
+              </span>
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="smtp_from_name" value="{{$channel.cfg.from_name|default:''|escape}}" placeholder="EasyPanel 告警">
+              </span>
+            </div>
+            <span class="help-text">多数邮箱服务商强制发件人与登录账号一致，否则会被拒收或进垃圾箱。</span>
+          </div>
+          <div class="form-group">
+            <label>收件人:</label>
+            <div class="controls">
+              <textarea name="smtp_to" rows="2" placeholder="多个地址用逗号或换行分隔&#10;ops@example.com, admin@example.com">{{$channel.cfg.to|default:''|escape}}</textarea>
+              <span class="help-text">非法地址会被自动剔除；全部非法时保存被拒绝。正文为纯文本 + UTF-8（quoted-printable）。</span>
+            </div>
+          </div>
+        </div>
+
+        {{* ---------- Telegram ---------- *}}
+        <div class="notify-pane" id="pane_telegram">
+          <div class="form-group">
+            <label>Bot Token:</label>
+            <div class="controls">
+              <input type="password" name="tg_token" value="" autocomplete="new-password" placeholder="{{if $channel.secret_token}}已保存（留空表示不修改）{{else}}形如 123456:AA... （@BotFather 获取）{{/if}}" style="min-width:360px;">
+              <span class="help-text">Token 属机密，保存后不再回显。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>chat_id / 话题 ID:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="tg_chat_id" value="{{$channel.cfg.chat_id|default:''|escape}}" placeholder="-1001234567890 或 @my_channel" required>
+              </span>
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="tg_thread_id" value="{{$channel.cfg.thread_id|default:''}}" placeholder="话题 / 主题 ID（普通会话留空）">
+              </span>
+            </div>
+            <span class="help-text">私聊为正数，群组 / 超级群组为负数，频道为 <code>@频道名</code>。开启 Topics 的群可填 message_thread_id。</span>
+          </div>
+          <div class="form-group">
+            <label>格式化 / API 地址:</label>
+            <div class="controls inline-group">
+              <span class="inline-item" style="width:150px;">
+                <select name="tg_parse_mode">
+                  <option value="markdown" {{if $channel.cfg.parse_mode=='markdown'}}selected{{/if}}>Markdown</option>
+                  <option value="plain" {{if $channel.cfg.parse_mode=='plain'}}selected{{/if}}>纯文本</option>
+                  <option value="html" {{if $channel.cfg.parse_mode=='markdown' || $channel.cfg.parse_mode=='plain'}}{{else}}selected{{/if}}>HTML</option>
+                </select>
+              </span>
+              <span class="inline-item" style="flex:1;">
+                <input type="text" name="tg_api_base" value="{{$channel.cfg.api_base|default:''|escape}}" placeholder="自建反代可填 https://tg.example.com（留空用 api.telegram.org）">
+              </span>
+            </div>
+            <span class="help-text">正文一律自动转义后再套格式，无需担心尖括号破坏排版。</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>单次发送超时（秒）:</label>
+          <div class="controls">
+            <input type="text" name="timeout" value="{{$channel.cfg.timeout|default:10}}" style="width:120px;">
+            <span class="help-text">1~30 秒，留空或超范围按 10 秒。一次事件向多个渠道投递时各自独立计时。</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>启用状态:</label>
+          <div class="controls">
+            <label class="ep-checkbox-label"><input type="checkbox" name="enabled" value="1" {{if $channel.enabled==1}}checked{{/if}}> 启用（停用的渠道不会被投递）</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>备注:</label>
+          <div class="controls">
+            <textarea name="remark" rows="1" placeholder="例如：运维值班群">{{$channel.remark|default:''|escape}}</textarea>
+          </div>
+        </div>
+
+        <div class="ep-flex ep-gap-2 ep-mt-4">
+          <button type="submit" class="btn"><i data-lucide="check"></i> 保存</button>
+          <a href="?c=notify&amp;a=pageList" class="btn btn-secondary"><i data-lucide="arrow-left"></i> 返回列表</a>
+        </div>
+      </form>
+
+      {{if $channel.id>0 && $channel.last_time>0}}
+      <div class="ep-alert ep-alert-info" style="margin-top:16px;">
+        最近一次投递：{{if $channel.last_status==1}}<b>成功</b>{{else}}<b style="color:var(--color-danger);">失败</b>{{/if}}
+        · {{date('Y-m-d H:i:s',$channel.last_time)}}
+        {{if $channel.last_error}}· 原因：{{$channel.last_error|escape}}{{/if}}
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</div>
+<script>
+function epNotifySwitchType(t) {
+  var panes = document.querySelectorAll('.notify-pane');
+  for (var i = 0; i < panes.length; i++) {
+    panes[i].style.display = (panes[i].id === 'pane_' + t) ? '' : 'none';
+  }
+}
+$(function () {
+  epNotifySwitchType(document.getElementById('notifyType').value);
+});
+</script>
+{{include file='common/foot.html'}}
