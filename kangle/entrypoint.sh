@@ -246,6 +246,66 @@ start_ftp()
 }
 start_ftp
 
+# ── geo-region-blocking：地区封禁内核侧就位（幂等，每次启动检查）──
+# 内核 mark_geo（KGeoMark）数据文件是文本格式：
+#   *大洲*国家*省份   ← 标签行（段用 * 分隔，段名须与面板地区树一致）
+#   起始IP-结束IP      ← 其后 IP 范围行
+# 全局 request BEGIN 链挂 <mark_geo file=... name='_geo'/> 后面板
+# 「地区封禁」页（vhost/?c=geoip）才会开放。两处随仓预置：
+#   data/kangle/etc/geo-ipdata.txt（种子库）与 config.xml（链）。
+# 但既有部署的 /vhs/kangle/etc 是 bind 挂载、面板升级/rsync 从不覆盖
+# config.xml 与运行时 etc 内容，所以这里兜底：缺文件补写内联种子库、
+# config.xml 无 mark_geo 时在首个 <table name='BEGIN'> 后插入链。
+# 全新部署随仓即得，本函数两项探测都会直接跳过。
+ensure_geo_mark() {
+    GEO_DATA=/vhs/kangle/etc/geo-ipdata.txt
+    GEO_CFG=/vhs/kangle/etc/config.xml
+    [ -f "$GEO_CFG" ] || return 0
+
+    if [ ! -f "$GEO_DATA" ]; then
+        # 注意：内核解析器只认 *标签行 与 IP范围行 两种，注释/空行会被当成
+        # 范围行破坏上一条标签的归属，故种子内容不得含任何非数据行。
+        cat > "$GEO_DATA" << 'GEODATA'
+*亚洲*中国大陆*北京
+1.2.4.0-1.2.4.255
+223.5.5.0-223.5.5.255
+*亚洲*中国大陆*广东
+203.107.1.0-203.107.1.255
+*亚洲*中国大陆
+114.114.0.0-114.114.255.255
+*亚洲*日本
+133.11.0.0-133.11.255.255
+*北美洲*美国*加利福尼亚
+8.8.4.0-8.8.4.255
+*北美洲*美国
+8.8.8.0-8.8.8.255
+*欧洲*德国
+78.46.102.0-78.46.102.255
+*欧洲*英国
+213.171.200.0-213.171.200.255
+GEODATA
+        echo "[entrypoint] geo seed data written to $GEO_DATA"
+    fi
+
+    if ! grep -q 'mark_geo' "$GEO_CFG"; then
+        # 位置硬约束：必须挂在 mark_replace_ip（X-Real-Ip 还原）之后，否则
+        # mark_geo 拿连接 IP 查库，反代/伪造头场景下标签全错（远端实测：
+        # 挂 BEGIN 首位时 X-Real-Ip  spoof 不生效，挂 mark_replace_ip 后正常）。
+        # GNU sed 0,/re/ 只改首个匹配。config 无 mark_replace_ip（老配置）时
+        # 回落插入首个 BEGIN 表头。
+        if grep -q 'mark_replace_ip' "$GEO_CFG"; then
+            sed -i "0,/<\/mark_replace_ip>/s//<\/mark_replace_ip>\n\t\t\t\t<mark_geo  file='\/vhs\/kangle\/etc\/geo-ipdata.txt'  flush_time='86400' name='_geo' > <\/mark_geo>/" "$GEO_CFG" \
+                && echo "[entrypoint] mark_geo chain injected after mark_replace_ip" \
+                || echo "[entrypoint] WARN: mark_geo injection failed"
+        else
+            sed -i "0,/<table name='BEGIN'>/s//<table name='BEGIN'>\n\t\t\t<chain  action='continue' >\n\t\t\t\t<mark_geo  file='\/vhs\/kangle\/etc\/geo-ipdata.txt'  flush_time='86400' name='_geo' > <\/mark_geo>\n\t\t\t<\/chain>/" "$GEO_CFG" \
+                && echo "[entrypoint] mark_geo chain injected at BEGIN head (no mark_replace_ip present)" \
+                || echo "[entrypoint] WARN: mark_geo injection failed"
+        fi
+    fi
+}
+ensure_geo_mark
+
 # 拉起 kangle（与上游镜像行为一致：先拉起 kangle，再用 tail 保持容器存活）
 echo "[entrypoint] starting kangle ..."
 /vhs/kangle/bin/kangle 2>&1 || echo "[entrypoint] WARN: kangle exited with code $?"

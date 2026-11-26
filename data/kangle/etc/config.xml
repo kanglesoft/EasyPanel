@@ -80,6 +80,11 @@
 			<chain  action='continue' >
                 <mark_replace_ip   header='X-Real-Ip' > </mark_replace_ip>
             </chain>
+			<!--geo-region-blocking start: 地区标签伪头 _geo（文本库，格式见 etc/geo-ipdata.txt；换全量库后 kangle -r 生效）-->
+			<chain  action='continue' >
+				<mark_geo  file='/vhs/kangle/etc/geo-ipdata.txt'  flush_time='86400' name='_geo' > </mark_geo>
+			</chain>
+			<!--geo-region-blocking end-->
 			<chain  action='continue' >
 				<mark_flag  always_online='1' x_cache='1' x_real_ip='1' age='1' ></mark_flag>
 			</chain>

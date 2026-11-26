@@ -8,9 +8,16 @@
  *     getName() 返回 "geo"（反汇编 mov $0x853480 → 字符串 "geo"），故 XML 标签为
  *     <mark_geo>，属性集为 file / url / flush_time / name（editHtml 反汇编
  *     命中 0x8b7001='file'、0x8542ad='flush_time'、0x8b5b35='url'、0x8b8632='name'）。
- *   - supportRuntime() 返回 0（反汇编 xor %eax,%eax;ret），即 mark_geo **不支持
- *     运行时（WHM）编辑**，只能写在 config.xml 全局 request 链里、重启/recreate
- *     生效。因此面板侧绝不通过 WHM 修改全局链，只做「探测 + 展示」。
+ *   - supportRuntime() 返回 0（反汇编 xor %eax,%eax;ret），即 mark_geo 的
+ *     **WHM 管理面不支持运行时编辑**（editHtml 回 502），config 解析入口走
+ *     文本链；远端实测经 config.xml 写入 + kangle -r 即可挂载生效，vhost
+ *     侧 acl_header('_geo') 规则命中、真实拦截可用。因此面板侧只做
+ *     「探测 + 展示」，绝不通过 WHM 修改全局链。
+ *   - 数据文件为文本格式（非 qqwry 二进制！）：*洲*国*省 标签行 + 紧随的
+ *     IP范围行；内核按标签各段写入伪头 _geo（逐行），匹配开启 PCRE 多行，
+ *     所以面板规则用「每段一个 ^段$ acl_header（AND）」表达层级精确匹配。
+ *     仓库随带种子库 etc/geo-ipdata.txt（示例网段），全量库用
+ *     bin/geo_qqwry2ipdata.php 由 qqwry.dat 转换生成。
  *   - 内核自更新数据走 geo_mark_download（url 属性 + flush_time 定时），
  *     仓库内零 IP 地区库（find 无 qqwry/ipdb/geo 数据文件）——默认态必然是
  *     available:false, hint:'geo_mark_download'。
@@ -109,7 +116,7 @@ class GeoAPI extends API
 		$geo_mark = $kernel ? $this->findGlobalGeoMark() : false;
 		$chain = ($geo_mark !== false);
 		$geo_file = $chain ? $this->markDataFile($geo_mark) : $this->defaultDataFile();
-		$data = $chain && $geo_file !== '' && is_file($geo_file) && filesize($geo_file) > 4096;
+		$data = $chain && $geo_file !== '' && $this->checkDataFile($geo_file);
 
 		$available = $kernel && $chain && $data;
 
@@ -158,9 +165,9 @@ class GeoAPI extends API
 		case 'kernel_missing':
 			return '当前 kangle 内核未编译 KGeoMark 地区模块，地区封禁不可用。';
 		case 'geo_mark_download':
-			return '全局请求控制链尚未挂载 mark_geo 数据源：需放置 IP 地区库并在 config.xml 增加 <mark_geo file=... url=... flush_time=.../> 链（内核经 geo_mark_download 自更新），由管理员完成后面板自动开放。';
+			return '全局请求控制链尚未挂载 mark_geo 数据源：需在 config.xml 全局 request BEGIN 链增加 <mark_geo file=... flush_time=... name=\'_geo\'/> 并放置文本格式地区库（见 etc/geo-ipdata.txt 注释），reload 后面板自动开放。';
 		case 'data_missing':
-			return 'mark_geo 已挂载但其指向的地区库文件不存在或过小：请检查 ' . (isset($status['geo_file']) ? $status['geo_file'] : '') . '。';
+			return 'mark_geo 已挂载但其指向的数据文件缺失或不是内核可解析的文本格式（*标签行 + IP范围行；二进制 qqwry.dat 需先用 bin/geo_qqwry2ipdata.php 转换）：请检查 ' . (isset($status['geo_file']) ? $status['geo_file'] : '') . '。';
 		default:
 			return '地区数据库未就绪。';
 		}
@@ -312,11 +319,74 @@ class GeoAPI extends API
 	 * 地区库缺省落盘位置（/vhs/kangle/etc 为面板既有机密/配置目录，
 	 * shell.api.php changeEtcPermissions 保持其 700 权限）
 	 *
+	 * 实测修正（kangle 3.5.21 企业版 KGeoMark::load_data 反汇编 + 远端容器
+	 * 黑盒验证）：mark_geo 的数据文件是「文本行格式」——
+	 *   *大洲*国家*省份   ← 地区标签行（段用 * 分隔，段名须与面板地区树一致）
+	 *   起始IP-结束IP      ← 紧随其后的 IP 范围行（可多行共用一个标签）
+	 * 内核把标签各段原样（按字节）写成伪头值里的多行，PCRE 多行匹配。
+	 * 纯真 qqwry.dat 等二进制库内核读不懂（标签成乱码、范围不入库），
+	 * 必须先转成本文本格式（段名须与 GeoAPI::regionTree 一致）。
+	 * 仓库随带小体积种子库 geo-ipdata.txt（示例网段），保证开箱可用；
+	 * 生产环境由管理员以全量文本库覆盖同一路径。
+	 *
 	 * @return string
 	 */
 	private function defaultDataFile()
 	{
-		return '/vhs/kangle/etc/qqwry.dat';
+		return '/vhs/kangle/etc/geo-ipdata.txt';
+	}
+
+	/**
+	 * 数据文件有效性检查（文本格式判定，替代此前单纯 filesize>4096）
+	 *
+	 * 此前只要存在 >4KB 的文件就算 data:true——塞进二进 qqwry.dat 时探测
+	 * 显示 available:true，但内核标签全是乱码，地区规则永远不命中（静默
+	 * 假可用）。现在要求：可读、无 NUL 二进制特征、且至少存在一组
+	 * 「*标签行 + 紧随的 IP 范围行」结构（与 KGeoMark::load_data 的
+	 * 解析方式同构）。不合规返回 false → hint=data_missing，页面明确
+	 * 提示数据格式不对，而不是开着功能却拦不住。
+	 *
+	 * @param string $file
+	 * @return bool
+	 */
+	private function checkDataFile($file)
+	{
+		if ($file === '' || !is_file($file) || !is_readable($file)) {
+			return false;
+		}
+
+		if (filesize($file) < 16) {
+			return false;
+		}
+
+		$head = @file_get_contents($file, false, null, 0, 16384);
+
+		if ($head === false || strpos($head, "\x00") !== false) {
+			return false;
+		}
+
+		$have_label = false;
+
+		foreach (preg_split('/\r\n|\r|\n/', $head) as $line) {
+			$line = trim($line);
+
+			if ($line === '' || $line[0] === '#') {
+				continue;
+			}
+
+			if ($line[0] === '*') {
+				$have_label = (strlen($line) > 1);
+				continue;
+			}
+
+			if ($have_label && preg_match('/^(?:\d{1,3}\.){3}\d{1,3}-(?:\d{1,3}\.){3}\d{1,3}$/', $line)) {
+				return true;
+			}
+
+			$have_label = false;
+		}
+
+		return false;
 	}
 
 	/**

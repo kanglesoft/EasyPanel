@@ -3,13 +3,14 @@
  * geoip.ctl.php —— 按地区封禁/放行（vhost 侧）
  *
  * 链路（与 framework/api/geo.api.php 头部注释一致）：
- *   全局 request BEGIN 链 <mark_geo file='...'/>（config.xml 级，仅管理员经
- *   集成步配置；KGeoMark::supportRuntime()=0，内核不支持运行时编辑该标记）
- *   → 内核给请求打地区标签（伪 header `_geo`）
+ *   全局 request BEGIN 链 <mark_geo file='...' name='_geo'/>（config.xml 级，
+ *   随仓 data/kangle/etc/config.xml 已预置；KGeoMark::supportRuntime()=0，
+ *   WHM 管理面 editHtml 实测回 502，故只经配置文件挂载 + kangle -r 生效）
+ *   → 内核查文本库给请求打地区标签（伪 header `_geo`，层级各段一行）
  *   → vhost BEGIN 链引用本空间表 !deny_geo / !allow_geo，
  *     表内链 = acl_header('_geo') + deny / allow。
  *
- * 降级（主验收路径）：仓库零 IP 库、config.xml 无 mark_geo，
+ * 降级（主验收路径）：IP 文本库缺失/格式不对或全局链未挂 mark_geo，
  * apicall('geo','isSupported') 恒 false → 本页显示「地区数据库未就绪」，
  * 导航链接由 head.html 的 {{if $geo_supported}} 隐藏；所有写操作 403 拒绝。
  *
@@ -178,13 +179,30 @@ class GeoipControl extends Control
 			}
 		}
 
-		// acl_header 匹配 mark_geo 打上的伪头 _geo，正则锚定完整地区标签
-		//（参数形态对齐 response.ctl.php addGzip 的 header/val/regex）
-		$models = array('acl_header' => array(
-			'header' => '_geo',
-			'val' => '^' . preg_quote($name, '/') . '$',
-			'regex' => 1,
-		));
+		// acl_header 匹配 mark_geo 打上的伪头 _geo。
+		// 内核实测（kangle 3.5.21 企业版，远端容器）：mark_geo 的数据文件为
+		// 文本格式（*地区标签行 + IP范围行 交替），标签串是层级各段按行存储
+		//（如 *亚洲*中国大陆*北京 → "亚洲\n中国大陆\n北京"），且内核匹配
+		// 开启 PCRE 多行模式（^德国$ 可命中标签中的某一行；跨行 .* 不可达）。
+		// 因此不能把整条路径拼成单一正则（'^欧洲 \/ 德国$' 恒不命中，即
+		// 验收报告所述"真实拦截被阻塞"的第二层根因），而是每段生成一个
+		// 锚定 ^段$ 的 acl_header 模型，内核同链多模型为 AND 语义（实测：
+		// 两个模型同时存在才 403）——段集完全包含 ⇔ 层级精确匹配：
+		//   洲级 [欧洲]：所有欧洲标签都含该行 → 拦；
+		//   国家级 [欧洲,德国]：须同含两行 → 精确到国；
+		//   省级 [亚洲,中国大陆,北京]：同含三行 → 精确到市，且不会误伤
+		//   他国同名段（如 '美国*加利福尼亚' 不含 '北京' 行）。
+		// 参数形态对齐 response.ctl.php addGzip 的 header/val/regex。
+		$models = array('acl_header' => array());
+
+		foreach ($path as $seg) {
+			$models['acl_header'][] = array(
+				'header' => '_geo',
+				'val' => '^' . preg_quote($seg, '/') . '$',
+				'regex' => 1,
+			);
+		}
+
 		$arr = array('action' => $mode === 'allow' ? 'allow' : 'deny', 'name' => $name);
 
 		if (!$this->ensureTable($table) || !$this->access->addChain($table, $arr, $models)) {
@@ -305,6 +323,14 @@ class GeoipControl extends Control
 
 	/**
 	 * 表存在则跳过，否则创建（同 banip addTable 语义，返回 bool 不渲染错误页）
+	 *
+	 * 修复（geo-region-blocking 500 缺陷根因）：Access::listTable() 经
+	 * WhmResult::add($node->getName(), $node[0]) 返回的是 SimpleXMLElement
+	 * 节点数组，不是字符串数组。此前用严格比较 in_array($name, $tables, true)
+	 * 判存在，恒为 false → 已存在的表（如内核预置的 BEGIN、首次创建后残留的
+	 * !deny_geo）被误判为缺失 → 再次 addTable → 内核回 status="500 表名称重名
+	 * 错误" → switchGeo / addRegion 整体报 500。上游 banip / whitelist 对
+	 * listTable 一律按字符串松比较，这里统一先 (string) 转型再比对。
 	 */
 	private function ensureTable($name)
 	{
@@ -314,8 +340,10 @@ class GeoipControl extends Control
 			return false;
 		}
 
-		if (in_array($name, $tables, true)) {
-			return true;
+		foreach ($tables as $table) {
+			if ((string) $table === $name) {
+				return true;
+			}
 		}
 
 		return $this->access->addTable($name);
